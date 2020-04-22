@@ -191,6 +191,7 @@ using half4 = tvec4<half>;
 using float2 = tvec2<float>;
 using float3 = tvec3<float>;
 using float4 = tvec4<float>;
+using quatf = tvec4<float>;
 using float3x3 = tmat3x3<float>;
 using float3x4 = tmat3x4<float>;
 using float4x4 = tmat4x4<float>;

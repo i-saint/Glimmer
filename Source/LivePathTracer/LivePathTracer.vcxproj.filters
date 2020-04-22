@@ -66,6 +66,7 @@
     <ClInclude Include="lptSettings.h" />
     <ClInclude Include="lptTypes.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="lptInterface.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\lptDeform.hlsl">

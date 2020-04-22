@@ -106,9 +106,6 @@ void RendererBase::beginScene()
 
 void RendererBase::endScene()
 {
-    if (m_render_target)
-        m_scene_data.output_format = (uint32_t)m_render_target->output_format;
-
     // setup object layer mask
     for (auto& inst : m_meshes)
         inst->layer_mask = 0x1 << inst->layer;

@@ -401,20 +401,20 @@ UINT SizeOfElement(DXGI_FORMAT rtf)
     return 0;
 }
 
-DXGI_FORMAT GetDXGIFormat(RenderTargetFormat format)
+DXGI_FORMAT GetDXGIFormat(TextureFormat format)
 {
     switch (format) {
-    case RenderTargetFormat::Ru8: return DXGI_FORMAT_R8_TYPELESS;
-    case RenderTargetFormat::RGu8: return DXGI_FORMAT_R8G8_TYPELESS;
-    case RenderTargetFormat::RGBAu8: return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+    case TextureFormat::Ru8: return DXGI_FORMAT_R8_TYPELESS;
+    case TextureFormat::RGu8: return DXGI_FORMAT_R8G8_TYPELESS;
+    case TextureFormat::RGBAu8: return DXGI_FORMAT_R8G8B8A8_TYPELESS;
 
-    case RenderTargetFormat::Rf16: return DXGI_FORMAT_R16_TYPELESS;
-    case RenderTargetFormat::RGf16: return DXGI_FORMAT_R16G16_TYPELESS;
-    case RenderTargetFormat::RGBAf16: return DXGI_FORMAT_R16G16B16A16_TYPELESS;
+    case TextureFormat::Rf16: return DXGI_FORMAT_R16_TYPELESS;
+    case TextureFormat::RGf16: return DXGI_FORMAT_R16G16_TYPELESS;
+    case TextureFormat::RGBAf16: return DXGI_FORMAT_R16G16B16A16_TYPELESS;
 
-    case RenderTargetFormat::Rf32: return DXGI_FORMAT_R32_TYPELESS;
-    case RenderTargetFormat::RGf32: return DXGI_FORMAT_R32G32_TYPELESS;
-    case RenderTargetFormat::RGBAf32: return DXGI_FORMAT_R32G32B32A32_TYPELESS;
+    case TextureFormat::Rf32: return DXGI_FORMAT_R32_TYPELESS;
+    case TextureFormat::RGf32: return DXGI_FORMAT_R32G32_TYPELESS;
+    case TextureFormat::RGBAf32: return DXGI_FORMAT_R32G32B32A32_TYPELESS;
 
     default: return DXGI_FORMAT_UNKNOWN;
     }

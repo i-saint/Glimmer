@@ -207,11 +207,11 @@ bool GfxContextDXR::initialize()
             { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
         D3D12_DESCRIPTOR_RANGE ranges2[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 2, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 4, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         D3D12_ROOT_PARAMETER params[3]{};
@@ -448,6 +448,8 @@ void GfxContextDXR::prepare(RenderDataDXR& rd)
         auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, rd.desc_heap);
         rd.render_target_uav = handle_allocator.allocate();
         rd.tlas_data.srv = handle_allocator.allocate();
+        rd.vertex_buffer_srv = handle_allocator.allocate();
+        rd.material_data_srv = handle_allocator.allocate();
         rd.instance_data_srv = handle_allocator.allocate();
         rd.scene_data_cbv = handle_allocator.allocate();
         for (int i = 0; i < kAdaptiveCascades; ++i)

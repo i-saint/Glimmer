@@ -34,15 +34,8 @@ private:
 
 RendererDXR::RendererDXR()
 {
-    auto do_init = [this]() {
-        GfxContextDXR::initializeInstance();
-        m_is_initialized = true;
-    };
-
-    if (GetGlobals().hasFlag(GlobalFlag::DeferredInitialization))
-        AddDeferredCommand(do_init);
-    else
-        do_init();
+    GfxContextDXR::initializeInstance();
+    m_is_initialized = true;
 }
 
 RendererDXR::~RendererDXR()

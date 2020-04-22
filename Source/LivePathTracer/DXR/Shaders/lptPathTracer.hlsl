@@ -77,7 +77,6 @@ struct InstanceData
 struct SceneData
 {
     uint render_flags;
-    uint output_format;
     uint light_count;
     float shadow_ray_offset;
     float self_shadow_threshold;
@@ -102,17 +101,16 @@ ConstantBuffer<SceneData> g_scene_data : register(b0);
 Texture2D<float> g_prev_result : register(t4);
 
 
-float3 CameraPosition() { return g_scene_data.camera.position.xyz; }
-float3 CameraRight()    { return g_scene_data.camera.view[0].xyz; }
-float3 CameraUp()       { return g_scene_data.camera.view[1].xyz; }
-float3 CameraForward()  { return -g_scene_data.camera.view[2].xyz; }
+float3 CameraPosition()     { return g_scene_data.camera.position.xyz; }
+float3 CameraRight()        { return g_scene_data.camera.view[0].xyz; }
+float3 CameraUp()           { return g_scene_data.camera.view[1].xyz; }
+float3 CameraForward()      { return -g_scene_data.camera.view[2].xyz; }
 float CameraFocalLength()   { return abs(g_scene_data.camera.proj[1][1]); }
 float CameraNearPlane()     { return g_scene_data.camera.near_plane; }
-float CameraFarPlane() { return g_scene_data.camera.far_plane; }
-uint CameraLayerMask() { return g_scene_data.camera.layer_mask; }
+float CameraFarPlane()      { return g_scene_data.camera.far_plane; }
+uint CameraLayerMask()      { return g_scene_data.camera.layer_mask; }
 
 uint  RenderFlags()         { return g_scene_data.render_flags; }
-uint  OutputFormat()        { return g_scene_data.output_format; }
 float ShadowRayOffset()     { return g_scene_data.shadow_ray_offset; }
 float SelfShadowThreshold() { return g_scene_data.self_shadow_threshold; }
 
@@ -253,7 +251,7 @@ void RayGenDefault()
 {
     uint2 screen_idx = DispatchRaysIndex().xy;
     CameraPayload payload = ShootCameraRay();
-    g_output[screen_idx] = OutputFormat() == OF_BIT_MASK ? asfloat(payload.light_bits) : payload.shadow;
+    g_output[screen_idx] = payload.shadow;
 }
 
 [shader("raygeneration")]
@@ -264,16 +262,9 @@ void RayGenAdaptiveSampling()
     uint2 pre_dim; g_prev_result.GetDimensions(pre_dim.x, pre_dim.y);
     int2 pre_idx = (int2)((float2)screen_idx * ((float2)pre_dim / (float2)cur_dim));
 
-    if (OutputFormat() == OF_BIT_MASK) {
-        uint center, diff;
-        SampleDifferentialI(pre_idx, center, diff);
-        g_output[screen_idx] = diff == 0 ? center : ShootCameraRay().light_bits;
-    }
-    else {
-        float center, diff;
-        SampleDifferentialF(pre_idx, center, diff);
-        g_output[screen_idx] = diff == 0 ? center : ShootCameraRay().shadow;
-    }
+    float center, diff;
+    SampleDifferentialF(pre_idx, center, diff);
+    g_output[screen_idx] = diff == 0 ? center : ShootCameraRay().shadow;
 }
 
 [shader("raygeneration")]
@@ -281,30 +272,24 @@ void RayGenAntialiasing()
 {
     uint2 idx = DispatchRaysIndex().xy;
 
-    if (OutputFormat() == OF_BIT_MASK) {
-        // no antialiasing when output format is bitmask
-        g_output[idx] = g_prev_result[idx];
+    float center, diff;
+    SampleDifferentialF(idx, center, diff);
+
+    if (diff == 0) {
+        g_output[idx] = center;
     }
     else {
-        float center, diff;
-        SampleDifferentialF(idx, center, diff);
+        // todo: make offset values shader parameter
+        const int N = 4;
+        const float d = 0.333f;
+        float2 offsets[N] = {
+            float2(d, d), float2(-d, d), float2(-d, -d), float2(d, -d)
+        };
 
-        if (diff == 0) {
-            g_output[idx] = center;
-        }
-        else {
-            // todo: make offset values shader parameter
-            const int N = 4;
-            const float d = 0.333f;
-            float2 offsets[N] = {
-                float2(d, d), float2(-d, d), float2(-d, -d), float2(d, -d)
-            };
-
-            float total = asfloat(center);
-            for (int i = 0; i < N; ++i)
-                total += ShootCameraRay(offsets[i]).shadow;
-            g_output[idx] = total / (float)(N + 1);
-        }
+        float total = asfloat(center);
+        for (int i = 0; i < N; ++i)
+            total += ShootCameraRay(offsets[i]).shadow;
+        g_output[idx] = total / (float)(N + 1);
     }
 }
 

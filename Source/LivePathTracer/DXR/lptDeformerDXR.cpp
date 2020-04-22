@@ -27,11 +27,6 @@ struct BlendshapeInfo
     int frame_offset;
 };
 
-struct BoneWeight
-{
-    float weight;
-    int index;
-};
 struct BoneCount
 {
     int weight_count;
@@ -274,10 +269,10 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
             });
 
             const int weight_count = weight_offset;
-            mesh_dxr.bone_weights = createBuffer(sizeof(BoneWeight) * weight_count, kUploadHeapProps);
+            mesh_dxr.bone_weights = createBuffer(sizeof(JointWeight) * weight_count, kUploadHeapProps);
             lptSetName(mesh_dxr.bone_weights, mesh.name + " Bone Weights");
             writeBuffer(mesh_dxr.bone_weights, [&](void *dst_) {
-                auto dst = (BoneWeight*)dst_;
+                auto dst = (JointWeight*)dst_;
                 for (int wi = 0; wi < weight_count; ++wi) {
                     auto& w1 = mesh.skin.weights[wi];
                     *dst++ = { w1.weight, w1.index };
@@ -309,7 +304,7 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
         if (update_descriptors) {
             int weight_count = (int)mesh.skin.weights.size();
             createSRV(hbone_counts.hcpu, mesh_dxr.bone_counts, vertex_count, sizeof(BoneCount));
-            createSRV(hbone_weights.hcpu, mesh_dxr.bone_weights, weight_count, sizeof(BoneWeight));
+            createSRV(hbone_weights.hcpu, mesh_dxr.bone_weights, weight_count, sizeof(JointWeight));
             createSRV(hbone_matrices.hcpu, inst_dxr.bone_matrices, bone_count, sizeof(float4x4));
         }
     }

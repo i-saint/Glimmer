@@ -3,6 +3,7 @@
 #include "Foundation/lptRefPtr.h"
 #include "Foundation/lptMath.h"
 #include "Foundation/lptHalf.h"
+#include "lptInterface.h"
 
 namespace lpt {
 
@@ -15,13 +16,6 @@ enum class DebugFlag : uint32_t
 
 enum class GlobalFlag : uint32_t
 {
-    DeferredInitialization  = 0x01,
-};
-
-enum class OutputFormat : uint32_t
-{
-    BitMask  = 0,
-    Float = 1,
 };
 
 enum class RenderFlag : uint32_t
@@ -36,14 +30,6 @@ enum class RenderFlag : uint32_t
     Antialiasing            = 0x00000200,
     GPUSkinning             = 0x00010000,
     ClampBlendShapeWights   = 0x00020000,
-};
-
-enum class LightType : uint32_t
-{
-    Directional = 1,
-    Spot        = 2,
-    Point       = 3,
-    ReversePoint= 4,
 };
 
 enum class InstanceFlag : uint32_t
@@ -69,20 +55,6 @@ enum class UpdateFlag : uint32_t
 
     Deform = Transform | Blendshape | Bones,
     Any = Transform | Blendshape | Bones | Flags,
-};
-
-enum class RenderTargetFormat : uint32_t
-{
-    Unknown = 0,
-    Ru8,
-    RGu8,
-    RGBAu8,
-    Rf16,
-    RGf16,
-    RGBAf16,
-    Rf32,
-    RGf32,
-    RGBAf32,
 };
 
 struct CameraData
@@ -129,11 +101,9 @@ struct MaterialData
 struct SceneData
 {
     uint32_t render_flags; // combination of RenderFlag
-    uint32_t output_format = (uint32_t)OutputFormat::Float;
     uint32_t light_count;
     float shadow_ray_offset;
     float self_shadow_threshold;
-    float pad2[3];
 
     CameraData camera;
     LightData lights[kMaxLights];
@@ -163,8 +133,6 @@ struct GlobalSettings
 
 GlobalSettings& GetGlobals();
 
-void AddDeferredCommand(const std::function<void()>& v);
-void FlushDeferredCommands();
 
 using GPUResourcePtr = const void*;
 using CPUResourcePtr = const void*;
@@ -191,21 +159,11 @@ public:
 };
 
 
-struct BoneWeight1
-{
-    float weight = 0.0f;
-    int index = 0;
-};
-struct BoneWeight4
-{
-    float weight[4]{};
-    int index[4]{};
-};
 struct SkinData
 {
-    std::vector<float4x4>    bindposes;
-    std::vector<uint8_t>     bone_counts;
-    std::vector<BoneWeight1> weights;
+    std::vector<float4x4>   bindposes;
+    std::vector<uint8_t>    bone_counts;
+    std::vector<JointWeight> weights;
 
     bool valid() const;
 };
@@ -290,8 +248,7 @@ public:
     GPUResourcePtr gpu_texture = nullptr;
     int width = 0;
     int height = 0;
-    RenderTargetFormat format = RenderTargetFormat::Unknown;
-    OutputFormat output_format = OutputFormat::Float;
+    TextureFormat format = TextureFormat::Unknown;
 
     DeviceRenderTargetData *device_data = nullptr;
 
@@ -307,10 +264,7 @@ using RenderTargetDataPtr = ref_ptr<RenderTargetData>;
 template<class T>
 inline void ExternalRelease(T *self)
 {
-    if (GetGlobals().hasFlag(GlobalFlag::DeferredInitialization))
-        AddDeferredCommand([self]() { self->internalRelease(); });
-    else
-        self->internalRelease();
+    self->internalRelease();
 }
 
 } // namespace lpt

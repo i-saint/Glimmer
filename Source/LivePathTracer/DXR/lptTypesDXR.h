@@ -301,6 +301,8 @@ public:
     ID3D12GraphicsCommandList4Ptr cl_deform;
     ID3D12DescriptorHeapPtr desc_heap;
     DescriptorHandleDXR render_target_uav;
+    DescriptorHandleDXR vertex_buffer_srv;
+    DescriptorHandleDXR material_data_srv;
     DescriptorHandleDXR instance_data_srv;
     DescriptorHandleDXR scene_data_cbv;
     DescriptorHandleDXR adaptive_uavs[kAdaptiveCascades], adaptive_srvs[kAdaptiveCascades];
@@ -309,8 +311,10 @@ public:
     std::vector<MeshInstanceDataDXRPtr> instances, instances_prev;
     SceneData scene_data_prev{};
     TLASDataDXR tlas_data;
-    ID3D12ResourcePtr scene_data;
+    ID3D12ResourcePtr vertex_buffer;
+    ID3D12ResourcePtr material_data;
     ID3D12ResourcePtr instance_data;
+    ID3D12ResourcePtr scene_data;
     RenderTargetDataDXRPtr render_target;
 
     uint64_t fv_translate = 0, fv_deform = 0, fv_blas = 0, fv_tlas = 0, fv_rays = 0;
@@ -333,7 +337,7 @@ static const DWORD kTimeoutMS = 3000;
 
 ULONG GetRefCount(IUnknown *v);
 UINT SizeOfElement(DXGI_FORMAT rtf);
-DXGI_FORMAT GetDXGIFormat(RenderTargetFormat format);
+DXGI_FORMAT GetDXGIFormat(TextureFormat format);
 DXGI_FORMAT GetFloatFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetUIntFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
