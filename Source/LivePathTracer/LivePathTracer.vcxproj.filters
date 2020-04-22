@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="DXR">
+      <UniqueIdentifier>{c58d7ecc-c39c-4f87-b0ed-5475cd9b1680}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DXR\Shaders">
+      <UniqueIdentifier>{d212cab3-57af-4731-88ac-949a03f61c5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Foundation">
+      <UniqueIdentifier>{785a4734-4a3e-4ed6-85fc-ebc17133ac6e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Foundation\lptLog.cpp">
+      <Filter>Foundation</Filter>
+    </ClCompile>
+    <ClCompile Include="Foundation\lptMath.cpp">
+      <Filter>Foundation</Filter>
+    </ClCompile>
+    <ClCompile Include="Foundation\lptMisc.cpp">
+      <Filter>Foundation</Filter>
+    </ClCompile>
+    <ClCompile Include="DXR\lptDeformerDXR.cpp">
+      <Filter>DXR</Filter>
+    </ClCompile>
+    <ClCompile Include="DXR\lptGfxContextDXR.cpp">
+      <Filter>DXR</Filter>
+    </ClCompile>
+    <ClCompile Include="DXR\lptRendererDXR.cpp">
+      <Filter>DXR</Filter>
+    </ClCompile>
+    <ClCompile Include="DXR\lptTypesDXR.cpp">
+      <Filter>DXR</Filter>
+    </ClCompile>
+    <ClCompile Include="lptRenderer.cpp" />
+    <ClCompile Include="lptTypes.cpp" />
+    <ClCompile Include="pch.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Foundation\lptHalf.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Foundation\lptLog.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Foundation\lptMath.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Foundation\lptMisc.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Foundation\lptRefPtr.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="DXR\lptDeformerDXR.h">
+      <Filter>DXR</Filter>
+    </ClInclude>
+    <ClInclude Include="DXR\lptGfxContextDXR.h">
+      <Filter>DXR</Filter>
+    </ClInclude>
+    <ClInclude Include="DXR\lptTypesDXR.h">
+      <Filter>DXR</Filter>
+    </ClInclude>
+    <ClInclude Include="lptRenderer.h" />
+    <ClInclude Include="lptSettings.h" />
+    <ClInclude Include="lptTypes.h" />
+    <ClInclude Include="pch.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="DXR\Shaders\lptDeform.hlsl">
+      <Filter>DXR\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="DXR\Shaders\lptPathTracer.hlsl">
+      <Filter>DXR\Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
