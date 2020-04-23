@@ -48,7 +48,7 @@ enum class InstanceFlag : uint32_t
     Default = ReceiveShadows | CastShadows | CullBack,
 };
 
-enum class UpdateFlag : uint32_t
+enum class DirtyFlag : uint32_t
 {
     None        = 0x00000000,
     Transform   = 0x00000001,
@@ -149,6 +149,19 @@ struct SceneData
 
 #undef DefCompare
 
+#define lptEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
+
+
+template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
+ref_ptr<T> cast(ref_ptr<U>& v)
+{
+    return (ref_ptr<T>&)v;
+}
+template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
+const ref_ptr<T> cast(const ref_ptr<U>& v)
+{
+    return (const ref_ptr<T>&)v;
+}
 
 template<class T>
 class RefCount : public T
@@ -161,10 +174,9 @@ public:
 
     int release() override
     {
-        int ret = --m_ref_count;
-        if (ret == 0)
-            delete this;
-        return ret;
+        // deleting entities is responsible for Context.
+        // (ContextDXR::frameBegin() etc.)
+        return --m_ref_count;
     }
 
     int getRef() const override
@@ -184,7 +196,7 @@ public:
 
 
 public:
-    std::atomic_int m_ref_count{ 1 };
+    std::atomic_int m_ref_count{ 0 };
     std::string m_name;
     uint32_t m_dirty_flags = 0;
 };
@@ -193,12 +205,12 @@ template<class T>
 class EntityBase : public RefCount<T>
 {
 public:
-    bool isDirty(UpdateFlag v = UpdateFlag::Any) const
+    bool isDirty(DirtyFlag v = DirtyFlag::Any) const
     {
         return (m_dirty_flags & (uint32_t)v) != 0;
     }
 
-    void setDirty(UpdateFlag v)
+    void markDirty(DirtyFlag v)
     {
         m_dirty_flags |= (uint32_t)v;
     }
@@ -325,6 +337,8 @@ public:
     RawVector<JointWeight> m_joint_weights;
 
     std::vector<BlendshapeData> blendshapes;
+
+    bool m_dynamic = false;
 };
 lptDeclRefPtr(Mesh);
 

@@ -57,7 +57,7 @@ class TextureDXR : public DXREntity<Texture>
 using super = Texture;
 friend class ContextDXR;
 public:
-    bool upload(const void* src) override;
+    void upload(const void* src) override;
     void* getDeviceObject() override;
 
 public:
@@ -72,7 +72,7 @@ class RenderTargetDXR : public DXREntity<RenderTarget>
 using super = RenderTarget;
 friend class ContextDXR;
 public:
-    bool readback(void* dst) override;
+    void readback(void* dst) override;
     void* getDeviceObject() override;
 
 public:
@@ -102,7 +102,7 @@ public:
 
 public:
     // vertex buffers
-    ID3D12ResourcePtr m_buf_index;
+    ID3D12ResourcePtr m_buf_indices;
     ID3D12ResourcePtr m_buf_points;
     ID3D12ResourcePtr m_buf_normals;
     ID3D12ResourcePtr m_buf_tangents;
@@ -121,6 +121,7 @@ public:
     // acceleration structure
     ID3D12ResourcePtr m_blas;
     ID3D12ResourcePtr m_blas_scratch;
+    bool m_blas_updated = false;
 
 };
 lptDeclRefPtr(MeshDXR);
@@ -145,9 +146,7 @@ public:
     // acceleration structure
     ID3D12ResourcePtr m_blas_deformed;
     ID3D12ResourcePtr m_blas_scratch;
-
-    bool m_is_updated = false;
-
+    bool m_blas_updated = false;
 };
 lptDeclRefPtr(MeshInstanceDXR);
 
@@ -175,9 +174,6 @@ public:
     ID3D12ResourcePtr m_scene_data;
     RenderTargetDXRPtr m_render_target;
 
-    uint64_t m_fv_translate = 0;
-    uint64_t m_fv_deform = 0;
-    uint64_t m_fv_blas = 0;
     uint64_t m_fv_tlas = 0;
     uint64_t m_fv_rays = 0;
     FenceEventDXR m_fence_event;
@@ -207,9 +203,14 @@ public:
     MeshInstanceDXR* createMeshInstance() override;
     SceneDXR*        createScene() override;
 
-    void renderStart(IScene* v) override;
-    void renderFinish(IScene* v) override;
+    void frameBegin() override;
+    void renderBegin(IScene* v) override;
+    void renderEnd(IScene* v) override;
+    void frameEnd() override;
     void* getDevice() override;
+
+    void setupMeshes();
+    void setupScene(SceneDXR& scene);
 
 
     bool initializeDevice();
@@ -232,6 +233,16 @@ public:
     uint64_t submitCopy(ID3D12GraphicsCommandList4Ptr& cl, bool immediate, uint64_t preceding_fv = 0);
 
 public:
+    std::vector<CameraDXRPtr> m_cameras;
+    std::vector<LightDXRPtr> m_lights;
+    std::vector<RenderTargetDXRPtr> m_render_targets;
+    std::vector<TextureDXRPtr> m_textures;
+    std::vector<MaterialDXRPtr> m_materials;
+    std::vector<MeshDXRPtr> m_meshes;
+    std::vector<MeshInstanceDXRPtr> m_mesh_instances;
+    std::vector<SceneDXRPtr> m_scenes;
+
+
     ID3D12Device5Ptr m_device;
     bool m_power_stable_state = false;
 
@@ -240,6 +251,9 @@ public:
     ID3D12CommandQueuePtr m_cmd_queue_copy;
     ID3D12FencePtr m_fence;
     uint64_t m_fence_value = 0;
+    uint64_t m_fv_upload = 0;
+    uint64_t m_fv_deform = 0;
+    uint64_t m_fv_blas = 0;
     uint64_t m_fv_last_rays = 0;
 
     CommandListManagerDXRPtr m_clm_direct;
@@ -254,6 +268,10 @@ public:
 
     ID3D12ResourcePtr m_vertex_buffer;
     ID3D12ResourcePtr m_material_data;
+
+#ifdef lptEnableTimestamp
+    TimestampDXRPtr m_timestamp;
+#endif // lptEnableTimestamp
 };
 lptDeclRefPtr(ContextDXR);
 

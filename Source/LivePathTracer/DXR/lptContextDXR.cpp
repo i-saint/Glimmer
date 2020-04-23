@@ -1,6 +1,7 @@
 #include "pch.h"
 #ifdef _WIN32
 #include "Foundation/lptLog.h"
+#include "Foundation/lptUtils.h"
 #include "lptEntityDXR.h"
 #include "lptPathTracer.hlsl.h"
 
@@ -76,6 +77,7 @@ CameraDXR* ContextDXR::createCamera()
 {
     auto r = new CameraDXR();
     r->m_context = this;
+    m_cameras.push_back(r);
     return r;
 }
 
@@ -83,6 +85,7 @@ LightDXR* ContextDXR::createLight()
 {
     auto r = new LightDXR();
     r->m_context = this;
+    m_lights.push_back(r);
     return r;
 }
 
@@ -90,6 +93,7 @@ RenderTargetDXR* ContextDXR::createRenderTarget()
 {
     auto r = new RenderTargetDXR();
     r->m_context = this;
+    m_render_targets.push_back(r);
     return r;
 }
 
@@ -97,6 +101,7 @@ TextureDXR* ContextDXR::createTexture()
 {
     auto r = new TextureDXR();
     r->m_context = this;
+    m_textures.push_back(r);
     return r;
 }
 
@@ -104,6 +109,7 @@ MaterialDXR* ContextDXR::createMaterial()
 {
     auto r = new MaterialDXR();
     r->m_context = this;
+    m_materials.push_back(r);
     return r;
 }
 
@@ -111,6 +117,7 @@ MeshDXR* ContextDXR::createMesh()
 {
     auto r = new MeshDXR();
     r->m_context = this;
+    m_meshes.push_back(r);
     return r;
 }
 
@@ -118,6 +125,7 @@ MeshInstanceDXR* ContextDXR::createMeshInstance()
 {
     auto r = new MeshInstanceDXR();
     r->m_context = this;
+    m_mesh_instances.push_back(r);
     return r;
 }
 
@@ -125,17 +133,485 @@ SceneDXR* ContextDXR::createScene()
 {
     auto r = new SceneDXR();
     r->m_context = this;
+    m_scenes.push_back(r);
     return r;
 }
 
-void ContextDXR::renderStart(IScene* v)
+void ContextDXR::frameBegin()
+{
+    auto erase_unreferenced = [](auto& container) {
+        erase_if(container, [](auto& obj) { return obj->getRef() == 0; });
+    };
+    erase_unreferenced(m_cameras);
+    erase_unreferenced(m_lights);
+    erase_unreferenced(m_render_targets);
+    erase_unreferenced(m_textures);
+    erase_unreferenced(m_materials);
+    erase_unreferenced(m_meshes);
+    erase_unreferenced(m_mesh_instances);
+    erase_unreferenced(m_scenes);
+
+    for (auto& obj : m_cameras) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+
+    for (auto& obj : m_lights) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+
+    for (auto& obj : m_textures) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+
+    for (auto& obj : m_materials) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+
+    for (auto& obj : m_meshes) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+
+    for (auto& obj : m_mesh_instances) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+
+    for (auto& obj : m_scenes) {
+        if (obj->isDirty()) {
+            // todo
+            obj->clearDirty();
+        }
+    }
+}
+
+void ContextDXR::setupMeshes()
+{
+    // clear state
+    for (auto& pmesh : m_meshes) {
+        pmesh->m_blas_updated = false;
+    }
+    for (auto& pinst : m_mesh_instances) {
+        pinst->m_blas_updated = false;
+    }
+    m_fv_upload = m_fv_deform = m_fv_blas = 0;
+
+
+
+    // create vertex buffers
+    auto create_buffer = [this](const void* buffer, size_t size) {
+        auto res = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
+        uploadBuffer(res, buffer, size);
+        return res;
+    };
+    for (auto& pmesh : m_meshes) {
+        auto& mesh = *pmesh;
+        if (mesh.m_points.empty() || mesh.m_indices.empty())
+            continue;
+
+        // indices
+        if (!mesh.m_buf_indices) {
+            mesh.m_buf_indices = create_buffer(mesh.m_indices.data(), mesh.m_indices.size() * sizeof(int));
+            lptSetName(mesh.m_buf_indices, mesh.m_name + " IB");
+
+#ifdef lptEnableBufferValidation
+            if (mesh.m_buf_indices) {
+                RawVector<int> index_buffer_data32;
+                index_buffer_data32.resize(mesh.m_indices.size(), 0xffffffff);
+                readbackBuffer(index_buffer_data32.data(), mesh.m_buf_indices, mesh.m_indices.size() * sizeof(int));
+            }
+#endif // lptEnableBufferValidation
+        }
+
+        // points
+        if (!mesh.m_buf_points) {
+            mesh.m_buf_points = create_buffer(mesh.m_points.data(), mesh.m_points.size() * sizeof(float3));
+            lptSetName(mesh.m_buf_points, mesh.m_name + " VB");
+
+#ifdef lptEnableBufferValidation
+            if (mesh.m_buf_points) {
+                // inspect buffer
+                RawVector<float3> vertex_buffer_data;
+                vertex_buffer_data.resize(mesh.m_points.size(), mu::nan<float3>());
+                readbackBuffer(vertex_buffer_data.data(), mesh.m_buf_points, mesh.m_points.size() * sizeof(float3));
+            }
+#endif // lptEnableBufferValidation
+        }
+    }
+
+    //// deform
+    //bool gpu_skinning = rd.hasFlag(RenderFlag::GPUSkinning) && m_deformer;
+    //if (gpu_skinning) {
+    //    int deform_count = 0;
+    //    m_deformer->prepare(rd);
+    //    for (auto& inst_dxr : rd.instances) {
+    //        if (m_deformer->deform(rd, *inst_dxr))
+    //            ++deform_count;
+    //    }
+    //    m_deformer->flush(rd);
+    //}
+    //else {
+    //    rd.fv_deform = rd.fv_translate;
+    //}
+
+
+    // build BLAS
+    auto cl_blas = m_clm_direct->get();
+    lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS begin");
+    for (auto& pmesh : m_meshes) {
+        auto& mesh = *pmesh;
+        if (!mesh.m_blas || mesh.isDirty(DirtyFlag::Points)) {
+            // BLAS for non-deformable meshes
+
+            bool perform_update = mesh.m_blas != nullptr;
+
+            D3D12_RAYTRACING_GEOMETRY_DESC geom_desc{};
+            geom_desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+            geom_desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+            geom_desc.Triangles.VertexBuffer.StartAddress = mesh.m_buf_points->GetGPUVirtualAddress();
+            geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(float3);
+            geom_desc.Triangles.VertexCount = (UINT)mesh.m_points.size();
+            geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+            geom_desc.Triangles.IndexBuffer = mesh.m_buf_indices->GetGPUVirtualAddress();
+            geom_desc.Triangles.IndexCount = (UINT)mesh.m_indices.size();
+            geom_desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            if (mesh.m_buf_points && mesh.m_dynamic) {
+                inputs.Flags =
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+                if (perform_update)
+                    inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+            }
+            else
+                inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+            inputs.NumDescs = 1;
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            inputs.pGeometryDescs = &geom_desc;
+
+            if (!mesh.m_blas) {
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
+                m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+
+                mesh.m_blas_scratch = createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
+                mesh.m_blas = createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
+                lptSetName(mesh.m_blas_scratch, mesh.m_name + " BLAS Scratch");
+                lptSetName(mesh.m_blas, mesh.m_name + " BLAS");
+            }
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
+            as_desc.Inputs = inputs;
+            if (perform_update)
+                as_desc.SourceAccelerationStructureData = mesh.m_blas->GetGPUVirtualAddress();
+            as_desc.DestAccelerationStructureData = mesh.m_blas->GetGPUVirtualAddress();
+            as_desc.ScratchAccelerationStructureData = mesh.m_blas_scratch->GetGPUVirtualAddress();
+
+            cl_blas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
+            mesh.m_blas_updated = true;
+        }
+        mesh.clearDirty();
+    }
+
+    for (auto& pinst : m_mesh_instances) {
+        auto& inst = *pinst;
+        auto& mesh = *inst.m_mesh;
+
+        if (inst.m_buf_points_deformed) {
+            if (!inst.m_blas_deformed || inst.isDirty(DirtyFlag::Deform)) {
+                // BLAS for deformable meshes
+
+                bool perform_update = inst.m_blas_deformed != nullptr;
+
+                D3D12_RAYTRACING_GEOMETRY_DESC geom_desc{};
+                geom_desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+                geom_desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+                geom_desc.Triangles.VertexBuffer.StartAddress = inst.m_buf_points_deformed->GetGPUVirtualAddress();
+                geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(float3);
+                geom_desc.Triangles.VertexCount = (UINT)mesh.m_points.size();
+                geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+                geom_desc.Triangles.IndexBuffer = mesh.m_buf_indices->GetGPUVirtualAddress();
+                geom_desc.Triangles.IndexCount = (UINT)mesh.m_indices.size();
+                geom_desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
+                inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+                inputs.Flags =
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+                if (perform_update)
+                    inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+                inputs.NumDescs = 1;
+                inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+                inputs.pGeometryDescs = &geom_desc;
+
+                if (!inst.m_blas_deformed) {
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
+                    m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+
+                    inst.m_blas_scratch = createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
+                    inst.m_blas_deformed = createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
+                    lptSetName(inst.m_blas_scratch, inst.m_name + " BLAS Scratch");
+                    lptSetName(inst.m_blas_deformed, inst.m_name + " BLAS");
+                }
+
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
+                as_desc.Inputs = inputs;
+                if (perform_update)
+                    as_desc.SourceAccelerationStructureData = inst.m_blas_deformed->GetGPUVirtualAddress();
+                as_desc.DestAccelerationStructureData = inst.m_blas_deformed->GetGPUVirtualAddress();
+                as_desc.ScratchAccelerationStructureData = inst.m_blas_scratch->GetGPUVirtualAddress();
+
+                addResourceBarrier(cl_blas, inst.m_buf_points_deformed, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                cl_blas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
+                addResourceBarrier(cl_blas, inst.m_buf_points_deformed, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                inst.m_blas_updated = true;
+            }
+        }
+
+        if (!inst.m_blas_updated) {
+            if (inst.isDirty(DirtyFlag::Deform) || mesh.m_blas_updated) {
+                // transform or mesh are updated. TLAS needs to be updated.
+                inst.m_blas_updated = true;
+            }
+        }
+
+        inst.clearDirty();
+    }
+
+    lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS end");
+    cl_blas->Close();
+    m_fv_blas = submitDirectCommandList(cl_blas, m_fv_deform);
+}
+
+void ContextDXR::setupScene(SceneDXR& scene)
+{
+    size_t instance_count = scene.m_instances.size();
+    bool needs_build_tlas = true;
+
+    if (!needs_build_tlas) {
+        // if there are no BLAS updates, check geometry list is the same as last render.
+        // if true, no TLAS update is needed.
+        needs_build_tlas = scene.m_instances != scene.m_instances_prev;
+    }
+
+    // build TLAS
+    auto cl_tlas = m_clm_direct->get();
+    lptTimestampQuery(scene.m_timestamp, cl_tlas, "Building TLAS begin");
+    if (needs_build_tlas) {
+        auto& td = scene.m_tlas_data;
+
+        // get the size of the TLAS buffers
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
+        inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+        inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+        inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+        // instance desc buffer
+        ReuseOrExpandBuffer(td.instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, &scene](size_t size) {
+            auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+            lptSetName(ret, scene.m_name + " Instance Desk");
+            return ret;
+            });
+
+        // create instance desc
+        {
+            UINT num_descs = 0;
+
+            D3D12_RAYTRACING_INSTANCE_DESC* instance_descs;
+            td.instance_desc->Map(0, nullptr, (void**)&instance_descs);
+            for (size_t i = 0; i < instance_count; i++) {
+                auto& inst = *scene.m_instances[i];
+                auto& mesh = *inst.m_mesh;
+
+                bool deformed = inst.m_buf_points_deformed;
+                auto& blas = deformed ? inst.m_blas_deformed : mesh.m_blas;
+
+                D3D12_RAYTRACING_INSTANCE_DESC tmp{};
+                (float3x4&)tmp.Transform = to_float3x4(inst.m_transform);
+                tmp.InstanceID = i;
+                tmp.InstanceMask = ~0;
+                tmp.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+                tmp.AccelerationStructure = blas->GetGPUVirtualAddress();
+                instance_descs[num_descs++] = tmp;
+            }
+            td.instance_desc->Unmap(0, nullptr);
+
+            inputs.NumDescs = num_descs;
+            inputs.InstanceDescs = td.instance_desc->GetGPUVirtualAddress();
+        }
+
+        // create TLAS
+        {
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
+            m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+
+            // scratch buffer
+            ReuseOrExpandBuffer(td.scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, &scene](size_t size) {
+                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
+                lptSetName(ret, scene.m_name + " TLAS Scratch");
+                return ret;
+                });
+
+            // TLAS buffer
+            bool expanded = ReuseOrExpandBuffer(td.buffer, 1, info.ResultDataMaxSizeInBytes, 1024 * 256, [this, &scene](size_t size) {
+                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
+                lptSetName(ret, scene.m_name + " TLAS");
+                return ret;
+                });
+            if (expanded) {
+                // SRV
+                D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+                srv_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+                srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                srv_desc.RaytracingAccelerationStructure.Location = td.buffer->GetGPUVirtualAddress();
+                m_device->CreateShaderResourceView(nullptr, &srv_desc, td.srv.hcpu);
+            }
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
+            as_desc.DestAccelerationStructureData = td.buffer->GetGPUVirtualAddress();
+            as_desc.Inputs = inputs;
+            if (td.instance_desc)
+                as_desc.Inputs.InstanceDescs = td.instance_desc->GetGPUVirtualAddress();
+            if (td.scratch)
+                as_desc.ScratchAccelerationStructureData = td.scratch->GetGPUVirtualAddress();
+
+            // build
+            cl_tlas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
+        }
+
+        // add UAV barrier
+        {
+            D3D12_RESOURCE_BARRIER uav_barrier{};
+            uav_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            uav_barrier.UAV.pResource = td.buffer;
+            cl_tlas->ResourceBarrier(1, &uav_barrier);
+        }
+    }
+    lptTimestampQuery(scene.m_timestamp, cl_tlas, "Building TLAS end");
+    cl_tlas->Close();
+    scene.m_fv_tlas = submitDirectCommandList(cl_tlas, m_fv_blas);
+
+
+    // setup per-instance data
+    if (needs_build_tlas) {
+        size_t stride = sizeof(InstanceDataDXR);
+        bool expanded = ReuseOrExpandBuffer(scene.m_instance_data, stride, instance_count, 4096, [this, &scene](size_t size) {
+            auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+            lptSetName(ret, scene.m_name + " Instance Data");
+            return ret;
+            });
+        if (expanded) {
+            auto capacity = scene.m_instance_data->GetDesc().Width;
+            D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+            desc.Format = DXGI_FORMAT_UNKNOWN;
+            desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+            desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            desc.Buffer.FirstElement = 0;
+            desc.Buffer.NumElements = UINT(capacity / stride);
+            desc.Buffer.StructureByteStride = UINT(stride);
+            desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+            m_device->CreateShaderResourceView(scene.m_instance_data, &desc, scene.m_instance_data_srv.hcpu);
+        }
+
+        InstanceDataDXR* dst;
+        if (SUCCEEDED(scene.m_instance_data->Map(0, nullptr, (void**)&dst))) {
+            for (auto& inst : scene.m_instances) {
+                InstanceDataDXR tmp{};
+                tmp.instance_flags = inst->m_instance_flags;
+                *dst++ = tmp;
+            }
+            scene.m_instance_data->Unmap(0, nullptr);
+        }
+    }
+}
+
+
+void ContextDXR::renderBegin(IScene* v)
+{
+    auto& scene = *static_cast<SceneDXR*>(v);
+
+    // initialize desc heap
+    if (!scene.m_desc_heap) {
+        D3D12_DESCRIPTOR_HEAP_DESC desc{};
+        desc.NumDescriptors = 32;
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&scene.m_desc_heap));
+        lptSetName(scene.m_desc_heap, scene.m_name + " Desc Heap");
+
+        auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, scene.m_desc_heap);
+        scene.m_render_target_uav = handle_allocator.allocate();
+        scene.m_tlas_data.srv = handle_allocator.allocate();
+        //scene.m_vertex_buffer_srv = handle_allocator.allocate();
+        //scene.m_material_data_srv = handle_allocator.allocate();
+        scene.m_instance_data_srv = handle_allocator.allocate();
+        scene.m_scene_data_cbv = handle_allocator.allocate();
+    }
+
+    // initialize scene constant buffer
+    if (!scene.m_scene_data) {
+        // size of constant buffer must be multiple of 256
+        int cb_size = align_to(256, sizeof(SceneData));
+        scene.m_scene_data = createBuffer(cb_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+        lptSetName(scene.m_scene_data, scene.m_name + " Scene Data");
+
+        SceneData* dst;
+        if (SUCCEEDED(scene.m_scene_data->Map(0, nullptr, (void**)&dst))) {
+            *dst = SceneData{};
+            scene.m_scene_data->Unmap(0, nullptr);
+        }
+
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
+        cbv_desc.BufferLocation = scene.m_scene_data->GetGPUVirtualAddress();
+        cbv_desc.SizeInBytes = cb_size;
+        m_device->CreateConstantBufferView(&cbv_desc, scene.m_scene_data_cbv.hcpu);
+    }
+
+    lptTimestampInitialize(scene.m_timestamp, m_device);
+    lptTimestampReset(scene.m_timestamp);
+    lptTimestampSetEnable(scene.m_timestamp, GetGlobals().hasDebugFlag(DebugFlag::Timestamp));
+
+    std::swap(scene.m_instances, scene.m_instances_prev);
+    scene.m_instances.clear();
+
+    // reset fence values
+    scene.m_fv_tlas = scene.m_fv_rays = 0;
+
+    if (m_fv_last_rays != 0) {
+        // wait for complete previous renderer's DispatchRays() because there may be dependencies. (e.g. building BLAS)
+        m_cmd_queue_direct->Wait(m_fence, m_fv_last_rays);
+    }
+}
+
+void ContextDXR::renderEnd(IScene* v)
 {
     // todo
 }
 
-void ContextDXR::renderFinish(IScene* v)
+void ContextDXR::frameEnd()
 {
-    // todo
 }
 
 void* ContextDXR::getDevice()

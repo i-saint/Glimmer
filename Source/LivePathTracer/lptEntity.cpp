@@ -49,65 +49,65 @@ GlobalSettings& GetGlobals()
 void Camera::setPosition(float3 v)
 {
     m_data.position = v;
-    setDirty(UpdateFlag::Camera);
+    markDirty(DirtyFlag::Camera);
 }
 void Camera::setRotation(quatf v)
 {
     m_data.rotation = v;
-    setDirty(UpdateFlag::Camera);
+    markDirty(DirtyFlag::Camera);
 }
 void Camera::setFOV(float v)
 {
     m_data.fov = v;
-    setDirty(UpdateFlag::Camera);
+    markDirty(DirtyFlag::Camera);
 }
 void Camera::setNear(float v)
 {
     m_data.near_plane = v;
-    setDirty(UpdateFlag::Camera);
+    markDirty(DirtyFlag::Camera);
 }
 
 void Camera::setFar(float v)
 {
     m_data.far_plane = v;
-    setDirty(UpdateFlag::Camera);
+    markDirty(DirtyFlag::Camera);
 }
 
 
 void Light::setType(LightType v)
 {
     m_data.light_type = v;
-    setDirty(UpdateFlag::Light);
+    markDirty(DirtyFlag::Light);
 }
 
 void Light::setPosition(float3 v)
 {
     m_data.position = v;
-    setDirty(UpdateFlag::Light);
+    markDirty(DirtyFlag::Light);
 }
 
 void Light::setDirection(float3 v)
 {
     m_data.direction = v;
-    setDirty(UpdateFlag::Light);
+    markDirty(DirtyFlag::Light);
 }
 
 void Light::setRange(float v)
 {
     m_data.range = v;
-    setDirty(UpdateFlag::Light);
+    markDirty(DirtyFlag::Light);
 }
 
 void Light::setSpotAngle(float v)
 {
     m_data.spot_angle = v;
-    setDirty(UpdateFlag::Light);
+    markDirty(DirtyFlag::Light);
 }
 
 void Light::setColor(float3 v)
 {
     m_data.color = v;
-    setDirty(UpdateFlag::Light);
+    markDirty(DirtyFlag::Light);
 }
 
 
@@ -116,7 +116,7 @@ void Texture::setup(TextureFormat format, int width, int height)
     m_format = format;
     m_width = width;
     m_height = height;
-    setDirty(UpdateFlag::Texture);
+    markDirty(DirtyFlag::Texture);
 }
 
 void Texture::upload(const void* src)
@@ -124,7 +124,7 @@ void Texture::upload(const void* src)
     auto v = (const char*)src;
     size_t size = m_width * m_height * SizeOfTexel(m_format);
     m_data.assign(v, v + size);
-    setDirty(UpdateFlag::Texture);
+    markDirty(DirtyFlag::Texture);
 }
 
 
@@ -133,112 +133,113 @@ void RenderTarget::setup(TextureFormat format, int width, int height)
     m_format = format;
     m_width = width;
     m_height = height;
-    setDirty(UpdateFlag::Texture);
+    markDirty(DirtyFlag::Texture);
 }
 
 
 void Material::setDiffuse(float3 v)
 {
     m_data.diffuse = v;
-    setDirty(UpdateFlag::Material);
+    markDirty(DirtyFlag::Material);
 }
 
 void Material::setRoughness(float v)
 {
     m_data.roughness = v;
-    setDirty(UpdateFlag::Material);
+    markDirty(DirtyFlag::Material);
 }
 
 void Material::setEmissive(float3 v)
 {
     m_data.emissive = v;
-    setDirty(UpdateFlag::Material);
+    markDirty(DirtyFlag::Material);
 }
 
 void Material::setDiffuseTexture(ITexture* v)
 {
     m_data.diffuse_tex = v ? static_cast<Texture*>(v)->m_index : 0;
-    setDirty(UpdateFlag::Material);
+    markDirty(DirtyFlag::Material);
 }
 
 void Material::setEmissionTexture(ITexture* v)
 {
     m_data.emissive_tex = v ? static_cast<Texture*>(v)->m_index : 0;
-    setDirty(UpdateFlag::Material);
+    markDirty(DirtyFlag::Material);
 }
 
 
 void Mesh::setIndices(const int* v, size_t n)
 {
     m_indices.assign(v, v + n);
-    setDirty(UpdateFlag::Indices);
+    markDirty(DirtyFlag::Indices);
 }
 
 void Mesh::setPoints(const float3* v, size_t n)
 {
     m_points.assign(v, v + n);
-    setDirty(UpdateFlag::Points);
+    markDirty(DirtyFlag::Points);
 }
 
 void Mesh::setNormals(const float3* v, size_t n)
 {
     m_normals.assign(v, v + n);
-    setDirty(UpdateFlag::Normals);
+    markDirty(DirtyFlag::Normals);
 }
 
 void Mesh::setTangents(const float3* v, size_t n)
 {
     m_tangents.assign(v, v + n);
-    setDirty(UpdateFlag::Tangents);
+    markDirty(DirtyFlag::Tangents);
 }
 
 void Mesh::setUV(const float2* v, size_t n)
 {
     m_uv.assign(v, v + n);
-    setDirty(UpdateFlag::UV);
+    markDirty(DirtyFlag::UV);
 }
 
 void Mesh::setJointBindposes(const float4x4* v, size_t n)
 {
     m_joint_bindposes.assign(v, v + n);
-    setDirty(UpdateFlag::Joints);
+    markDirty(DirtyFlag::Joints);
 }
 
 void Mesh::setJointWeights(const JointWeight* v, size_t n)
 {
     m_joint_weights.assign(v, v + n);
-    setDirty(UpdateFlag::Joints);
+    markDirty(DirtyFlag::Joints);
 }
 
 void Mesh::setJointCounts(const uint8_t* v, size_t n)
 {
     m_joint_counts.assign(v, v + n);
-    setDirty(UpdateFlag::Joints);
+    markDirty(DirtyFlag::Joints);
 }
 
 
 void MeshInstance::setMesh(IMesh* v)
 {
     m_mesh = dynamic_cast<Mesh*>(v);
-    setDirty(UpdateFlag::Mesh);
+    markDirty(DirtyFlag::Mesh);
 }
 
 void MeshInstance::setMaterial(IMaterial* v)
 {
     m_material = dynamic_cast<Material*>(v);
-    setDirty(UpdateFlag::Material);
+    markDirty(DirtyFlag::Material);
 }
 
 void MeshInstance::setTransform(const float4x4& v)
 {
     m_transform = v;
-    setDirty(UpdateFlag::Transform);
+    markDirty(DirtyFlag::Transform);
 }
 
 void MeshInstance::setJointMatrices(const float4x4* v)
 {
     if (m_mesh && !m_mesh->m_joint_bindposes.empty()) {
         m_joint_matrices.assign(v, v + m_mesh->m_joint_bindposes.size());
+        markDirty(DirtyFlag::Joints);
     }
 }
 

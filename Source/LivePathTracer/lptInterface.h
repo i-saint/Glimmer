@@ -156,8 +156,10 @@ public:
     virtual IMeshInstance*  createMeshInstance() = 0;
     virtual IScene*         createScene() = 0;
 
-    virtual void renderStart(IScene* v) = 0;
-    virtual void renderFinish(IScene* v) = 0;
+    virtual void frameBegin() = 0;
+    virtual void renderBegin(IScene* v) = 0;
+    virtual void renderEnd(IScene* v) = 0;
+    virtual void frameEnd() = 0;
 
     virtual void* getDevice() = 0;
 };

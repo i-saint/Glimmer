@@ -71,6 +71,9 @@
     <ClInclude Include="DXR\lptInternalDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
+    <ClInclude Include="Foundation\lptUtils.h">
+      <Filter>Foundation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\lptDeform.hlsl">

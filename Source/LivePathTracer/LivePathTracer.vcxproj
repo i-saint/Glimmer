@@ -34,6 +34,7 @@
     <ClInclude Include="Foundation\lptLog.h" />
     <ClInclude Include="Foundation\lptMath.h" />
     <ClInclude Include="Foundation\lptMisc.h" />
+    <ClInclude Include="Foundation\lptUtils.h" />
     <ClInclude Include="lptEntity.h" />
     <ClInclude Include="lptInterface.h" />
     <ClInclude Include="lptSettings.h" />
