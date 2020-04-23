@@ -10,7 +10,7 @@
 
 namespace lpt {
 
-static const int kMaxTraceRecursionLevel = 2;
+static const int lptMaxTraceRecursionLevel = 2;
 
 enum class RayGenType : int
 {
@@ -288,7 +288,7 @@ bool GfxContextDXR::initialize()
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &global_rootsig);
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_desc{};
-        pipeline_desc.MaxTraceRecursionDepth = kMaxTraceRecursionLevel;
+        pipeline_desc.MaxTraceRecursionDepth = lptMaxTraceRecursionLevel;
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipeline_desc);
 
         D3D12_STATE_OBJECT_DESC pso_desc{};
@@ -1419,7 +1419,7 @@ uint64_t GfxContextDXR::copyBuffer(ID3D12Resource *dst, ID3D12Resource *src, UIN
 
 uint64_t GfxContextDXR::readbackTexture(void *dst_, ID3D12Resource *src, UINT width, UINT height, DXGI_FORMAT format)
 {
-    UINT stride = SizeOfElement(format);
+    UINT stride = SizeOfTexel(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * stride;
     auto readback_buf = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST, kReadbackHeapProps);
@@ -1462,7 +1462,7 @@ uint64_t GfxContextDXR::readbackTexture(void *dst_, ID3D12Resource *src, UINT wi
 
 uint64_t GfxContextDXR::uploadTexture(ID3D12Resource *dst, const void *src_, UINT width, UINT height, DXGI_FORMAT format, bool immediate)
 {
-    UINT stride = SizeOfElement(format);
+    UINT stride = SizeOfTexel(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * stride;
     auto upload_buf = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);

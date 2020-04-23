@@ -182,39 +182,6 @@ public:
     DescriptorHandleDXR srv;
 };
 
-class RenderDataDXR
-{
-public:
-    ID3D12GraphicsCommandList4Ptr cl_deform;
-    ID3D12DescriptorHeapPtr desc_heap;
-    DescriptorHandleDXR render_target_uav;
-    DescriptorHandleDXR vertex_buffer_srv;
-    DescriptorHandleDXR material_data_srv;
-    DescriptorHandleDXR instance_data_srv;
-    DescriptorHandleDXR scene_data_cbv;
-    DescriptorHandleDXR adaptive_uavs[lptAdaptiveCascades], adaptive_srvs[lptAdaptiveCascades];
-    DescriptorHandleDXR back_buffer_uav, back_buffer_srv;
-
-    std::vector<MeshInstanceDXRPtr> instances, instances_prev;
-    SceneData scene_data_prev{};
-    TLASDataDXR tlas_data;
-    ID3D12ResourcePtr vertex_buffer;
-    ID3D12ResourcePtr material_data;
-    ID3D12ResourcePtr instance_data;
-    ID3D12ResourcePtr scene_data;
-    RenderTargetDXRPtr render_target;
-
-    uint64_t fv_translate = 0, fv_deform = 0, fv_blas = 0, fv_tlas = 0, fv_rays = 0;
-    FenceEventDXR fence_event;
-    uint32_t render_flags = 0;
-
-#ifdef lptEnableTimestamp
-    TimestampDXRPtr timestamp;
-#endif // lptEnableTimestamp
-
-    bool hasFlag(RenderFlag f) const;
-    void clear();
-};
 
 
 extern const D3D12_HEAP_PROPERTIES kDefaultHeapProps;
@@ -222,8 +189,7 @@ extern const D3D12_HEAP_PROPERTIES kUploadHeapProps;
 extern const D3D12_HEAP_PROPERTIES kReadbackHeapProps;
 static const DWORD kTimeoutMS = 3000;
 
-ULONG GetRefCount(IUnknown* v);
-UINT SizeOfElement(DXGI_FORMAT rtf);
+UINT SizeOfTexel(DXGI_FORMAT rtf);
 DXGI_FORMAT GetDXGIFormat(TextureFormat format);
 DXGI_FORMAT GetFloatFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetUIntFormat(DXGI_FORMAT format);

@@ -34,17 +34,17 @@ struct CameraData
     float4x4 view;
     float4x4 proj;
     float4 position;
+    float4 rotation;
     float near_plane;
     float far_plane;
-    uint layer_mask;
-    uint1 pad1;
+    float fov;
+    float aspect;
 };
 
 struct LightData
 {
     uint light_type;
-    uint layer_mask;
-    uint2 pad1;
+    uint3 pad1;
 
     float3 position;
     float range;
@@ -116,7 +116,6 @@ float3 CameraForward()      { return -g_scene_data.camera.view[2].xyz; }
 float CameraFocalLength()   { return abs(g_scene_data.camera.proj[1][1]); }
 float CameraNearPlane()     { return g_scene_data.camera.near_plane; }
 float CameraFarPlane()      { return g_scene_data.camera.far_plane; }
-uint CameraLayerMask()      { return g_scene_data.camera.layer_mask; }
 
 uint  RenderFlags()         { return g_scene_data.render_flags; }
 float ShadowRayOffset()     { return g_scene_data.shadow_ray_offset; }
@@ -163,7 +162,6 @@ struct CameraPayload
 struct LightPayload
 {
     uint hit;
-    uint light_mask;
     uint instance_id; // instance id for first ray
 };
 
@@ -214,10 +212,7 @@ CameraPayload ShootCameraRay(float2 offset = 0.0f)
     uint ray_flags = 0;
     if (render_flags & RF_CULL_BACK_FACES)
         ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-    if (CameraLayerMask() != ~0)
-        ray_flags |= RAY_FLAG_FORCE_NON_OPAQUE; // use anyhit
 
-    uint layer_mask = CameraLayerMask();
     TraceRay(g_tlas, ray_flags, 0x01, 0, 0, 0, ray, payload);
     return payload;
 }
@@ -311,21 +306,12 @@ void MissCamera(inout CameraPayload payload : SV_RayPayload)
 [shader("anyhit")]
 void AnyHitCamera(inout CameraPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    // check culling mask
-    if ((InstanceLayerMask() & CameraLayerMask()) == 0) {
-        IgnoreHit();
-        return;
-    }
 }
 
-bool ShootShadowRay(uint flags, in RayDesc ray, inout CameraPayload payload, uint light_mask)
+bool ShootShadowRay(uint flags, in RayDesc ray, inout CameraPayload payload)
 {
-    if (light_mask == 0)
-        return false;
-
     LightPayload lp;
     init(lp, payload);
-    lp.light_mask = light_mask;
     TraceRay(g_tlas, flags, 0x02, 1, 0, 1, ray, lp);
     return lp.hit;
 }
@@ -358,13 +344,7 @@ void ClosestHitCamera(inout CameraPayload payload : SV_RayPayload, in BuiltInTri
     int li;
     for (li = 0; li < LightCount(); ++li) {
         LightData light = GetLight(li);
-        if ((instance_layer_mask & light.layer_mask) == 0)
-            continue;
-
-        uint mask = (instance_flags & IF_RECEIVE_SHADOWS) == 0 ? 0 : (light.layer_mask & CameraLayerMask());
         uint ray_flags = ray_flags_common;
-        if (mask != ~0)
-            ray_flags |= RAY_FLAG_FORCE_NON_OPAQUE; // use anyhit
 
         bool hit = true;
         if (light.light_type == LT_DIRECTIONAL) {
@@ -374,7 +354,7 @@ void ClosestHitCamera(inout CameraPayload payload : SV_RayPayload, in BuiltInTri
             ray.Direction = -light.direction.xyz;
             ray.TMin = 0.0f;
             ray.TMax = CameraFarPlane();
-            hit = ShootShadowRay(ray_flags, ray, payload, mask);
+            hit = ShootShadowRay(ray_flags, ray, payload);
         }
         else if (light.light_type == LT_SPOT) {
             // spot light
@@ -387,7 +367,7 @@ void ClosestHitCamera(inout CameraPayload payload : SV_RayPayload, in BuiltInTri
                 ray.Direction = dir;
                 ray.TMin = 0.0f;
                 ray.TMax = distance;
-                hit = ShootShadowRay(ray_flags, ray, payload, mask);
+                hit = ShootShadowRay(ray_flags, ray, payload);
             }
             else
                 continue;
@@ -404,7 +384,7 @@ void ClosestHitCamera(inout CameraPayload payload : SV_RayPayload, in BuiltInTri
                 ray.Direction = dir;
                 ray.TMin = 0.0f;
                 ray.TMax = distance;
-                hit = ShootShadowRay(ray_flags, ray, payload, mask);
+                hit = ShootShadowRay(ray_flags, ray, payload);
             }
             else
                 continue;
@@ -421,7 +401,7 @@ void ClosestHitCamera(inout CameraPayload payload : SV_RayPayload, in BuiltInTri
                 ray.Direction = -dir;
                 ray.TMin = 0.0f;
                 ray.TMax = light.range - distance;
-                hit = ShootShadowRay(ray_flags, ray, payload, mask);
+                hit = ShootShadowRay(ray_flags, ray, payload);
             }
             else
                 continue;
@@ -444,12 +424,6 @@ void MissLight(inout LightPayload payload : SV_RayPayload)
 [shader("anyhit")]
 void AnyHitLight(inout LightPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    // check culling mask
-    if ((InstanceLayerMask() & payload.light_mask) == 0) {
-        IgnoreHit();
-        return;
-    }
-
     uint render_flags = RenderFlags();
     if (render_flags & RF_IGNORE_SELF_SHADOW) {
         // this condition means:

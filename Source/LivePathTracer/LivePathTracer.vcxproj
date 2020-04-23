@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DXR\lptContextDXR.cpp" />
     <ClCompile Include="DXR\lptDeformerDXR.cpp" />
     <ClCompile Include="DXR\lptEntityDXR.cpp" />
     <ClCompile Include="DXR\lptGfxContextDXR.cpp" />

@@ -24,54 +24,6 @@ void MeshInstanceDXR::clearBLAS()
 }
 
 
-CameraDXR* ContextDXR::createCamera()
-{
-    auto r = new CameraDXR();
-    return r;
-}
-
-LightDXR* ContextDXR::createLight()
-{
-    auto r = new LightDXR();
-    return r;
-}
-
-RenderTargetDXR* ContextDXR::createRenderTarget()
-{
-    auto r = new RenderTargetDXR();
-    return r;
-}
-
-TextureDXR* ContextDXR::createTexture()
-{
-    auto r = new TextureDXR();
-    return r;
-}
-
-MaterialDXR* ContextDXR::createMaterial()
-{
-    auto r = new MaterialDXR();
-    return r;
-}
-
-MeshDXR* ContextDXR::createMesh()
-{
-    auto r = new MeshDXR();
-    return r;
-}
-
-MeshInstanceDXR* ContextDXR::createMeshInstance()
-{
-    auto r = new MeshInstanceDXR();
-    return r;
-}
-
-SceneDXR* ContextDXR::createScene()
-{
-    auto r = new SceneDXR();
-    return r;
-}
-
 
 } // namespace lpt
 #endif // _WIN32

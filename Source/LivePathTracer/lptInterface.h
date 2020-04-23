@@ -81,8 +81,8 @@ public:
 class ITexture : public IEntity
 {
 public:
-    virtual bool setup(TextureFormat format, int width, int height) = 0;
-    virtual bool upload(const void* src) = 0;
+    virtual void setup(TextureFormat format, int width, int height) = 0;
+    virtual void upload(const void* src) = 0;
     virtual void* getDeviceObject() = 0;
 };
 
@@ -90,8 +90,8 @@ public:
 class IRenderTarget : public IEntity
 {
 public:
-    virtual bool setup(TextureFormat format, int width, int height) = 0;
-    virtual bool readback(void* dst) = 0;
+    virtual void setup(TextureFormat format, int width, int height) = 0;
+    virtual void readback(void* dst) = 0;
     virtual void* getDeviceObject() = 0;
 };
 
@@ -118,7 +118,8 @@ public:
     virtual void setUV(const float2* v, size_t n) = 0;
 
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
-    virtual void setJointWeights(const uint8_t* counts, size_t ncounts, const JointWeight* weights, size_t nweights) = 0;
+    virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
+    virtual void setJointCounts(const uint8_t* v, size_t n) = 0;
 };
 
 
@@ -146,14 +147,14 @@ public:
 class IContext : public IEntity
 {
 public:
-    virtual ICamera* createCamera() = 0;
-    virtual ILight* createLight() = 0;
-    virtual IRenderTarget* createRenderTarget() = 0;
-    virtual ITexture* createTexture() = 0;
-    virtual IMaterial* createMaterial() = 0;
-    virtual IMesh* createMesh() = 0;
-    virtual IMeshInstance* createMeshInstance() = 0;
-    virtual IScene* createScene() = 0;
+    virtual ICamera*        createCamera() = 0;
+    virtual ILight*         createLight() = 0;
+    virtual IRenderTarget*  createRenderTarget() = 0;
+    virtual ITexture*       createTexture() = 0;
+    virtual IMaterial*      createMaterial() = 0;
+    virtual IMesh*          createMesh() = 0;
+    virtual IMeshInstance*  createMeshInstance() = 0;
+    virtual IScene*         createScene() = 0;
 
     virtual void renderStart(IScene* v) = 0;
     virtual void renderFinish(IScene* v) = 0;
@@ -200,17 +201,23 @@ public:
 private:
     T* m_ptr = nullptr;
 };
-using CameraPtr = ref_ptr<ICamera>;
-using LightPtr = ref_ptr<ILight>;
-using TexturePtr = ref_ptr<ITexture>;
-using RenderTargetPtr = ref_ptr<IRenderTarget>;
-using MaterialPtr = ref_ptr<IMaterial>;
-using MeshPtr = ref_ptr<IMesh>;
-using MeshInstancePtr = ref_ptr<IMeshInstance>;
-using ScenePtr = ref_ptr<IScene>;
-using ContextPtr = ref_ptr<IContext>;
+using ICameraPtr = ref_ptr<ICamera>;
+using ILightPtr = ref_ptr<ILight>;
+using ITexturePtr = ref_ptr<ITexture>;
+using IRenderTargetPtr = ref_ptr<IRenderTarget>;
+using IMaterialPtr = ref_ptr<IMaterial>;
+using IMeshPtr = ref_ptr<IMesh>;
+using IMeshInstancePtr = ref_ptr<IMeshInstance>;
+using IScenePtr = ref_ptr<IScene>;
+using IContextPtr = ref_ptr<IContext>;
 
 } // namespace lpt
 
-lpt::IContext* lptCreateContextDXR();
+
+#ifdef _WIN32
+    #define lptAPI extern "C" __declspec(dllexport)
+#else
+    #define lptAPI extern "C" __attribute__((visibility("default")))
+#endif
+lptAPI lpt::IContext* lptCreateContextDXR();
 

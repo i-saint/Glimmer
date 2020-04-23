@@ -265,16 +265,6 @@ std::string TimestampDXR::getLog()
 }
 
 
-bool RenderDataDXR::hasFlag(RenderFlag f) const
-{
-    return (render_flags & (uint32_t)f) != 0;
-}
-
-void RenderDataDXR::clear()
-{
-    *this = RenderDataDXR();
-}
-
 
 void SetNameImpl(ID3D12Object* obj, LPCSTR name)
 {
@@ -303,26 +293,65 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name)
     }
 }
 
-ULONG GetRefCount(IUnknown* v)
-{
-    v->AddRef();
-    return v->Release();
-}
-
-UINT SizeOfElement(DXGI_FORMAT rtf)
+UINT SizeOfTexel(DXGI_FORMAT rtf)
 {
     switch (rtf) {
-    case DXGI_FORMAT_R8_TYPELESS: return 1;
-    case DXGI_FORMAT_R8G8_TYPELESS: return 2;
-    case DXGI_FORMAT_R8G8B8A8_TYPELESS: return 4;
+    case DXGI_FORMAT_R8_TYPELESS:
+    case DXGI_FORMAT_R8_SINT:
+    case DXGI_FORMAT_R8_UINT:
+    case DXGI_FORMAT_R8_SNORM:
+    case DXGI_FORMAT_R8_UNORM:
+        return 1;
+    case DXGI_FORMAT_R8G8_TYPELESS:
+    case DXGI_FORMAT_R8G8_SINT:
+    case DXGI_FORMAT_R8G8_UINT:
+    case DXGI_FORMAT_R8G8_SNORM:
+    case DXGI_FORMAT_R8G8_UNORM:
+        return 2;
+    case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+    case DXGI_FORMAT_R8G8B8A8_SINT:
+    case DXGI_FORMAT_R8G8B8A8_UINT:
+    case DXGI_FORMAT_R8G8B8A8_SNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+        return 4;
 
-    case DXGI_FORMAT_R16_TYPELESS: return 2;
-    case DXGI_FORMAT_R16G16_TYPELESS: return 4;
-    case DXGI_FORMAT_R16G16B16A16_TYPELESS: return 8;
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_R16_SINT:
+    case DXGI_FORMAT_R16_UINT:
+    case DXGI_FORMAT_R16_SNORM:
+    case DXGI_FORMAT_R16_UNORM:
+    case DXGI_FORMAT_R16_FLOAT:
+        return 2;
+    case DXGI_FORMAT_R16G16_TYPELESS:
+    case DXGI_FORMAT_R16G16_SINT:
+    case DXGI_FORMAT_R16G16_UINT:
+    case DXGI_FORMAT_R16G16_SNORM:
+    case DXGI_FORMAT_R16G16_UNORM:
+    case DXGI_FORMAT_R16G16_FLOAT:
+        return 4;
+    case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+    case DXGI_FORMAT_R16G16B16A16_SINT:
+    case DXGI_FORMAT_R16G16B16A16_UINT:
+    case DXGI_FORMAT_R16G16B16A16_SNORM:
+    case DXGI_FORMAT_R16G16B16A16_UNORM:
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+        return 8;
 
-    case DXGI_FORMAT_R32_TYPELESS: return 4;
-    case DXGI_FORMAT_R32G32_TYPELESS: return 8;
-    case DXGI_FORMAT_R32G32B32A32_TYPELESS: return 16;
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_R32_SINT:
+    case DXGI_FORMAT_R32_UINT:
+    case DXGI_FORMAT_R32_FLOAT:
+        return 4;
+    case DXGI_FORMAT_R32G32_TYPELESS:
+    case DXGI_FORMAT_R32G32_SINT:
+    case DXGI_FORMAT_R32G32_UINT:
+    case DXGI_FORMAT_R32G32_FLOAT:
+        return 8;
+    case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32A32_SINT:
+    case DXGI_FORMAT_R32G32B32A32_UINT:
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+        return 16;
     }
     return 0;
 }

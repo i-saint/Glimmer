@@ -50,45 +50,68 @@ enum class InstanceFlag : uint32_t
 
 enum class UpdateFlag : uint32_t
 {
-    None        = 0x00,
-    Transform   = 0x01,
-    Blendshape  = 0x02,
-    Bones       = 0x04,
-    Flags       = 0x08,
+    None        = 0x00000000,
+    Transform   = 0x00000001,
+    Blendshape  = 0x00000002,
+    Joints      = 0x00000004,
 
-    Deform = Transform | Blendshape | Bones,
-    Any = Transform | Blendshape | Bones | Flags,
+    Indices     = 0x00000010,
+    Points      = 0x00000020,
+    Normals     = 0x00000040,
+    Tangents    = 0x00000080,
+    UV          = 0x00000100,
+
+    Camera      = 0x01000000,
+    Light       = 0x02000000,
+    Texture     = 0x04000000,
+    Material    = 0x08000000,
+    Mesh        = 0x10000000,
+    Instance    = 0x20000000,
+
+    Deform = Transform | Blendshape | Joints,
+    Vertices = Indices | Points | Normals | Tangents | UV,
+    Any = 0xffffffff,
 };
 
+int SizeOfTexel(TextureFormat v);
+
+#define DefCompare(T)\
+    bool operator==(const T& v) const { return std::memcmp(this, &v, sizeof(*this)) == 0; }\
+    bool operator!=(const T& v) const { return !(*this == v); }\
 
 // these structs are directly uploaded to GPU buffers
 
 struct CameraData
 {
-    float4x4 view;
-    float4x4 proj;
+    float4x4 view{};
+    float4x4 proj{};
     union {
         float3 position;
         float4 position4;
     };
+    quatf rotation{};
+
     float near_plane{};
     float far_plane{};
-    uint32_t layer_mask{};
-    uint32_t pad1;
+    float fov{};
+    float aspect{};
+
+    DefCompare(CameraData);
 };
 
 struct LightData
 {
     LightType light_type{};
-    uint32_t layer_mask{};
-    uint32_t pad1[2];
+    uint32_t pad1[3];
 
     float3 position{};
     float range{};
     float3 direction{};
     float spot_angle{}; // radian
-    float3 color;
-    float pad2;
+    float3 color{};
+    float pad2{};
+
+    DefCompare(LightData);
 };
 
 struct MaterialData
@@ -101,6 +124,8 @@ struct MaterialData
     int diffuse_tex{};
     int emissive_tex{};
     int2 pad_tex{};
+
+    DefCompare(MaterialData);
 };
 
 struct SceneData
@@ -113,9 +138,7 @@ struct SceneData
     CameraData camera;
     LightData lights[lptMaxLights];
 
-    bool operator==(SceneData& v) const { return std::memcmp(this, &v, sizeof(*this)) == 0; }
-    bool operator!=(SceneData& v) const { return !(*this == v); }
-
+    DefCompare(SceneData);
     template<class Body>
     void eachLight(const Body& body)
     {
@@ -123,6 +146,8 @@ struct SceneData
             body(lights[li]);
     }
 };
+
+#undef DefCompare
 
 
 template<class T>
@@ -157,12 +182,39 @@ public:
         return m_name.c_str();
     }
 
+
 public:
     std::atomic_int m_ref_count{ 1 };
     std::string m_name;
+    uint32_t m_dirty_flags = 0;
 };
 
-class Camera : public RefCount<ICamera>
+template<class T>
+class EntityBase : public RefCount<T>
+{
+public:
+    bool isDirty(UpdateFlag v = UpdateFlag::Any) const
+    {
+        return (m_dirty_flags & (uint32_t)v) != 0;
+    }
+
+    void setDirty(UpdateFlag v)
+    {
+        m_dirty_flags |= (uint32_t)v;
+    }
+
+    void clearDirty()
+    {
+        m_dirty_flags = 0;
+    }
+
+public:
+    uint32_t m_dirty_flags = 0;
+};
+
+
+
+class Camera : public EntityBase<ICamera>
 {
 public:
     void setPosition(float3 v) override;
@@ -174,8 +226,10 @@ public:
 public:
     CameraData m_data;
 };
+lptDeclRefPtr(Camera);
 
-class Light : public RefCount<ILight>
+
+class Light : public EntityBase<ILight>
 {
 public:
     void setType(LightType v) override;
@@ -188,12 +242,14 @@ public:
 public:
     LightData m_data;
 };
+lptDeclRefPtr(Light);
 
 
-class Texture : public RefCount<ITexture>
+class Texture : public EntityBase<ITexture>
 {
 public:
-    bool setup(TextureFormat format, int width, int height) override;
+    void setup(TextureFormat format, int width, int height) override;
+    void upload(const void* src) override;
 
 public:
     int m_index = 0;
@@ -202,12 +258,13 @@ public:
     int m_height = 0;
     RawVector<char> m_data;
 };
+lptDeclRefPtr(Texture);
 
 
-class RenderTarget : public RefCount<IRenderTarget>
+class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
-    bool setup(TextureFormat format, int width, int height) override;
+    void setup(TextureFormat format, int width, int height) override;
 
 public:
     TextureFormat m_format = TextureFormat::Unknown;
@@ -215,9 +272,10 @@ public:
     int m_height = 0;
     RawVector<char> m_data;
 };
+lptDeclRefPtr(RenderTarget);
 
 
-class Material : public RefCount<IMaterial>
+class Material : public EntityBase<IMaterial>
 {
 public:
     void setDiffuse(float3 v) override;
@@ -229,6 +287,7 @@ public:
 public:
     MaterialData m_data;
 };
+lptDeclRefPtr(Material);
 
 
 struct BlendshapeData
@@ -241,7 +300,7 @@ struct BlendshapeData
     std::vector<FrameData> frames;
 };
 
-class Mesh : public RefCount<IMesh>
+class Mesh : public EntityBase<IMesh>
 {
 public:
     void setIndices(const int* v, size_t n) override;
@@ -251,7 +310,8 @@ public:
     void setUV(const float2* v, size_t n) override;
 
     void setJointBindposes(const float4x4* v, size_t n) override;
-    void setJointWeights(const uint8_t* counts, size_t ncounts, const JointWeight* weights, size_t nweights) override;
+    void setJointWeights(const JointWeight* v, size_t n) override;
+    void setJointCounts(const uint8_t* v, size_t n) override;
 
 public:
     RawVector<int>    m_indices;
@@ -266,18 +326,16 @@ public:
 
     std::vector<BlendshapeData> blendshapes;
 };
+lptDeclRefPtr(Mesh);
 
 
-class MeshInstance : public RefCount<IMeshInstance>
+class MeshInstance : public EntityBase<IMeshInstance>
 {
 public:
     void setMesh(IMesh* v) override;
     void setMaterial(IMaterial* v) override;
     void setTransform(const float4x4& v) override;
     void setJointMatrices(const float4x4* v) override;
-
-    bool isUpdated(UpdateFlag v) const;
-    void clearUpdateFlags();
     bool hasFlag(InstanceFlag flag) const;
 
 public:
@@ -288,12 +346,12 @@ public:
     RawVector<float> m_blendshape_weights;
 
     uint32_t m_instance_flags = (uint32_t)InstanceFlag::Default;
-    uint32_t m_update_flags = 0; // combination of UpdateFlag
 };
+lptDeclRefPtr(MeshInstance);
 
 
 
-class Scene : public RefCount<IScene>
+class Scene : public EntityBase<IScene>
 {
 public:
     void setRenderTarget(IRenderTarget* v) override;
@@ -305,6 +363,7 @@ public:
 public:
     SceneData m_data;
 };
+lptDeclRefPtr(Scene);
 
 
 class Context : public RefCount<IContext>
@@ -312,6 +371,7 @@ class Context : public RefCount<IContext>
 public:
 public:
 };
+lptDeclRefPtr(Context);
 
 
 
