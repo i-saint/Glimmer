@@ -30,12 +30,11 @@
     <ClCompile Include="DXR\lptRendererDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="DXR\lptTypesDXR.cpp">
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="lptEntity.cpp" />
+    <ClCompile Include="DXR\lptEntityDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="lptRenderer.cpp" />
-    <ClCompile Include="lptTypes.cpp" />
-    <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Foundation\lptHalf.h">
@@ -50,23 +49,19 @@
     <ClInclude Include="Foundation\lptMisc.h">
       <Filter>Foundation</Filter>
     </ClInclude>
-    <ClInclude Include="Foundation\lptRefPtr.h">
-      <Filter>Foundation</Filter>
-    </ClInclude>
     <ClInclude Include="DXR\lptDeformerDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
     <ClInclude Include="DXR\lptGfxContextDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\lptTypesDXR.h">
-      <Filter>DXR</Filter>
-    </ClInclude>
-    <ClInclude Include="lptRenderer.h" />
     <ClInclude Include="lptSettings.h" />
-    <ClInclude Include="lptTypes.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="lptInterface.h" />
+    <ClInclude Include="lptEntity.h" />
+    <ClInclude Include="DXR\lptEntityDXR.h">
+      <Filter>DXR</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\lptDeform.hlsl">

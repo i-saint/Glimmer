@@ -2,8 +2,7 @@
 #ifdef _WIN32
 #include "Foundation/lptLog.h"
 #include "Foundation/lptMisc.h"
-#include "lptTypesDXR.h"
-#include "lptGfxContextDXR.h"
+#include "lptEntityDXR.h"
 
 namespace lpt {
 
@@ -58,73 +57,21 @@ FenceEventDXR::operator HANDLE() const
 }
 
 
-TextureDataDXR::TextureDataDXR()
-{
-}
 
-TextureDataDXR::~TextureDataDXR()
+void MeshDXR::clearBLAS()
 {
-    if (handle && is_nt_handle)
-        ::CloseHandle(handle);
-}
-
-BufferDataDXR::BufferDataDXR()
-{
-}
-
-BufferDataDXR::~BufferDataDXR()
-{
-    if (handle && is_nt_handle)
-        ::CloseHandle(handle);
+    m_blas = nullptr;
+    m_blas_scratch = nullptr;
 }
 
 
-bool MeshDataDXR::valid() const
-{
-    return this && vertex_buffer->resource && index_buffer->resource;
-}
-
-int MeshDataDXR::getVertexStride() const
-{
-    if (base->vertex_stride == 0 && vertex_buffer)
-        return vertex_buffer->size / base->vertex_count;
-    else
-        return base->vertex_stride;
-}
-
-int MeshDataDXR::getIndexStride() const
-{
-    if (base->index_stride == 0 && index_buffer)
-        return index_buffer->size / base->index_count;
-    else
-        return base->index_stride;
-}
-
-void MeshDataDXR::clearBLAS()
-{
-    blas = nullptr;
-    blas_scratch = nullptr;
-}
-
-
-bool MeshInstanceDataDXR::valid() const
-{
-    return this && mesh;
-}
-
-void MeshInstanceDataDXR::clearBLAS()
+void MeshInstanceDXR::clearBLAS()
 {
     // not clear BLAS for deformed vertices because update time is what we want to measure in this case.
     //blas_scratch = nullptr;
     //blas_deformed = nullptr;
-    if (mesh)
-        mesh->clearBLAS();
-}
-
-
-bool RenderTargetDataDXR::valid() const
-{
-    return this && texture && texture->resource;
+    if (m_mesh)
+        m_mesh->clearBLAS();
 }
 
 

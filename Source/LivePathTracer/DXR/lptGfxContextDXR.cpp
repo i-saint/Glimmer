@@ -525,40 +525,40 @@ void GfxContextDXR::setRenderTarget(RenderDataDXR& rd, RenderTargetData *rt)
 
     auto& data = m_rendertarget_records[rt];
     if (!data) {
-        data = std::make_shared<RenderTargetDataDXR>();
+        data = std::make_shared<RenderTargetDXR>();
         rt->device_data = data.get();
         data->base = rt;
         {
-            auto dxgifmt = GetDXGIFormat(rt->format);
-            if (rt->width > 0 && rt->height > 0 && dxgifmt != DXGI_FORMAT_UNKNOWN) {
+            auto dxgifmt = GetDXGIFormat(rt->m_format);
+            if (rt->m_width > 0 && rt->m_height > 0 && dxgifmt != DXGI_FORMAT_UNKNOWN) {
                 auto tex = std::make_shared<TextureDataDXR>();
-                tex->resource = createTexture(rt->width, rt->height, dxgifmt);
+                tex->resource = createTexture(rt->m_width, rt->m_height, dxgifmt);
                 if (!tex->resource) {
                     lptDebugPrint("GfxContextDXR::setRenderTarget(): failed to create texture\n");
                     return;
                 }
-                tex->width = rt->width;
-                tex->height = rt->height;
+                tex->width = rt->m_width;
+                tex->height = rt->m_height;
                 tex->format = dxgifmt;
-                data->texture = tex;
+                data->m_texture = tex;
             }
         }
-        lptSetName(data->texture->resource, rt->name + " Texture");
+        lptSetName(data->m_texture->resource, rt->m_name + " Texture");
 
         // create textures for adaptive sampling and antialiasing
-        int width = data->texture->width;
-        int height = data->texture->height;
-        auto format = data->texture->format;
+        int width = data->m_texture->width;
+        int height = data->m_texture->height;
+        auto format = data->m_texture->format;
         if (width >= 128 && height >= 128) {
-            data->adaptive_res[0] = createTexture(width / 2, height / 2, format);
-            data->adaptive_res[1] = createTexture(width / 4, height / 4, format);
-            data->adaptive_res[2] = createTexture(width / 8, height / 8, format);
-            lptSetName(data->adaptive_res[0], rt->name + " AdaptiveRes[0]");
-            lptSetName(data->adaptive_res[1], rt->name + " AdaptiveRes[1]");
-            lptSetName(data->adaptive_res[2], rt->name + " AdaptiveRes[2]");
+            data->m_adaptive_res[0] = createTexture(width / 2, height / 2, format);
+            data->m_adaptive_res[1] = createTexture(width / 4, height / 4, format);
+            data->m_adaptive_res[2] = createTexture(width / 8, height / 8, format);
+            lptSetName(data->m_adaptive_res[0], rt->m_name + " AdaptiveRes[0]");
+            lptSetName(data->m_adaptive_res[1], rt->m_name + " AdaptiveRes[1]");
+            lptSetName(data->m_adaptive_res[2], rt->m_name + " AdaptiveRes[2]");
         }
-        data->back_buffer = createTexture(width, height, format);
-        lptSetName(data->back_buffer, rt->name + " Back Buffer");
+        data->m_back_buffer = createTexture(width, height, format);
+        lptSetName(data->m_back_buffer, rt->m_name + " Back Buffer");
     }
 
     if (rd.render_target != data) {
@@ -580,16 +580,16 @@ void GfxContextDXR::setRenderTarget(RenderDataDXR& rd, RenderTargetData *rt)
                 m_device->CreateShaderResourceView(res, &srv_desc, dh.hcpu);
             };
 
-            create_uav(data->texture->resource, rd.render_target_uav);
-            for (int i = 0; i < _countof(data->adaptive_res); ++i) {
-                auto& res = data->adaptive_res[i];
+            create_uav(data->m_texture->resource, rd.render_target_uav);
+            for (int i = 0; i < _countof(data->m_adaptive_res); ++i) {
+                auto& res = data->m_adaptive_res[i];
                 if (res) {
                     create_uav(res, rd.adaptive_uavs[i]);
                     create_srv(res, rd.adaptive_srvs[i]);
                 }
             }
-            create_uav(data->back_buffer, rd.back_buffer_uav);
-            create_srv(data->back_buffer, rd.back_buffer_srv);
+            create_uav(data->m_back_buffer, rd.back_buffer_uav);
+            create_srv(data->m_back_buffer, rd.back_buffer_srv);
         }
     }
 
@@ -605,7 +605,7 @@ void GfxContextDXR::setRenderTarget(RenderDataDXR& rd, RenderTargetData *rt)
             uploadTexture(tex.resource, data.data(), tex.width, tex.height, tex.format);
         };
 
-        auto& tex = *rd.render_target->texture;
+        auto& tex = *rd.render_target->m_texture;
         switch (GetFloatFormat(tex.format)) {
         case DXGI_FORMAT_R8_UNORM: do_fill(tex, std::vector<unorm8>()); break;
         case DXGI_FORMAT_R16_FLOAT: do_fill(tex, std::vector<half>()); break;
@@ -647,7 +647,7 @@ void GfxContextDXR::setMeshes(RenderDataDXR& rd, std::vector<MeshInstanceDataPtr
 
         auto& mesh_dxr = m_mesh_records[mesh];
         if (!mesh_dxr) {
-            mesh_dxr = std::make_shared<MeshDataDXR>();
+            mesh_dxr = std::make_shared<MeshDXR>();
             mesh->device_data = mesh_dxr.get();
             mesh_dxr->base = mesh;
         }
@@ -708,7 +708,7 @@ void GfxContextDXR::setMeshes(RenderDataDXR& rd, std::vector<MeshInstanceDataPtr
 
         auto& inst_dxr = m_meshinstance_records[inst];
         if (!inst_dxr) {
-            inst_dxr = std::make_shared<MeshInstanceDataDXR>();
+            inst_dxr = std::make_shared<MeshInstanceDXR>();
             inst->device_data = inst_dxr.get();
             inst_dxr->base = inst;
             inst_dxr->mesh = mesh_dxr;
@@ -1081,14 +1081,14 @@ void GfxContextDXR::flush(RenderDataDXR& rd)
 
     // dispatch
     bool antialiasing = rd.hasFlag(RenderFlag::Antialiasing);
-    auto& rtex = rd.render_target->texture;
-    auto& rt_res = antialiasing ? rd.render_target->back_buffer : rtex->resource;
+    auto& rtex = rd.render_target->m_texture;
+    auto& rt_res = antialiasing ? rd.render_target->m_back_buffer : rtex->resource;
     auto rt_uav = antialiasing ? rd.back_buffer_uav : rd.render_target_uav;
 
-    if (rd.hasFlag(RenderFlag::AdaptiveSampling) && rd.render_target->adaptive_res[0]) {
+    if (rd.hasFlag(RenderFlag::AdaptiveSampling) && rd.render_target->m_adaptive_res[0]) {
         // adaptive sampling
 
-        auto& adaptive_res = rd.render_target->adaptive_res;
+        auto& adaptive_res = rd.render_target->m_adaptive_res;
 
         // 1 / 8
         dispatch_ray_scope(adaptive_res[2], RayGenType::Default, [&]() {
@@ -1157,7 +1157,7 @@ bool GfxContextDXR::finish(RenderDataDXR& rd)
                 // break here to inspect data
             };
 
-            auto& tex = *rd.render_target->texture;
+            auto& tex = *rd.render_target->m_texture;
             switch (GetFloatFormat(tex.format)) {
             case DXGI_FORMAT_R8_UNORM: do_readback(tex, std::vector<unorm8>()); break;
             case DXGI_FORMAT_R16_FLOAT: do_readback(tex, std::vector<half>()); break;
@@ -1202,10 +1202,10 @@ void GfxContextDXR::frameEnd()
 
 bool GfxContextDXR::readbackRenderTarget(RenderDataDXR& rd, void *dst)
 {
-    if (!rd.render_target || !rd.render_target->texture->resource)
+    if (!rd.render_target || !rd.render_target->m_texture->resource)
         return false;
 
-    auto& rtex = rd.render_target->texture;
+    auto& rtex = rd.render_target->m_texture;
     auto desc = rtex->resource->GetDesc();
     return readbackTexture(dst, rtex->resource, (UINT)desc.Width, (UINT)desc.Height, desc.Format);
 }

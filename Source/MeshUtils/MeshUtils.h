@@ -1,4 +1,5 @@
 #pragma once
+#define MeshUtils_h
 
 #include <vector>
 #include <memory>

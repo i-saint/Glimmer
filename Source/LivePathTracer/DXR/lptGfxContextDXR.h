@@ -1,7 +1,6 @@
 #pragma once
 #ifdef _WIN32
-#include "lptRenderer.h"
-#include "lptTypesDXR.h"
+#include "lptEntityDXR.h"
 #include "lptDeformerDXR.h"
 
 namespace lpt {
@@ -83,12 +82,6 @@ private:
     ID3D12StateObjectPtr m_pipeline_state;
     ID3D12ResourcePtr m_shader_table;
     uint64_t m_shader_record_size = 0;
-
-    std::map<const void*, TextureDataDXRPtr> m_texture_records;
-    std::map<const void*, BufferDataDXRPtr> m_buffer_records;
-    std::map<MeshData*, MeshDataDXRPtr> m_mesh_records;
-    std::map<MeshInstanceData*, MeshInstanceDataDXRPtr> m_meshinstance_records;
-    std::map<RenderTargetData*, RenderTargetDataDXRPtr> m_rendertarget_records;
 };
 
 } // namespace lpt

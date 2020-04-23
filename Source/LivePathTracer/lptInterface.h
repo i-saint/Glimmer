@@ -1,5 +1,4 @@
 #pragma once
-#include "Foundation/lptRefPtr.h"
 #include "Foundation/lptMath.h"
 #include "Foundation/lptHalf.h"
 
@@ -35,17 +34,20 @@ struct JointWeight
 };
 
 
-class IObject
+class IEntity
 {
 public:
-    virtual ~IObject() {}
+    virtual ~IEntity() {}
     virtual int addRef() = 0;
     virtual int release() = 0;
+    virtual int getRef() const = 0;
 
     virtual void setName(const char* name) = 0;
+    virtual const char* getName() const = 0;
 };
 
-class ICamera : public IObject
+
+class ICamera : public IEntity
 {
 public:
     virtual void setPosition(float3 v) = 0;
@@ -55,7 +57,8 @@ public:
     virtual void setFar(float v) = 0;
 };
 
-class ILight : public IObject
+
+class ILight : public IEntity
 {
 public:
     virtual void setType(LightType v) = 0;
@@ -66,32 +69,38 @@ public:
     virtual void setColor(float3 v) = 0;
 };
 
-class ITexture : public IObject
+
+class ITexture : public IEntity
 {
 public:
-    virtual void setup(TextureFormat format, int width, int height) = 0;
+    virtual bool setup(TextureFormat format, int width, int height) = 0;
     virtual bool upload(const void* src) = 0;
+    virtual void* getDeviceObject() = 0;
 };
 
-class IRenderTarget : public IObject
+
+class IRenderTarget : public IEntity
 {
 public:
-    virtual void setup(TextureFormat format, int width, int height) = 0;
+    virtual bool setup(TextureFormat format, int width, int height) = 0;
     virtual bool readback(void* dst) = 0;
+    virtual void* getDeviceObject() = 0;
 };
 
-class IMaterial : public IObject
+
+class IMaterial : public IEntity
 {
 public:
     virtual void setDiffuse(float3 v) = 0;
     virtual void setRoughness(float v) = 0;
-    virtual void setEmission(float3 v) = 0;
+    virtual void setEmissive(float3 v) = 0;
 
     virtual void setDiffuseTexture(ITexture* v) = 0;
     virtual void setEmissionTexture(ITexture* v) = 0;
 };
 
-class IMesh : public IObject
+
+class IMesh : public IEntity
 {
 public:
     virtual void setIndices(const int* v, size_t n) = 0;
@@ -104,15 +113,18 @@ public:
     virtual void setJointWeights(const uint8_t* counts, size_t ncounts, const JointWeight* weights, size_t nweights) = 0;
 };
 
-class IMeshInstance : public IObject
+
+class IMeshInstance : public IEntity
 {
 public:
+    virtual void setMesh(IMesh* v) = 0;
+    virtual void setMaterial(IMaterial* v) = 0;
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
-    virtual void setMaterial(IMaterial* v) = 0;
 };
 
-class IScene : public IObject
+
+class IScene : public IEntity
 {
 public:
     virtual void setRenderTarget(IRenderTarget* v) = 0;
@@ -123,7 +135,7 @@ public:
 };
 
 
-class IContext : public IObject
+class IContext : public IEntity
 {
 public:
     virtual ICamera* createCamera() = 0;
@@ -139,6 +151,55 @@ public:
 };
 
 
-IContext* CreateContextDXR();
+template<class T>
+class ref_ptr
+{
+public:
+    ref_ptr() {}
+    ref_ptr(T* data) { reset(data); }
+    ref_ptr(T&& data) { swap(data); }
+    ref_ptr(const ref_ptr& v) { reset(v.m_ptr); }
+    ref_ptr& operator=(const ref_ptr& v) { reset(v.m_ptr); return *this; }
+    ~ref_ptr() { reset(); }
+
+    void reset(T* data = nullptr)
+    {
+        if (m_ptr)
+            m_ptr->release();
+        m_ptr = data;
+        if (m_ptr)
+            m_ptr->addRef();
+    }
+
+    void swap(ref_ptr& v)
+    {
+        std::swap(m_ptr, v->m_data);
+    }
+
+    T& operator*() { return *m_ptr; }
+    const T& operator*() const { return *m_ptr; }
+    T* operator->() { return m_ptr; }
+    const T* operator->() const { return m_ptr; }
+    operator T* () { return m_ptr; }
+    operator const T* () const { return m_ptr; }
+    operator bool() const { return m_ptr; }
+    bool operator==(const ref_ptr<T>& v) const { return m_ptr == v.m_ptr; }
+    bool operator!=(const ref_ptr<T>& v) const { return m_ptr != v.m_ptr; }
+
+private:
+    T* m_ptr = nullptr;
+};
+using CameraPtr = ref_ptr<ICamera>;
+using LightPtr = ref_ptr<ILight>;
+using TexturePtr = ref_ptr<ITexture>;
+using RenderTargetPtr = ref_ptr<IRenderTarget>;
+using MaterialPtr = ref_ptr<IMaterial>;
+using MeshPtr = ref_ptr<IMesh>;
+using MeshInstancePtr = ref_ptr<IMeshInstance>;
+using ScenePtr = ref_ptr<IScene>;
+using ContextPtr = ref_ptr<IContext>;
 
 } // namespace lpt
+
+lpt::IContext* lptCreateContextDXR();
+

@@ -12,31 +12,28 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DXR\lptDeformerDXR.cpp" />
+    <ClCompile Include="DXR\lptEntityDXR.cpp" />
     <ClCompile Include="DXR\lptGfxContextDXR.cpp" />
     <ClCompile Include="DXR\lptRendererDXR.cpp" />
-    <ClCompile Include="DXR\lptTypesDXR.cpp" />
     <ClCompile Include="Foundation\lptLog.cpp" />
     <ClCompile Include="Foundation\lptMath.cpp" />
     <ClCompile Include="Foundation\lptMisc.cpp" />
-    <ClCompile Include="lptRenderer.cpp" />
-    <ClCompile Include="lptTypes.cpp" />
+    <ClCompile Include="lptEntity.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DXR\lptDeformerDXR.h" />
+    <ClInclude Include="DXR\lptEntityDXR.h" />
     <ClInclude Include="DXR\lptGfxContextDXR.h" />
-    <ClInclude Include="DXR\lptTypesDXR.h" />
     <ClInclude Include="Foundation\lptHalf.h" />
     <ClInclude Include="Foundation\lptLog.h" />
     <ClInclude Include="Foundation\lptMath.h" />
     <ClInclude Include="Foundation\lptMisc.h" />
-    <ClInclude Include="Foundation\lptRefPtr.h" />
+    <ClInclude Include="lptEntity.h" />
     <ClInclude Include="lptInterface.h" />
-    <ClInclude Include="lptRenderer.h" />
     <ClInclude Include="lptSettings.h" />
-    <ClInclude Include="lptTypes.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

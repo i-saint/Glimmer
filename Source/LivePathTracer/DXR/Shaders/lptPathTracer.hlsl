@@ -66,12 +66,20 @@ struct MaterialData
     int2 pad_tex;
 };
 
+struct MeshData
+{
+    uint point_offset;
+    uint normal_offset;
+    uint tangent_offset;
+    uint uv_offset;
+};
+
 struct InstanceData
 {
+    uint mesh_index;
+    uint material_index;
     uint instance_flags;
     uint layer_mask;
-    uint material_index;
-    uint pad;
 };
 
 struct SceneData

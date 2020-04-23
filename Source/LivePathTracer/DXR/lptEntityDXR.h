@@ -1,6 +1,6 @@
 #pragma once
 #ifdef _WIN32
-#include "lptTypes.h"
+#include "lptEntity.h"
 
 namespace lpt {
 
@@ -48,6 +48,8 @@ DefPtr(IDxcOperationResult);
 DefPtr(IDxcBlob);
 #undef DefPtr
 
+const int kAdaptiveCascades = 3;
+
 struct DescriptorHandleDXR
 {
     D3D12_CPU_DESCRIPTOR_HANDLE hcpu{};
@@ -84,113 +86,156 @@ private:
 };
 
 
-class TextureDataDXR
-{
-public:
-    GPUResourcePtr host_ptr = nullptr;
-    int width = 0;
-    int height = 0;
-
-    DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-    ID3D12Resource     *resource = nullptr;
-    ID3D12ResourcePtr  internal_resource;
-    ID3D11Texture2DPtr temporary_d3d11;
-    HANDLE handle = nullptr;
-    bool is_nt_handle = false;
-
-    TextureDataDXR();
-    ~TextureDataDXR();
-};
-using TextureDataDXRPtr = std::shared_ptr<TextureDataDXR>;
-
-class BufferDataDXR
-{
-public:
-    GPUResourcePtr host_ptr = nullptr;
-    int size = 0;
-
-    ID3D12Resource    *resource = nullptr;
-    ID3D12ResourcePtr internal_resource;
-    ID3D11BufferPtr   temporary_d3d11;
-    HANDLE handle = nullptr;
-    bool is_nt_handle = false;
-    bool is_dynamic = false;
-    bool is_updated = false;
-
-    BufferDataDXR();
-    ~BufferDataDXR();
-};
-using BufferDataDXRPtr = std::shared_ptr<BufferDataDXR>;
-
-class MeshDataDXR : public DeviceMeshData
-{
-public:
-    MeshData *base = nullptr;
-
-    BufferDataDXRPtr vertex_buffer;
-    BufferDataDXRPtr index_buffer;
-
-    ID3D12ResourcePtr mesh_info;
-
-    // blendshape data
-    ID3D12ResourcePtr bs_delta;
-    ID3D12ResourcePtr bs_frames;
-    ID3D12ResourcePtr bs_info;
-
-    // skinning data
-    ID3D12ResourcePtr bone_counts;
-    ID3D12ResourcePtr bone_weights;
-
-    ID3D12ResourcePtr blas; // bottom level acceleration structure
-    ID3D12ResourcePtr blas_scratch;
-
-    bool valid() const override;
-    int getVertexStride() const;
-    int getIndexStride() const;
-    void clearBLAS();
-};
-using MeshDataDXRPtr = std::shared_ptr<MeshDataDXR>;
-
-class MeshInstanceDataDXR : public DeviceMeshInstanceData
-{
-public:
-    MeshInstanceData *base = nullptr;
-
-    MeshDataDXRPtr mesh;
-    ID3D12DescriptorHeapPtr desc_heap;
-    ID3D12ResourcePtr bs_weights;
-    ID3D12ResourcePtr bone_matrices;
-    ID3D12ResourcePtr deformed_vertices;
-    ID3D12ResourcePtr blas_deformed;
-    ID3D12ResourcePtr blas_scratch;
-    bool is_updated = false;
-
-    bool valid() const override;
-    void clearBLAS();
-};
-using MeshInstanceDataDXRPtr = std::shared_ptr<MeshInstanceDataDXR>;
-
 struct InstanceDataDXR
 {
+    uint32_t mesh_index;
+    uint32_t material_index;
     uint32_t instance_flags; // combination of InstanceFlags
     uint32_t layer_mask;
-    uint32_t material_index;
-    uint32_t pad;
 };
 
-const int kAdaptiveCascades = 3;
 
-class RenderTargetDataDXR : public DeviceRenderTargetData
+class CameraDXR : public Camera
 {
+using super = Camera;
+friend class ContextDXR;
 public:
-    RenderTargetData *base = nullptr;
-    TextureDataDXRPtr texture;
-    ID3D12ResourcePtr adaptive_res[kAdaptiveCascades]; // for adaptive sampling
-    ID3D12ResourcePtr back_buffer; // back buffer for antialiasing
 
-    bool valid() const override;
+public:
 };
-using RenderTargetDataDXRPtr = std::shared_ptr<RenderTargetDataDXR>;
+lptDeclRefPtr(CameraDXR);
+
+
+class LightDXR : public Light
+{
+using super = Light;
+friend class ContextDXR;
+public:
+
+public:
+};
+lptDeclRefPtr(LightDXR);
+
+
+class TextureDXR : public Texture
+{
+using super = Texture;
+friend class ContextDXR;
+public:
+
+public:
+};
+lptDeclRefPtr(TextureDXR);
+
+
+class RenderTargetDXR : public RenderTarget
+{
+using super = RenderTarget;
+friend class ContextDXR;
+public:
+
+public:
+    ID3D12ResourcePtr m_texture;
+    ID3D12ResourcePtr m_adaptive_res[kAdaptiveCascades]; // for adaptive sampling
+    ID3D12ResourcePtr m_back_buffer; // for antialiasing
+};
+using RenderTargetDXRPtr = ref_ptr<RenderTargetDXR>;
+
+
+class MaterialDXR : public Material
+{
+using super = Material;
+friend class ContextDXR;
+public:
+
+public:
+};
+lptDeclRefPtr(MaterialDXR);
+
+
+class MeshDXR : public Mesh
+{
+using super = Mesh;
+friend class ContextDXR;
+public:
+    void clearBLAS();
+
+public:
+    ID3D12ResourcePtr m_index_buffer;
+    ID3D12ResourcePtr m_points_buffer;
+    ID3D12ResourcePtr m_normals_buffer;
+    ID3D12ResourcePtr m_tangents_buffer;
+    ID3D12ResourcePtr m_uv_buffer;
+    ID3D12ResourcePtr m_mesh_info;
+
+    // blendshape data
+    ID3D12ResourcePtr m_bs_delta;
+    ID3D12ResourcePtr m_bs_frames;
+    ID3D12ResourcePtr m_bs_info;
+
+    // skinning data
+    ID3D12ResourcePtr m_joint_counts;
+    ID3D12ResourcePtr m_joint_weights;
+
+    ID3D12ResourcePtr m_blas; // bottom level acceleration structure
+    ID3D12ResourcePtr m_blas_scratch;
+
+};
+lptDeclRefPtr(MeshDXR);
+
+
+class MeshInstanceDXR : public MeshInstance
+{
+using super = MeshInstance;
+friend class ContextDXR;
+public:
+    void clearBLAS();
+
+public:
+    MeshDXRPtr m_mesh;
+    ID3D12DescriptorHeapPtr m_desc_heap;
+    ID3D12ResourcePtr m_bs_weights;
+    ID3D12ResourcePtr m_bone_matrices;
+    ID3D12ResourcePtr m_deformed_vertices;
+    ID3D12ResourcePtr m_blas_deformed;
+    ID3D12ResourcePtr m_blas_scratch;
+    bool m_is_updated = false;
+
+};
+lptDeclRefPtr(MeshInstanceDXR);
+
+
+class SceneDXR : public Scene
+{
+using super = Scene;
+friend class ContextDXR;
+public:
+public:
+};
+lptDeclRefPtr(SceneDXR);
+
+
+
+class ContextDXR : public Context
+{
+using super = Context;
+public:
+    CameraDXR*       createCamera() override;
+    LightDXR*        createLight() override;
+    TextureDXR*      createTexture() override;
+    MaterialDXR*     createMaterial() override;
+    MeshDXR*         createMesh() override;
+    MeshInstanceDXR* createMeshInstance() override;
+    SceneDXR*        createScene() override;
+
+    void renderStart(IScene* v) override;
+    void renderFinish(IScene* v) override;
+
+public:
+};
+lptDeclRefPtr(ContextDXR);
+
+
 
 
 class TimestampDXR
@@ -296,8 +341,6 @@ public:
 class RenderDataDXR
 {
 public:
-    std::string name;
-
     ID3D12GraphicsCommandList4Ptr cl_deform;
     ID3D12DescriptorHeapPtr desc_heap;
     DescriptorHandleDXR render_target_uav;
@@ -308,14 +351,14 @@ public:
     DescriptorHandleDXR adaptive_uavs[kAdaptiveCascades], adaptive_srvs[kAdaptiveCascades];
     DescriptorHandleDXR back_buffer_uav, back_buffer_srv;
 
-    std::vector<MeshInstanceDataDXRPtr> instances, instances_prev;
+    std::vector<MeshInstanceDXRPtr> instances, instances_prev;
     SceneData scene_data_prev{};
     TLASDataDXR tlas_data;
     ID3D12ResourcePtr vertex_buffer;
     ID3D12ResourcePtr material_data;
     ID3D12ResourcePtr instance_data;
     ID3D12ResourcePtr scene_data;
-    RenderTargetDataDXRPtr render_target;
+    RenderTargetDXRPtr render_target;
 
     uint64_t fv_translate = 0, fv_deform = 0, fv_blas = 0, fv_tlas = 0, fv_rays = 0;
     FenceEventDXR fence_event;
