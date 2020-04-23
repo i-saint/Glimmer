@@ -35,6 +35,9 @@
     <ClCompile Include="DXR\lptEntityDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
+    <ClCompile Include="DXR\lptInternalDXR.cpp">
+      <Filter>DXR</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Foundation\lptHalf.h">
@@ -60,6 +63,9 @@
     <ClInclude Include="lptInterface.h" />
     <ClInclude Include="lptEntity.h" />
     <ClInclude Include="DXR\lptEntityDXR.h">
+      <Filter>DXR</Filter>
+    </ClInclude>
+    <ClInclude Include="DXR\lptInternalDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
   </ItemGroup>

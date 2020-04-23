@@ -452,9 +452,9 @@ void GfxContextDXR::prepare(RenderDataDXR& rd)
         rd.material_data_srv = handle_allocator.allocate();
         rd.instance_data_srv = handle_allocator.allocate();
         rd.scene_data_cbv = handle_allocator.allocate();
-        for (int i = 0; i < kAdaptiveCascades; ++i)
+        for (int i = 0; i < lptAdaptiveCascades; ++i)
             rd.adaptive_uavs[i] = handle_allocator.allocate();
-        for (int i = 0; i < kAdaptiveCascades; ++i)
+        for (int i = 0; i < lptAdaptiveCascades; ++i)
             rd.adaptive_srvs[i] = handle_allocator.allocate();
         rd.back_buffer_uav = handle_allocator.allocate();
         rd.back_buffer_srv = handle_allocator.allocate();

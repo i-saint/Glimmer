@@ -194,7 +194,6 @@ class Texture : public RefCount<ITexture>
 {
 public:
     bool setup(TextureFormat format, int width, int height) override;
-    bool upload(const void* src) override;
 
 public:
     int m_index = 0;
@@ -209,7 +208,6 @@ class RenderTarget : public RefCount<IRenderTarget>
 {
 public:
     bool setup(TextureFormat format, int width, int height) override;
-    bool readback(void* dst) override;
 
 public:
     TextureFormat m_format = TextureFormat::Unknown;
@@ -225,7 +223,6 @@ public:
     void setDiffuse(float3 v) override;
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;
-
     void setDiffuseTexture(ITexture* v) override;
     void setEmissionTexture(ITexture* v) override;
 
@@ -256,7 +253,7 @@ public:
     void setJointBindposes(const float4x4* v, size_t n) override;
     void setJointWeights(const uint8_t* counts, size_t ncounts, const JointWeight* weights, size_t nweights) override;
 
-protected:
+public:
     RawVector<int>    m_indices;
     RawVector<float3> m_points;
     RawVector<float3> m_normals;

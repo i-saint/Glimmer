@@ -27,6 +27,14 @@ enum class LightType : uint32_t
     ReversePoint = 4,
 };
 
+#ifndef lptImpl
+struct float2 { float x, y; };
+struct float3 { float x, y, z; };
+struct float4 { float x, y, z, w; };
+using quatf = float4;
+struct float4x4 { float v[4][4]; };
+#endif
+
 struct JointWeight
 {
     float weight;
@@ -140,6 +148,7 @@ class IContext : public IEntity
 public:
     virtual ICamera* createCamera() = 0;
     virtual ILight* createLight() = 0;
+    virtual IRenderTarget* createRenderTarget() = 0;
     virtual ITexture* createTexture() = 0;
     virtual IMaterial* createMaterial() = 0;
     virtual IMesh* createMesh() = 0;
@@ -148,6 +157,8 @@ public:
 
     virtual void renderStart(IScene* v) = 0;
     virtual void renderFinish(IScene* v) = 0;
+
+    virtual void* getDevice() = 0;
 };
 
 

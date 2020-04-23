@@ -113,40 +113,38 @@ bool DeformerDXR::prepare(RenderDataDXR& rd)
     return true;
 }
 
-bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
+bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDXR& inst)
 {
-    if (!valid() || !inst_dxr.mesh)
+    if (!valid() || !inst.m_mesh)
         return false;
 
-    auto& inst = *inst_dxr.base;
-    auto& mesh = *inst_dxr.mesh->base;
-    auto& mesh_dxr = *inst_dxr.mesh;
+    auto& mesh = *inst.m_mesh;
 
-    bool blendshape_updated = inst_dxr.base->isUpdated(UpdateFlag::Blendshape);
-    bool bone_updated = inst_dxr.base->isUpdated(UpdateFlag::Bones);
+    bool blendshape_updated = inst.isUpdated(UpdateFlag::Blendshape);
+    bool bone_updated = inst.isUpdated(UpdateFlag::Bones);
     if (!blendshape_updated && !bone_updated)
         return false; // no need to deform
 
     bool clamp_blendshape_weights = rd.hasFlag(RenderFlag::ClampBlendShapeWights) != 0;
-    int vertex_count = mesh.vertex_count;
-    int blendshape_count = (int)inst.blendshape_weights.size();
-    int bone_count = (int)inst.bones.size();
+    int vertex_count = (int)mesh.m_points.size();
+    int blendshape_count = (int)inst.m_blendshape_weights.size();
+    int bone_count = (int)inst.m_joint_matrices.size();
 
     // setup descriptors
     bool update_descriptors = false;
-    if (!inst_dxr.desc_heap) {
+    if (!inst.m_desc_heap) {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.NumDescriptors = 32;
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&inst_dxr.desc_heap));
-        lptSetName(inst_dxr.desc_heap, inst.name + " Desc Heap");
+        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&inst.m_desc_heap));
+        lptSetName(inst.m_desc_heap, inst.m_name + " Desc Heap");
         update_descriptors = true;
     }
 
     // note: there are per-mesh resources (e.g. base vertices) and per-instance ones (e.g. deformed vertices).
     //       these are not 1 on 1. one mesh can have multiple instances.
-    auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, inst_dxr.desc_heap);
+    auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, inst.m_desc_heap);
     auto hdst_vertices = handle_allocator.allocate();
     auto hbase_vertices = handle_allocator.allocate();
     auto hbs_delta = handle_allocator.allocate();
@@ -158,15 +156,14 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
     auto hbone_matrices = handle_allocator.allocate();
     auto hmesh_info = handle_allocator.allocate();
 
-    if (!inst_dxr.deformed_vertices) {
+    if (!inst.m_buf_points_deformed) {
         // deformed vertices
-        inst_dxr.deformed_vertices = createBuffer(sizeof(float4) * vertex_count, kDefaultHeapProps, true);
-        lptSetName(inst_dxr.deformed_vertices, inst.name + " Deformed Vertices");
+        inst.m_buf_points_deformed = createBuffer(sizeof(float4) * vertex_count, kDefaultHeapProps, true);
+        lptSetName(inst.m_buf_points_deformed, inst.m_name + " Deformed Vertices");
     }
     if (update_descriptors) {
-        createUAV(hdst_vertices.hcpu, inst_dxr.deformed_vertices, vertex_count, sizeof(float4));
-        // interpret source vertex buffer as just an array of float
-        createSRV(hbase_vertices.hcpu, mesh_dxr.vertex_buffer->resource, mesh_dxr.vertex_buffer->size / 4, 4);
+        createUAV(hdst_vertices.hcpu, inst.m_buf_points_deformed, vertex_count, sizeof(float4));
+        createSRV(hbase_vertices.hcpu, mesh.m_buf_points, mesh.m_points.size(), 12);
     }
 
     // blendshape
@@ -175,11 +172,11 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
         for (auto& bs : mesh.blendshapes)
             frame_count += (int)bs.frames.size();
 
-        if (!mesh_dxr.bs_delta) {
+        if (!mesh.m_buf_bs_delta) {
             // delta
-            mesh_dxr.bs_delta = createBuffer(sizeof(float4) * vertex_count * frame_count, kUploadHeapProps);
-            lptSetName(mesh_dxr.bs_delta, mesh.name + " Blendshape Delta");
-            writeBuffer(mesh_dxr.bs_delta, [&](void *dst_) {
+            mesh.m_buf_bs_delta = createBuffer(sizeof(float4) * vertex_count * frame_count, kUploadHeapProps);
+            lptSetName(mesh.m_buf_bs_delta, mesh.m_name + " Blendshape Delta");
+            writeBuffer(mesh.m_buf_bs_delta, [&](void *dst_) {
                 auto dst = (float4*)dst_;
                 for (auto& bs : mesh.blendshapes) {
                     for (auto& frame : bs.frames) {
@@ -191,9 +188,9 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
             });
 
             // frame
-            mesh_dxr.bs_frames = createBuffer(sizeof(BlendshapeFrame) * frame_count, kUploadHeapProps);
-            lptSetName(mesh_dxr.bs_frames, mesh.name + " Blendshape Frame");
-            writeBuffer(mesh_dxr.bs_frames, [&](void *dst_) {
+            mesh.m_buf_bs_frames = createBuffer(sizeof(BlendshapeFrame) * frame_count, kUploadHeapProps);
+            lptSetName(mesh.m_buf_bs_frames, mesh.m_name + " Blendshape Frame");
+            writeBuffer(mesh.m_buf_bs_frames, [&](void *dst_) {
                 auto dst = (BlendshapeFrame*)dst_;
                 int offset = 0;
                 for (auto& bs : mesh.blendshapes) {
@@ -209,9 +206,9 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
             });
 
             // counts
-            mesh_dxr.bs_info = createBuffer(sizeof(BlendshapeInfo) * blendshape_count, kUploadHeapProps);
-            lptSetName(mesh_dxr.bs_info, mesh.name + " Blendshape Counts");
-            writeBuffer(mesh_dxr.bs_info, [&](void *dst_) {
+            mesh.m_buf_bs_info = createBuffer(sizeof(BlendshapeInfo) * blendshape_count, kUploadHeapProps);
+            lptSetName(mesh.m_buf_bs_info, mesh.m_name + " Blendshape Counts");
+            writeBuffer(mesh.m_buf_bs_info, [&](void *dst_) {
                 auto dst = (BlendshapeInfo*)dst_;
                 int offset = 0;
                 for (auto& bs : mesh.blendshapes) {
@@ -227,15 +224,15 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
 
         // weights
         {
-            if (!inst_dxr.bs_weights) {
-                inst_dxr.bs_weights = createBuffer(sizeof(float) * blendshape_count, kUploadHeapProps);
-                lptSetName(inst_dxr.bs_weights, inst.name + " Blendshape Weights");
+            if (!inst.m_buf_bs_weights) {
+                inst.m_buf_bs_weights = createBuffer(sizeof(float) * blendshape_count, kUploadHeapProps);
+                lptSetName(inst.m_buf_bs_weights, inst.m_name + " Blendshape Weights");
             }
             // update on every frame
-            writeBuffer(inst_dxr.bs_weights, [&](void *dst_) {
+            writeBuffer(inst.m_buf_bs_weights, [&](void *dst_) {
                 auto dst = (float*)dst_;
                 for (int bsi = 0; bsi < blendshape_count; ++bsi) {
-                    float weight = inst.blendshape_weights[bsi];
+                    float weight = inst.m_blendshape_weights[bsi];
                     if (clamp_blendshape_weights)
                         weight = clamp(weight, 0.0f, mesh.blendshapes[bsi].frames.back().weight);
                     *dst++ = weight / 100.0f; // 0-100 -> 0.0-1.0;
@@ -244,37 +241,37 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
         }
 
         if (update_descriptors) {
-            createSRV(hbs_delta.hcpu, mesh_dxr.bs_delta, vertex_count * frame_count, sizeof(float4));
-            createSRV(hbs_frames.hcpu, mesh_dxr.bs_frames, frame_count, sizeof(BlendshapeFrame));
-            createSRV(hbs_info.hcpu, mesh_dxr.bs_info, blendshape_count, sizeof(BlendshapeInfo));
-            createSRV(hbs_weights.hcpu, inst_dxr.bs_weights, blendshape_count, sizeof(float));
+            createSRV(hbs_delta.hcpu, mesh.m_buf_bs_delta, vertex_count * frame_count, sizeof(float4));
+            createSRV(hbs_frames.hcpu, mesh.m_buf_bs_frames, frame_count, sizeof(BlendshapeFrame));
+            createSRV(hbs_info.hcpu, mesh.m_buf_bs_info, blendshape_count, sizeof(BlendshapeInfo));
+            createSRV(hbs_weights.hcpu, inst.m_buf_bs_weights, blendshape_count, sizeof(float));
         }
     }
 
     // skinning 
     if (bone_count > 0) {
         // bone counts & weights
-        if (!mesh_dxr.bone_counts) {
-            mesh_dxr.bone_counts = createBuffer(sizeof(BoneCount) * vertex_count, kUploadHeapProps);
-            lptSetName(mesh_dxr.bone_counts, mesh.name + " Bone Counts");
+        if (!mesh.m_buf_joint_counts) {
+            mesh.m_buf_joint_counts = createBuffer(sizeof(BoneCount) * vertex_count, kUploadHeapProps);
+            lptSetName(mesh.m_buf_joint_counts, mesh.m_name + " Bone Counts");
 
             int weight_offset = 0;
-            writeBuffer(mesh_dxr.bone_counts, [&](void *dst_) {
+            writeBuffer(mesh.m_buf_joint_counts, [&](void *dst_) {
                 auto dst = (BoneCount*)dst_;
                 for (int vi = 0; vi < vertex_count; ++vi) {
-                    int n = mesh.skin.bone_counts[vi];
+                    int n = mesh.m_joint_counts[vi];
                     *dst++ = { n, weight_offset };
                     weight_offset += n;
                 }
             });
 
             const int weight_count = weight_offset;
-            mesh_dxr.bone_weights = createBuffer(sizeof(JointWeight) * weight_count, kUploadHeapProps);
-            lptSetName(mesh_dxr.bone_weights, mesh.name + " Bone Weights");
-            writeBuffer(mesh_dxr.bone_weights, [&](void *dst_) {
+            mesh.m_buf_joint_weights = createBuffer(sizeof(JointWeight) * weight_count, kUploadHeapProps);
+            lptSetName(mesh.m_buf_joint_weights, mesh.m_name + " Bone Weights");
+            writeBuffer(mesh.m_buf_joint_weights, [&](void *dst_) {
                 auto dst = (JointWeight*)dst_;
                 for (int wi = 0; wi < weight_count; ++wi) {
-                    auto& w1 = mesh.skin.weights[wi];
+                    auto& w1 = mesh.m_joint_weights[wi];
                     *dst++ = { w1.weight, w1.index };
                 }
             });
@@ -282,12 +279,12 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
 
         // bone matrices
         {
-            if (!inst_dxr.bone_matrices) {
-                inst_dxr.bone_matrices = createBuffer(sizeof(float4x4) * bone_count, kUploadHeapProps);
-                lptSetName(inst_dxr.bone_matrices, inst.name + " Bone Matrices");
+            if (!inst.m_buf_joint_matrices) {
+                inst.m_buf_joint_matrices = createBuffer(sizeof(float4x4) * bone_count, kUploadHeapProps);
+                lptSetName(inst.m_buf_joint_matrices, inst.m_name + " Bone Matrices");
             }
             // update on every frame
-            writeBuffer(inst_dxr.bone_matrices, [&](void *dst_) {
+            writeBuffer(inst.m_buf_joint_matrices, [&](void *dst_) {
                 auto dst = (float4x4*)dst_;
 
                 // note:
@@ -295,28 +292,28 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
                 // so, try to convert bone matrices to root bone space.
                 // on skinned meshes, inst.transform is root bone's transform or identity if root bone is not assigned.
                 // both cases work, but identity matrix means world space skinning that is not optimal.
-                auto iroot = invert(inst.transform);
+                auto iroot = invert(inst.m_transform);
                 for (int bi = 0; bi < bone_count; ++bi)
-                    *dst++ = mesh.skin.bindposes[bi] * inst.bones[bi] * iroot;
+                    *dst++ = mesh.m_joint_bindposes[bi] * inst.m_joint_matrices[bi] * iroot;
             });
         }
 
         if (update_descriptors) {
-            int weight_count = (int)mesh.skin.weights.size();
-            createSRV(hbone_counts.hcpu, mesh_dxr.bone_counts, vertex_count, sizeof(BoneCount));
-            createSRV(hbone_weights.hcpu, mesh_dxr.bone_weights, weight_count, sizeof(JointWeight));
-            createSRV(hbone_matrices.hcpu, inst_dxr.bone_matrices, bone_count, sizeof(float4x4));
+            int weight_count = (int)mesh.m_joint_weights.size();
+            createSRV(hbone_counts.hcpu, mesh.m_buf_joint_counts, vertex_count, sizeof(BoneCount));
+            createSRV(hbone_weights.hcpu, mesh.m_buf_joint_weights, weight_count, sizeof(JointWeight));
+            createSRV(hbone_matrices.hcpu, inst.m_buf_joint_matrices, bone_count, sizeof(float4x4));
         }
     }
 
     // mesh info
     int mesh_info_size = align_to(256, sizeof(MeshInfo));
-    if (!mesh_dxr.mesh_info) {
-        mesh_dxr.mesh_info = createBuffer(mesh_info_size, kUploadHeapProps);
-        lptSetName(mesh_dxr.mesh_info, mesh.name + " Mesh Info");
-        writeBuffer(mesh_dxr.mesh_info, [&](void *dst_) {
+    if (!mesh.m_buf_mesh_info) {
+        mesh.m_buf_mesh_info = createBuffer(mesh_info_size, kUploadHeapProps);
+        lptSetName(mesh.m_buf_mesh_info, mesh.m_name + " Mesh Info");
+        writeBuffer(mesh.m_buf_mesh_info, [&](void *dst_) {
             MeshInfo info{};
-            info.vertex_stride = mesh_dxr.getVertexStride() / 4;
+            info.vertex_stride = 12;
             info.deform_flags = 0;
             if (blendshape_count > 0)
                 info.deform_flags |= (int)DeformFlag::Blendshape;
@@ -327,17 +324,17 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDataDXR& inst_dxr)
         });
     }
     if (update_descriptors) {
-        createCBV(hmesh_info.hcpu, mesh_dxr.mesh_info, mesh_info_size);
+        createCBV(hmesh_info.hcpu, mesh.m_buf_mesh_info, mesh_info_size);
     }
 
     {
         auto& cl = rd.cl_deform;
         cl->SetComputeRootSignature(m_rootsig);
 
-        ID3D12DescriptorHeap* heaps[] = { inst_dxr.desc_heap };
+        ID3D12DescriptorHeap* heaps[] = { inst.m_desc_heap };
         cl->SetDescriptorHeaps(_countof(heaps), heaps);
-        cl->SetComputeRootDescriptorTable(0, inst_dxr.desc_heap->GetGPUDescriptorHandleForHeapStart());
-        cl->Dispatch(mesh.vertex_count, 1, 1);
+        cl->SetComputeRootDescriptorTable(0, inst.m_desc_heap->GetGPUDescriptorHandleForHeapStart());
+        cl->Dispatch((UINT)mesh.m_points.size(), 1, 1);
     }
 
     return true;
