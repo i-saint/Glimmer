@@ -91,7 +91,7 @@ class IRenderTarget : public IEntity
 {
 public:
     virtual void setup(TextureFormat format, int width, int height) = 0;
-    virtual void readback(void* dst) = 0;
+    virtual void readback(void* dst) = 0; // actual readback will be done after IContext::frameEnd()
     virtual void* getDeviceObject() = 0;
 };
 
@@ -189,6 +189,9 @@ public:
     {
         std::swap(m_ptr, v->m_data);
     }
+
+    T* get() { return m_ptr; }
+    const T* get() const { return m_ptr; }
 
     T& operator*() { return *m_ptr; }
     const T& operator*() const { return *m_ptr; }

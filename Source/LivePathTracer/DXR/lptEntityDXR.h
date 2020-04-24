@@ -57,7 +57,6 @@ class TextureDXR : public DXREntity<Texture>
 using super = Texture;
 friend class ContextDXR;
 public:
-    void upload(const void* src) override;
     void* getDeviceObject() override;
 
 public:
@@ -72,7 +71,6 @@ class RenderTargetDXR : public DXREntity<RenderTarget>
 using super = RenderTarget;
 friend class ContextDXR;
 public:
-    void readback(void* dst) override;
     void* getDeviceObject() override;
 
 public:
@@ -166,8 +164,6 @@ public:
     DescriptorHandleDXR m_instance_data_srv;
     DescriptorHandleDXR m_scene_data_cbv;
 
-    std::vector<MeshInstanceDXRPtr> m_instances;
-    std::vector<MeshInstanceDXRPtr> m_instances_prev;
     SceneData m_scene_data_prev{};
     TLASDataDXR m_tlas_data;
     ID3D12ResourcePtr m_instance_data;
@@ -255,6 +251,7 @@ public:
     uint64_t m_fv_blas = 0;
     uint64_t m_fv_tlas = 0;
     uint64_t m_fv_rays = 0;
+    uint64_t m_fv_readback = 0;
     uint64_t m_fv_last_rays = 0;
 
     CommandListManagerDXRPtr m_clm_direct;
@@ -276,6 +273,17 @@ public:
 #endif // lptEnableTimestamp
 };
 lptDeclRefPtr(ContextDXR);
+
+
+CameraDXR&       dxr_t(ICamera& v) { return static_cast<CameraDXR&>(v); }
+LightDXR&        dxr_t(ILight& v) { return static_cast<LightDXR&>(v); }
+TextureDXR&      dxr_t(ITexture& v) { return static_cast<TextureDXR&>(v); }
+RenderTargetDXR& dxr_t(IRenderTarget& v) { return static_cast<RenderTargetDXR&>(v); }
+MaterialDXR&     dxr_t(IMaterial& v) { return static_cast<MaterialDXR&>(v); }
+MeshDXR&         dxr_t(IMesh& v) { return static_cast<MeshDXR&>(v); }
+MeshInstanceDXR& dxr_t(IMeshInstance& v) { return static_cast<MeshInstanceDXR&>(v); }
+SceneDXR&        dxr_t(IScene& v) { return static_cast<SceneDXR&>(v); }
+ContextDXR&      dxr_t(IContext& v) { return static_cast<ContextDXR&>(v); }
 
 
 } // namespace lpt

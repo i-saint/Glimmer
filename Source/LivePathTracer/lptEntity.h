@@ -63,15 +63,17 @@ enum class DirtyFlag : uint32_t
 
     Camera      = 0x01000000,
     Light       = 0x02000000,
-    Texture     = 0x04000000,
-    TextureData = 0x08000000,
-    Material    = 0x10000000,
-    Mesh        = 0x20000000,
-    Instance    = 0x40000000,
+    RenderTarget= 0x04000000,
+    Texture     = 0x08000000,
+    TextureData = 0x10000000,
+    Material    = 0x20000000,
+    Mesh        = 0x40000000,
+    Instance    = 0x80000000,
 
     Deform = Transform | Blendshape | Joints,
     Topology = Indices | Points,
     Vertices = Indices | Points | Normals | Tangents | UV,
+    SceneEntities = Camera | Light | RenderTarget | Instance,
     Any = 0xffffffff,
 };
 
@@ -155,12 +157,12 @@ struct SceneData
 
 
 template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
-ref_ptr<T> cast(ref_ptr<U>& v)
+ref_ptr<T>& cast(ref_ptr<U>& v)
 {
     return (ref_ptr<T>&)v;
 }
 template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
-const ref_ptr<T> cast(const ref_ptr<U>& v)
+const ref_ptr<T>& cast(const ref_ptr<U>& v)
 {
     return (const ref_ptr<T>&)v;
 }
@@ -279,12 +281,14 @@ class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
     void setup(TextureFormat format, int width, int height) override;
+    void readback(void* dst) override;
 
 public:
     TextureFormat m_format = TextureFormat::Unknown;
     int m_width = 0;
     int m_height = 0;
     RawVector<char> m_data;
+    void* m_readback_request = nullptr;
 };
 lptDeclRefPtr(RenderTarget);
 
@@ -379,6 +383,10 @@ public:
 
 public:
     SceneData m_data;
+    CameraPtr m_camera;
+    RenderTargetPtr m_render_target;
+    std::vector<LightPtr> m_lights;
+    std::vector<MeshInstancePtr> m_instances;
 };
 lptDeclRefPtr(Scene);
 

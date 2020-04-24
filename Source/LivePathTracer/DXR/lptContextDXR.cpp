@@ -141,18 +141,33 @@ SceneDXR* ContextDXR::createScene()
 
 void ContextDXR::frameBegin()
 {
-    // erase unreferenced resources
     auto erase_unreferenced = [](auto& container) {
-        erase_if(container, [](auto& obj) { return obj->getRef() == 0; });
+        return erase_if(container, [](auto& obj) { return obj->getRef() == 0; });
     };
-    erase_unreferenced(m_cameras);
-    erase_unreferenced(m_lights);
-    erase_unreferenced(m_render_targets);
-    erase_unreferenced(m_textures);
-    erase_unreferenced(m_materials);
-    erase_unreferenced(m_meshes);
-    erase_unreferenced(m_mesh_instances);
-    erase_unreferenced(m_scenes);
+    auto delete_unreferenced = [](auto& container) {
+        return erase_if(container, [](auto& obj) {
+            if (obj->getRef() == 0) {
+                delete obj.get();
+                return true;
+            }
+            return false;
+            });
+    };
+
+    for (auto& pscene : m_scenes) {
+        auto& scene = *pscene;
+        if (erase_unreferenced(scene.m_instances))
+            scene.markDirty(DirtyFlag::Instance);
+    }
+
+    delete_unreferenced(m_cameras);
+    delete_unreferenced(m_lights);
+    delete_unreferenced(m_render_targets);
+    delete_unreferenced(m_textures);
+    delete_unreferenced(m_materials);
+    delete_unreferenced(m_meshes);
+    delete_unreferenced(m_mesh_instances);
+    delete_unreferenced(m_scenes);
 
     // clear states
     for (auto& pmesh : m_meshes) {
@@ -161,7 +176,7 @@ void ContextDXR::frameBegin()
     for (auto& pinst : m_mesh_instances) {
         pinst->m_blas_updated = false;
     }
-    m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
+    m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = m_fv_readback = m_fv_last_rays = 0;
 
     if (GetGlobals().hasDebugFlag(DebugFlag::ForceUpdateAS)) {
         // clear BLAS (for debug & measure time)
@@ -291,7 +306,7 @@ void ContextDXR::setupMeshes()
     //    m_deformer->flush(rd);
     //}
     //else {
-    //    rd.fv_deform = rd.fv_translate;
+        m_fv_deform = m_fv_upload;
     //}
 
 
@@ -426,7 +441,7 @@ void ContextDXR::setupMeshes()
 
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS end");
     cl_blas->Close();
-    m_fv_blas = submitDirectCommandList(cl_blas, m_fv_deform != 0 ? m_fv_deform : m_fv_upload);
+    m_fv_blas = submitDirectCommandList(cl_blas, m_fv_deform);
 }
 
 void ContextDXR::setupScenes()
@@ -437,141 +452,172 @@ void ContextDXR::setupScenes()
     for (auto& pscene : m_scenes) {
         auto& scene = *pscene;
 
-        bool needs_update_tlas = false;
-        for (auto& pinst : scene.m_instances) {
-            if (pinst->m_blas_updated) {
-                needs_update_tlas = true;
-                break;
-            }
-        }
+        bool needs_update_tlas = scene.isDirty(DirtyFlag::Indices);
         if (!needs_update_tlas) {
-            needs_update_tlas = scene.m_instances != scene.m_instances_prev;
-            if (!needs_update_tlas)
-                continue; // no need to update
-        }
-
-        // build TLAS
-
-        auto& td = scene.m_tlas_data;
-        size_t instance_count = scene.m_instances.size();
-        // get the size of the TLAS buffers
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
-        inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-        inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-        inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-
-        // instance desc buffer
-        ReuseOrExpandBuffer(td.instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, &scene](size_t size) {
-            auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-            lptSetName(ret, scene.m_name + " Instance Desk");
-            return ret;
-            });
-
-        // create instance desc
-        {
-            UINT num_descs = 0;
-
-            D3D12_RAYTRACING_INSTANCE_DESC* instance_descs;
-            td.instance_desc->Map(0, nullptr, (void**)&instance_descs);
-            for (size_t i = 0; i < instance_count; i++) {
-                auto& inst = *scene.m_instances[i];
-                auto& mesh = *inst.m_mesh;
-
-                bool deformed = inst.m_buf_points_deformed;
-                auto& blas = deformed ? inst.m_blas_deformed : mesh.m_blas;
-
-                D3D12_RAYTRACING_INSTANCE_DESC tmp{};
-                (float3x4&)tmp.Transform = to_float3x4(inst.m_transform);
-                tmp.InstanceID = i;
-                tmp.InstanceMask = ~0;
-                tmp.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-                tmp.AccelerationStructure = blas->GetGPUVirtualAddress();
-                instance_descs[num_descs++] = tmp;
-            }
-            td.instance_desc->Unmap(0, nullptr);
-
-            inputs.NumDescs = num_descs;
-            inputs.InstanceDescs = td.instance_desc->GetGPUVirtualAddress();
-        }
-
-        // create TLAS
-        {
-            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
-            m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
-
-            // scratch buffer
-            ReuseOrExpandBuffer(td.scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, &scene](size_t size) {
-                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
-                lptSetName(ret, scene.m_name + " TLAS Scratch");
-                return ret;
-                });
-
-            // TLAS buffer
-            bool expanded = ReuseOrExpandBuffer(td.buffer, 1, info.ResultDataMaxSizeInBytes, 1024 * 256, [this, &scene](size_t size) {
-                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
-                lptSetName(ret, scene.m_name + " TLAS");
-                return ret;
-                });
-            if (expanded) {
-                // SRV
-                D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
-                srv_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-                srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-                srv_desc.RaytracingAccelerationStructure.Location = td.buffer->GetGPUVirtualAddress();
-                m_device->CreateShaderResourceView(nullptr, &srv_desc, td.srv.hcpu);
-            }
-
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
-            as_desc.DestAccelerationStructureData = td.buffer->GetGPUVirtualAddress();
-            as_desc.Inputs = inputs;
-            if (td.instance_desc)
-                as_desc.Inputs.InstanceDescs = td.instance_desc->GetGPUVirtualAddress();
-            if (td.scratch)
-                as_desc.ScratchAccelerationStructureData = td.scratch->GetGPUVirtualAddress();
-
-            // build
-            cl_tlas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
-        }
-
-        // add UAV barrier
-        {
-            D3D12_RESOURCE_BARRIER uav_barrier{};
-            uav_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-            uav_barrier.UAV.pResource = td.buffer;
-            cl_tlas->ResourceBarrier(1, &uav_barrier);
-        }
-
-        // setup per-instance data
-        {
-            size_t stride = sizeof(InstanceDataDXR);
-            bool expanded = ReuseOrExpandBuffer(scene.m_instance_data, stride, instance_count, 4096, [this, &scene](size_t size) {
-                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-                lptSetName(ret, scene.m_name + " Instance Data");
-                return ret;
-                });
-            if (expanded) {
-                auto capacity = scene.m_instance_data->GetDesc().Width;
-                D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-                desc.Format = DXGI_FORMAT_UNKNOWN;
-                desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-                desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-                desc.Buffer.FirstElement = 0;
-                desc.Buffer.NumElements = UINT(capacity / stride);
-                desc.Buffer.StructureByteStride = UINT(stride);
-                desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-                m_device->CreateShaderResourceView(scene.m_instance_data, &desc, scene.m_instance_data_srv.hcpu);
-            }
-
-            InstanceDataDXR* dst;
-            if (SUCCEEDED(scene.m_instance_data->Map(0, nullptr, (void**)&dst))) {
-                for (auto& inst : scene.m_instances) {
-                    InstanceDataDXR tmp{};
-                    tmp.instance_flags = inst->m_instance_flags;
-                    // todo: update
-                    *dst++ = tmp;
+            for (auto& pinst : scene.m_instances) {
+                auto& inst = dxr_t(*pinst);
+                if (inst.m_blas_updated) {
+                    needs_update_tlas = true;
+                    break;
                 }
-                scene.m_instance_data->Unmap(0, nullptr);
             }
+        }
+
+        size_t instance_count = scene.m_instances.size();
+        if (needs_update_tlas) {
+            // build TLAS
+            auto& td = scene.m_tlas_data;
+            // get the size of the TLAS buffers
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+            // create instance desc buffer
+            ReuseOrExpandBuffer(td.instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, &scene](size_t size) {
+                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+                lptSetName(ret, scene.m_name + " Instance Desk");
+                return ret;
+                });
+
+            // update instance desc
+            {
+                Map(td.instance_desc, [&](D3D12_RAYTRACING_INSTANCE_DESC* instance_descs) {
+                    UINT iid = 0;
+                    D3D12_RAYTRACING_INSTANCE_DESC desc{};
+                    for (auto& pinst : scene.m_instances) {
+                        auto& inst = dxr_t(*pinst);
+                        auto& mesh = *inst.m_mesh;
+                        auto& blas = inst.m_blas_deformed ? inst.m_blas_deformed : mesh.m_blas;
+
+                        (float3x4&)desc.Transform = to_float3x4(inst.m_transform);
+                        desc.InstanceID = iid++;
+                        desc.InstanceMask = ~0;
+                        desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+                        desc.AccelerationStructure = blas->GetGPUVirtualAddress();
+                        *instance_descs++ = desc;
+                    }
+                    });
+                inputs.NumDescs = (UINT)instance_count;
+                inputs.InstanceDescs = td.instance_desc->GetGPUVirtualAddress();
+            }
+
+            // create TLAS
+            {
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
+                m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+
+                // scratch buffer
+                ReuseOrExpandBuffer(td.scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, &scene](size_t size) {
+                    auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
+                    lptSetName(ret, scene.m_name + " TLAS Scratch");
+                    return ret;
+                    });
+
+                // TLAS buffer
+                bool expanded = ReuseOrExpandBuffer(td.buffer, 1, info.ResultDataMaxSizeInBytes, 1024 * 256, [this, &scene](size_t size) {
+                    auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
+                    lptSetName(ret, scene.m_name + " TLAS");
+                    return ret;
+                    });
+                if (expanded) {
+                    // SRV
+                    D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+                    srv_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+                    srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                    srv_desc.RaytracingAccelerationStructure.Location = td.buffer->GetGPUVirtualAddress();
+                    m_device->CreateShaderResourceView(nullptr, &srv_desc, td.srv.hcpu);
+                }
+
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
+                as_desc.DestAccelerationStructureData = td.buffer->GetGPUVirtualAddress();
+                as_desc.Inputs = inputs;
+                if (td.instance_desc)
+                    as_desc.Inputs.InstanceDescs = td.instance_desc->GetGPUVirtualAddress();
+                if (td.scratch)
+                    as_desc.ScratchAccelerationStructureData = td.scratch->GetGPUVirtualAddress();
+
+                // build
+                cl_tlas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
+            }
+
+            // add UAV barrier
+            {
+                D3D12_RESOURCE_BARRIER uav_barrier{};
+                uav_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+                uav_barrier.UAV.pResource = td.buffer;
+                cl_tlas->ResourceBarrier(1, &uav_barrier);
+            }
+        }
+
+        if (scene.isDirty(DirtyFlag::Indices)) {
+            // setup per-instance data
+            {
+                size_t stride = sizeof(InstanceDataDXR);
+                bool expanded = ReuseOrExpandBuffer(scene.m_instance_data, stride, instance_count, 4096, [this, &scene](size_t size) {
+                    auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+                    lptSetName(ret, scene.m_name + " Instance Data");
+                    return ret;
+                    });
+                if (expanded) {
+                    auto capacity = scene.m_instance_data->GetDesc().Width;
+                    D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+                    desc.Format = DXGI_FORMAT_UNKNOWN;
+                    desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+                    desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                    desc.Buffer.FirstElement = 0;
+                    desc.Buffer.NumElements = UINT(capacity / stride);
+                    desc.Buffer.StructureByteStride = UINT(stride);
+                    desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+                    m_device->CreateShaderResourceView(scene.m_instance_data, &desc, scene.m_instance_data_srv.hcpu);
+                }
+
+                Map(scene.m_instance_data, [this, &scene](InstanceDataDXR* dst) {
+                    for (auto& inst : scene.m_instances) {
+                        InstanceDataDXR tmp{};
+                        tmp.instance_flags = inst->m_instance_flags;
+                        // todo: update
+                        *dst++ = tmp;
+                    }
+                    });
+            }
+
+            // desc heap
+            if (!scene.m_desc_heap) {
+                D3D12_DESCRIPTOR_HEAP_DESC desc{};
+                desc.NumDescriptors = 32;
+                desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+                desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+                m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&scene.m_desc_heap));
+                lptSetName(scene.m_desc_heap, scene.m_name + " Desc Heap");
+
+                auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, scene.m_desc_heap);
+                scene.m_render_target_uav = handle_allocator.allocate();
+                scene.m_tlas_data.srv = handle_allocator.allocate();
+                //scene.m_vertex_buffer_srv = handle_allocator.allocate();
+                //scene.m_material_data_srv = handle_allocator.allocate();
+                scene.m_instance_data_srv = handle_allocator.allocate();
+                scene.m_scene_data_cbv = handle_allocator.allocate();
+            }
+
+            // scene constant buffer
+            if (!scene.m_scene_data) {
+                // size of constant buffer must be multiple of 256
+                int cb_size = align_to(256, sizeof(SceneData));
+                scene.m_scene_data = createBuffer(cb_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+                lptSetName(scene.m_scene_data, scene.m_name + " Scene Data");
+
+                Map(scene.m_scene_data, [](SceneData* dst) {
+                    *dst = SceneData{};
+                    });
+
+                D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
+                cbv_desc.BufferLocation = scene.m_scene_data->GetGPUVirtualAddress();
+                cbv_desc.SizeInBytes = cb_size;
+                m_device->CreateConstantBufferView(&cbv_desc, scene.m_scene_data_cbv.hcpu);
+            }
+
+            scene.clearDirty();
         }
     }
 
@@ -580,54 +626,14 @@ void ContextDXR::setupScenes()
     m_fv_tlas = submitDirectCommandList(cl_tlas, m_fv_blas);
 }
 
-
 void ContextDXR::renderBegin(IScene* v)
 {
     auto& scene = *static_cast<SceneDXR*>(v);
-
-    // initialize desc heap
-    if (!scene.m_desc_heap) {
-        D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = 32;
-        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&scene.m_desc_heap));
-        lptSetName(scene.m_desc_heap, scene.m_name + " Desc Heap");
-
-        auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, scene.m_desc_heap);
-        scene.m_render_target_uav = handle_allocator.allocate();
-        scene.m_tlas_data.srv = handle_allocator.allocate();
-        //scene.m_vertex_buffer_srv = handle_allocator.allocate();
-        //scene.m_material_data_srv = handle_allocator.allocate();
-        scene.m_instance_data_srv = handle_allocator.allocate();
-        scene.m_scene_data_cbv = handle_allocator.allocate();
-    }
-
-    // initialize scene constant buffer
-    if (!scene.m_scene_data) {
-        // size of constant buffer must be multiple of 256
-        int cb_size = align_to(256, sizeof(SceneData));
-        scene.m_scene_data = createBuffer(cb_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-        lptSetName(scene.m_scene_data, scene.m_name + " Scene Data");
-
-        SceneData* dst;
-        if (SUCCEEDED(scene.m_scene_data->Map(0, nullptr, (void**)&dst))) {
-            *dst = SceneData{};
-            scene.m_scene_data->Unmap(0, nullptr);
-        }
-
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
-        cbv_desc.BufferLocation = scene.m_scene_data->GetGPUVirtualAddress();
-        cbv_desc.SizeInBytes = cb_size;
-        m_device->CreateConstantBufferView(&cbv_desc, scene.m_scene_data_cbv.hcpu);
-    }
 
     lptTimestampInitialize(scene.m_timestamp, m_device);
     lptTimestampReset(scene.m_timestamp);
     lptTimestampSetEnable(scene.m_timestamp, GetGlobals().hasDebugFlag(DebugFlag::Timestamp));
 
-    std::swap(scene.m_instances, scene.m_instances_prev);
-    scene.m_instances.clear();
 
     if (m_fv_last_rays != 0) {
         // wait for complete previous renderer's DispatchRays() because there may be dependencies. (e.g. building BLAS)
@@ -916,8 +922,8 @@ bool ContextDXR::initializeDevice()
 
         const int capacity = 32;
         auto tmp_buf = createBuffer(m_shader_record_size * capacity, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-        uint8_t* addr;
-        if (SUCCEEDED(tmp_buf->Map(0, nullptr, (void**)&addr))) {
+
+        Map(tmp_buf, [this, &capacity](uint8_t* addr) {
             ID3D12StateObjectPropertiesPtr sop;
             m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
 
@@ -947,16 +953,14 @@ bool ContextDXR::initializeDevice()
             // hit
             for (auto name : kHitGroups)
                 add_shader_record(name);
+            });
 
-            tmp_buf->Unmap(0, nullptr);
-
-            m_shader_table = createBuffer(m_shader_record_size * capacity, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
-            lptSetName(m_shader_table, L"Shadow Shader Table");
-            if (!copyBuffer(m_shader_table, tmp_buf, m_shader_record_size * capacity))
-                m_shader_table = nullptr;
-        }
-        if (!m_shader_table)
+        m_shader_table = createBuffer(m_shader_record_size * capacity, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
+        lptSetName(m_shader_table, L"Shadow Shader Table");
+        if (!copyBuffer(m_shader_table, tmp_buf, m_shader_record_size * capacity)) {
+            m_shader_table = nullptr;
             return false;
+        }
     }
     return true;
 }
@@ -1062,11 +1066,9 @@ uint64_t ContextDXR::readbackBuffer(void* dst, ID3D12Resource* src, UINT64 size)
     if (ret == 0)
         return 0;
 
-    void* mapped;
-    if (SUCCEEDED(readback_buf->Map(0, nullptr, &mapped))) {
+    Map(readback_buf, [dst, size](void* mapped) {
         memcpy(dst, mapped, size);
-        readback_buf->Unmap(0, nullptr);
-    }
+        });
     return ret;
 }
 
@@ -1074,10 +1076,8 @@ uint64_t ContextDXR::uploadBuffer(ID3D12Resource* dst, const void* src, UINT64 s
 {
     auto upload_buf = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
     lptSetName(upload_buf, L"Temporary Upload Buffer");
-    void* mapped;
-    if (SUCCEEDED(upload_buf->Map(0, nullptr, &mapped))) {
-        memcpy(mapped, src, size);
-        upload_buf->Unmap(0, nullptr);
+
+    if (Map(upload_buf, [src, size](void* mapped) { memcpy(mapped, src, size); })) {
         if (!immediate)
             m_tmp_resources.push_back(upload_buf);
         return copyBuffer(dst, upload_buf, size, immediate);
@@ -1088,10 +1088,8 @@ uint64_t ContextDXR::writeBuffer(ID3D12Resource* dst, UINT64 size, const std::fu
 {
     auto upload_buf = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
     lptSetName(upload_buf, L"Temporary Upload Buffer");
-    void* mapped;
-    if (SUCCEEDED(upload_buf->Map(0, nullptr, &mapped))) {
-        src(mapped);
-        upload_buf->Unmap(0, nullptr);
+
+    if (Map(upload_buf, [&src](void* mapped) { src(mapped); })) {
         if (!immediate)
             m_tmp_resources.push_back(upload_buf);
         return copyBuffer(dst, upload_buf, size, immediate);
@@ -1111,9 +1109,9 @@ uint64_t ContextDXR::copyBuffer(ID3D12Resource* dst, ID3D12Resource* src, UINT64
 
 uint64_t ContextDXR::readbackTexture(void* dst_, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format)
 {
-    UINT stride = SizeOfTexel(format);
+    UINT texel_size = SizeOfTexel(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
-    UINT size = width_a * height * stride;
+    UINT size = width_a * height * texel_size;
     auto readback_buf = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST, kReadbackHeapProps);
     if (!readback_buf)
         return 0;
@@ -1127,7 +1125,7 @@ uint64_t ContextDXR::readbackTexture(void* dst_, ID3D12Resource* src, UINT width
     dst_loc.PlacedFootprint.Footprint.Width = width;
     dst_loc.PlacedFootprint.Footprint.Height = height;
     dst_loc.PlacedFootprint.Footprint.Depth = 1;
-    dst_loc.PlacedFootprint.Footprint.RowPitch = width_a * stride;
+    dst_loc.PlacedFootprint.Footprint.RowPitch = width_a * texel_size;
 
     D3D12_TEXTURE_COPY_LOCATION src_loc{};
     src_loc.pResource = src;
@@ -1138,17 +1136,15 @@ uint64_t ContextDXR::readbackTexture(void* dst_, ID3D12Resource* src, UINT width
     cl->CopyTextureRegion(&dst_loc, 0, 0, 0, &src_loc, nullptr);
     auto ret = submitCopy(cl, true);
 
-    char* mapped;
+    auto dst = (char*)dst_;
     D3D12_RANGE ragne{ 0, size };
-    if (SUCCEEDED(readback_buf->Map(0, &ragne, (void**)&mapped))) {
-        auto dst = (char*)dst_;
+    Map(readback_buf, 0, &ragne, [&](char* mapped) {
         for (UINT yi = 0; yi < height; ++yi) {
-            memcpy(dst, mapped, width * stride);
-            dst += width * stride;
-            mapped += width_a * stride;
+            memcpy(dst, mapped, width * texel_size);
+            dst += width * texel_size;
+            mapped += width_a * texel_size;
         }
-        readback_buf->Unmap(0, nullptr);
-    }
+        });
     return ret;
 }
 

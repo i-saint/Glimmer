@@ -136,6 +136,11 @@ void RenderTarget::setup(TextureFormat format, int width, int height)
     markDirty(DirtyFlag::Texture);
 }
 
+void RenderTarget::readback(void* dst)
+{
+    m_readback_request = dst;
+}
+
 
 void Material::setDiffuse(float3 v)
 {
@@ -246,6 +251,40 @@ void MeshInstance::setJointMatrices(const float4x4* v)
 bool MeshInstance::hasFlag(InstanceFlag v) const
 {
     return (m_instance_flags & (uint32_t)v) != 0;
+}
+
+
+void Scene::setRenderTarget(IRenderTarget* v)
+{
+    m_render_target = static_cast<RenderTarget*>(v);
+    markDirty(DirtyFlag::RenderTarget);
+}
+
+void Scene::setCamera(ICamera* v)
+{
+    m_camera = static_cast<Camera*>(v);
+    markDirty(DirtyFlag::Camera);
+}
+
+void Scene::addLight(ILight* v)
+{
+    m_lights.push_back(static_cast<Light*>(v));
+    markDirty(DirtyFlag::Light);
+}
+
+void Scene::addMesh(IMeshInstance* v)
+{
+    m_instances.push_back(static_cast<MeshInstance*>(v));
+    markDirty(DirtyFlag::Instance);
+}
+
+void Scene::clear()
+{
+    m_render_target.reset();
+    m_camera.reset();
+    m_lights.clear();
+    m_instances.clear();
+    markDirty(DirtyFlag::SceneEntities);
 }
 
 } // namespace lpt 
