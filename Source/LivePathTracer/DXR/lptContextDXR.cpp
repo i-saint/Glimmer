@@ -163,6 +163,13 @@ void ContextDXR::frameBegin()
     }
     m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
 
+    if (GetGlobals().hasDebugFlag(DebugFlag::ForceUpdateAS)) {
+        // clear BLAS (for debug & measure time)
+        for (auto& pmesh : m_meshes)
+            pmesh->clearBLAS();
+        for (auto& pinst : m_mesh_instances)
+            pinst->clearBLAS();
+    }
 
 
     for (auto& obj : m_cameras) {
@@ -645,6 +652,39 @@ void* ContextDXR::getDevice()
     return m_device.GetInterfacePtr();
 }
 
+bool ContextDXR::checkError()
+{
+    auto reason = m_device->GetDeviceRemovedReason();
+    if (reason != 0) {
+#ifdef lptEnableD3D12DREAD
+        {
+            ID3D12DeviceRemovedExtendedDataPtr dread;
+            if (SUCCEEDED(m_device->QueryInterface(IID_PPV_ARGS(&dread)))) {
+                D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT breadcrumps;
+                if (SUCCEEDED(dread->GetAutoBreadcrumbsOutput(&breadcrumps))) {
+                    // todo: get error log
+                }
+
+                D3D12_DRED_PAGE_FAULT_OUTPUT pagefault;
+                if (SUCCEEDED(dread->GetPageFaultAllocationOutput(&pagefault))) {
+                    // todo: get error log
+                }
+            }
+        }
+#endif // lptEnableD3D12DREAD
+
+        {
+            PSTR buf = nullptr;
+            size_t size = ::FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                NULL, reason, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buf, 0, NULL);
+
+            std::string message(buf, size);
+            SetErrorLog(message.c_str());
+        }
+        return false;
+    }
+    return true;
+}
 
 bool ContextDXR::initializeDevice()
 {
@@ -721,8 +761,29 @@ bool ContextDXR::initializeDevice()
         return false;
     }
 
+#ifdef lptEnableD3D12StablePowerState
+    // try to set power stable state. this requires Windows to be developer mode.
+    // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-setstablepowerstate
+    if (GetGlobals().hasDebugFlag(DebugFlag::PowerStableState)) {
+        if (!IsDeveloperMode()) {
+            SetErrorLog(
+                "Enabling power stable state requires Windows to be developer mode. "
+                "Check Windows Settings -> Update & Security -> For Developers -> Use developer features. "
+                "(Restarting application is required to apply changes)");
+        }
+        else {
+            auto hr = m_device->SetStablePowerState(TRUE);
+            if (FAILED(hr)) {
+                checkError();
+            }
+        }
+    }
+#endif
+
+
     // fence
     m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+
     // command queues
     auto create_command_queue = [this](ID3D12CommandQueuePtr& dst, D3D12_COMMAND_LIST_TYPE type, LPCWSTR name) {
         D3D12_COMMAND_QUEUE_DESC desc{};
@@ -735,6 +796,7 @@ bool ContextDXR::initializeDevice()
     create_command_queue(m_cmd_queue_copy, D3D12_COMMAND_LIST_TYPE_COPY, L"Copy Queue");
 
     m_clm_direct = std::make_shared<CommandListManagerDXR>(m_device, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct List");
+    m_clm_compute = std::make_shared<CommandListManagerDXR>(m_device, D3D12_COMMAND_LIST_TYPE_COMPUTE, L"Coompute List");
     m_clm_copy = std::make_shared<CommandListManagerDXR>(m_device, D3D12_COMMAND_LIST_TYPE_COPY, L"Copy List");
 
 

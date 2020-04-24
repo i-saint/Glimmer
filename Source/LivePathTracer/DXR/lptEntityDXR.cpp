@@ -16,11 +16,8 @@ void MeshDXR::clearBLAS()
 
 void MeshInstanceDXR::clearBLAS()
 {
-    // not clear BLAS for deformed vertices because update time is what we want to measure in this case.
-    //blas_scratch = nullptr;
-    //blas_deformed = nullptr;
-    if (m_mesh)
-        m_mesh->clearBLAS();
+    m_blas_scratch = nullptr;
+    m_blas_deformed = nullptr;
 }
 
 

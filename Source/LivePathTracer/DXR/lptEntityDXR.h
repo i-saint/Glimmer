@@ -212,6 +212,7 @@ public:
     void setupScenes();
 
 
+    bool checkError();
     bool initializeDevice();
     uint64_t incrementFenceValue();
     ID3D12ResourcePtr createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state, const D3D12_HEAP_PROPERTIES& heap_props);
@@ -244,8 +245,6 @@ public:
 
 
     ID3D12Device5Ptr m_device;
-    bool m_power_stable_state = false;
-
     ID3D12CommandQueuePtr m_cmd_queue_direct;
     ID3D12CommandQueuePtr m_cmd_queue_compute;
     ID3D12CommandQueuePtr m_cmd_queue_copy;
@@ -259,6 +258,7 @@ public:
     uint64_t m_fv_last_rays = 0;
 
     CommandListManagerDXRPtr m_clm_direct;
+    CommandListManagerDXRPtr m_clm_compute;
     CommandListManagerDXRPtr m_clm_copy;
     FenceEventDXR m_event_copy;
     std::vector<ID3D12ResourcePtr> m_tmp_resources;
