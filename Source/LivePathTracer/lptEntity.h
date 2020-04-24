@@ -410,22 +410,22 @@ public:
 lptDeclRefPtr(Context);
 
 
-#define DefBaseT(T, I)\
+#define lptDefBaseT(T, I)\
     class T;\
     inline T* base_t(I* v) { return static_cast<T*>(v); }\
     inline T& base_t(I& v) { return static_cast<T&>(v); }
 
-DefBaseT(Camera, ICamera)
-DefBaseT(Light, ILight)
-DefBaseT(Texture, ITexture)
-DefBaseT(RenderTarget, IRenderTarget)
-DefBaseT(Material, IMaterial)
-DefBaseT(Mesh, IMesh)
-DefBaseT(MeshInstance, IMeshInstance)
-DefBaseT(Scene, IScene)
-DefBaseT(Context, IContext)
+lptDefBaseT(Camera, ICamera)
+lptDefBaseT(Light, ILight)
+lptDefBaseT(Texture, ITexture)
+lptDefBaseT(RenderTarget, IRenderTarget)
+lptDefBaseT(Material, IMaterial)
+lptDefBaseT(Mesh, IMesh)
+lptDefBaseT(MeshInstance, IMeshInstance)
+lptDefBaseT(Scene, IScene)
+lptDefBaseT(Context, IContext)
 
-#undef DefBaseT
+#undef lptDefBaseT
 
 
 struct GlobalSettings

@@ -24,9 +24,6 @@
     <ClCompile Include="DXR\lptDeformerDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="DXR\lptGfxContextDXR.cpp">
-      <Filter>DXR</Filter>
-    </ClCompile>
     <ClCompile Include="DXR\lptRendererDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
@@ -58,9 +55,6 @@
     <ClInclude Include="DXR\lptDeformerDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\lptGfxContextDXR.h">
-      <Filter>DXR</Filter>
-    </ClInclude>
     <ClInclude Include="lptSettings.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="lptInterface.h" />
@@ -73,6 +67,9 @@
     </ClInclude>
     <ClInclude Include="Foundation\lptUtils.h">
       <Filter>Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="DXR\lptContextDXR.h">
+      <Filter>DXR</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

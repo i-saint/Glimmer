@@ -14,7 +14,6 @@
     <ClCompile Include="DXR\lptContextDXR.cpp" />
     <ClCompile Include="DXR\lptDeformerDXR.cpp" />
     <ClCompile Include="DXR\lptEntityDXR.cpp" />
-    <ClCompile Include="DXR\lptGfxContextDXR.cpp" />
     <ClCompile Include="DXR\lptInternalDXR.cpp" />
     <ClCompile Include="DXR\lptRendererDXR.cpp" />
     <ClCompile Include="Foundation\lptLog.cpp" />
@@ -26,9 +25,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DXR\lptContextDXR.h" />
     <ClInclude Include="DXR\lptDeformerDXR.h" />
     <ClInclude Include="DXR\lptEntityDXR.h" />
-    <ClInclude Include="DXR\lptGfxContextDXR.h" />
     <ClInclude Include="DXR\lptInternalDXR.h" />
     <ClInclude Include="Foundation\lptHalf.h" />
     <ClInclude Include="Foundation\lptLog.h" />

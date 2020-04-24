@@ -2,7 +2,7 @@
 #ifdef _WIN32
 #include "Foundation/lptLog.h"
 #include "Foundation/lptUtils.h"
-#include "lptEntityDXR.h"
+#include "lptContextDXR.h"
 #include "lptPathTracer.hlsl.h"
 
 namespace lpt {
@@ -212,7 +212,7 @@ void ContextDXR::setupMaterials()
             auto format = GetDXGIFormat(tex.m_format);
             if (tex.isDirty(DirtyFlag::Texture)) {
                 tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-                tex.m_readback_buffer = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
+                tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
             }
             tex.clearDirty();
         }
@@ -225,10 +225,10 @@ void ContextDXR::setupMaterials()
             auto format = GetDXGIFormat(tex.m_format);
             if (tex.isDirty(DirtyFlag::Texture)) {
                 tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-                tex.m_upload_buffer = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
+                tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
             }
             if (tex.isDirty(DirtyFlag::TextureData) && tex.m_texture) {
-                uploadTexture(tex.m_texture, tex.m_upload_buffer, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
+                uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
             }
             tex.clearDirty();
         }
@@ -623,36 +623,104 @@ void ContextDXR::setupScenes()
 void ContextDXR::dispatchRays()
 {
     // todo
+    auto& cl_rays = m_cl;
+    lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays begin");
 
+    auto do_dispatch = [&](ID3D12Resource* rt, RayGenType raygen_type, const auto& body) {
+        addResourceBarrier(cl_rays, rt, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        body();
+
+        auto rt_desc = rt->GetDesc();
+
+        D3D12_DISPATCH_RAYS_DESC dr_desc{};
+        dr_desc.Width = (UINT)rt_desc.Width;
+        dr_desc.Height = (UINT)rt_desc.Height;
+        dr_desc.Depth = 1;
+
+        auto addr = m_shader_table->GetGPUVirtualAddress();
+        // ray-gen
+        dr_desc.RayGenerationShaderRecord.StartAddress = addr + (m_shader_record_size * (int)raygen_type);
+        dr_desc.RayGenerationShaderRecord.SizeInBytes = m_shader_record_size;
+        addr += m_shader_record_size * _countof(kRayGenShaders);
+
+        // miss
+        dr_desc.MissShaderTable.StartAddress = addr;
+        dr_desc.MissShaderTable.StrideInBytes = m_shader_record_size;
+        dr_desc.MissShaderTable.SizeInBytes = m_shader_record_size * _countof(kMissShaders);
+        addr += dr_desc.MissShaderTable.SizeInBytes;
+
+        // hit
+        dr_desc.HitGroupTable.StartAddress = addr;
+        dr_desc.HitGroupTable.StrideInBytes = m_shader_record_size;
+        dr_desc.HitGroupTable.SizeInBytes = m_shader_record_size * _countof(kHitGroups);
+        addr += dr_desc.HitGroupTable.SizeInBytes;
+
+        cl_rays->DispatchRays(&dr_desc);
+        addResourceBarrier(cl_rays, rt, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
+    };
+
+    // dispatch
+    for (auto& pscene : m_scenes) {
+        auto& scene = dxr_t(*pscene);
+        auto& rt = scene.m_render_target->m_texture;
+        auto rt_uav = scene.m_render_target_uav;
+
+        cl_rays->SetComputeRootSignature(m_rootsig);
+        cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
+
+        ID3D12DescriptorHeap* desc_heaps[] = { scene.m_desc_heap };
+        cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
+
+        // default
+        do_dispatch(rt, RayGenType::Default, [&]() {
+            cl_rays->SetComputeRootDescriptorTable(0, rt_uav.hgpu);
+            cl_rays->SetComputeRootDescriptorTable(1, scene.m_tlas_data.srv.hgpu);
+            });
+    }
+    lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
+
+
+    // handle render target readback
+    lptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
     for (auto& prt : m_render_targets) {
         auto& rt = dxr_t(*prt);
-        if (rt.m_readback_dst) {
-            readbackTexture(rt.m_readback_dst, rt.m_texture, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
-            rt.m_readback_dst = nullptr;
-        }
+        if (rt.m_readback_dst && rt.m_buf_readback)
+            copyTexture(rt.m_buf_readback, rt.m_texture, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
     }
+    lptTimestampQuery(m_timestamp, cl_rays, "Readback end");
 
+    lptTimestampResolve(m_timestamp, cl_rays);
+
+    // submit command list
     m_cl->Close();
     ID3D12CommandList* cmd_list[]{ m_cl };
     m_cmd_queue_direct->ExecuteCommandLists(_countof(cmd_list), cmd_list);
     m_cl = nullptr;
 
+    // insert signal
     m_fv_readback = incrementFenceValue();
     m_cmd_queue_direct->Signal(m_fence, m_fv_readback);
-}
 
-void ContextDXR::resetState()
-{
+    // reset state
     m_clm_direct->reset();
     m_tmp_resources.clear();
 }
 
 void ContextDXR::finish()
 {
+    // wait for complete
     if (m_fv_readback != 0) {
         m_fence->SetEventOnCompletion(m_fv_readback, m_fence_event);
         ::WaitForSingleObject(m_fence_event, kTimeoutMS);
         lptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
+    }
+
+    // handle render target readback
+    for (auto& prt : m_render_targets) {
+        auto& rt = dxr_t(*prt);
+        if (rt.m_readback_dst && rt.m_buf_readback)
+            readbackTexture(rt.m_readback_dst, rt.m_buf_readback, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
+        rt.m_readback_dst = nullptr;
     }
 }
 
