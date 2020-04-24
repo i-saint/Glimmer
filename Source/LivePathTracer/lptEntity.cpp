@@ -138,7 +138,7 @@ void RenderTarget::setup(TextureFormat format, int width, int height)
 
 void RenderTarget::readback(void* dst)
 {
-    m_readback_request = dst;
+    m_readback_dst = dst;
 }
 
 
@@ -222,9 +222,9 @@ void Mesh::setJointCounts(const uint8_t* v, size_t n)
 }
 
 
-void MeshInstance::setMesh(IMesh* v)
+MeshInstance::MeshInstance(IMesh* v)
 {
-    m_mesh = dynamic_cast<Mesh*>(v);
+    m_mesh = base_t(v);
     markDirty(DirtyFlag::Mesh);
 }
 
@@ -256,26 +256,34 @@ bool MeshInstance::hasFlag(InstanceFlag v) const
 
 void Scene::setRenderTarget(IRenderTarget* v)
 {
-    m_render_target = static_cast<RenderTarget*>(v);
+    m_render_target = base_t(v);
     markDirty(DirtyFlag::RenderTarget);
 }
 
 void Scene::setCamera(ICamera* v)
 {
-    m_camera = static_cast<Camera*>(v);
+    m_camera = base_t(v);
     markDirty(DirtyFlag::Camera);
 }
 
 void Scene::addLight(ILight* v)
 {
-    m_lights.push_back(static_cast<Light*>(v));
+    m_lights.push_back(base_t(v));
     markDirty(DirtyFlag::Light);
+}
+
+void Scene::removeLight(ILight* v)
+{
 }
 
 void Scene::addMesh(IMeshInstance* v)
 {
-    m_instances.push_back(static_cast<MeshInstance*>(v));
+    m_instances.push_back(base_t(v));
     markDirty(DirtyFlag::Instance);
+}
+
+void Scene::removeMesh(IMeshInstance* v)
+{
 }
 
 void Scene::clear()

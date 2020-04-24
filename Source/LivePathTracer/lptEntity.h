@@ -5,7 +5,7 @@
 #include "Foundation/lptHalf.h"
 #include "lptInterface.h"
 
-#define lptDeclRefPtr(T) using T##Ptr = ref_ptr<T>
+#define lptDeclRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
 #define lptMaxLights 32
 
 namespace lpt {
@@ -150,22 +150,8 @@ struct SceneData
             body(lights[li]);
     }
 };
-
 #undef DefCompare
 
-#define lptEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
-
-
-template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
-ref_ptr<T>& cast(ref_ptr<U>& v)
-{
-    return (ref_ptr<T>&)v;
-}
-template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
-const ref_ptr<T>& cast(const ref_ptr<U>& v)
-{
-    return (const ref_ptr<T>&)v;
-}
 
 template<class T>
 class RefCount : public T
@@ -173,19 +159,33 @@ class RefCount : public T
 public:
     int addRef() override
     {
-        return ++m_ref_count;
+        return ++m_ref_external;
     }
-
     int release() override
     {
         // deleting entities is responsible for Context.
         // (ContextDXR::frameBegin() etc.)
-        return --m_ref_count;
+        return --m_ref_external;
     }
-
     int getRef() const override
     {
-        return m_ref_count;
+        return m_ref_external;
+    }
+
+    int addRefInternal()
+    {
+        return ++m_ref_internal;
+    }
+    int releaseInternal()
+    {
+        int ret = --m_ref_internal;
+        if (ret == 0)
+            delete this;
+        return ret;
+    }
+    int getRefInternal() const
+    {
+        return m_ref_internal;
     }
 
     void setName(const char* v) override
@@ -200,10 +200,20 @@ public:
 
 
 public:
-    std::atomic_int m_ref_count{ 0 };
+    std::atomic_int m_ref_external{ 0 };
+    std::atomic_int m_ref_internal{ 0 };
     std::string m_name;
     uint32_t m_dirty_flags = 0;
 };
+
+template<class T>
+class InternalReleaser
+{
+public:
+    static void addRef(T* v) { v->addRefInternal(); }
+    static void release(T* v) { v->releaseInternal(); }
+};
+
 
 template<class T>
 class EntityBase : public RefCount<T>
@@ -287,8 +297,7 @@ public:
     TextureFormat m_format = TextureFormat::Unknown;
     int m_width = 0;
     int m_height = 0;
-    RawVector<char> m_data;
-    void* m_readback_request = nullptr;
+    void* m_readback_dst = nullptr;
 };
 lptDeclRefPtr(RenderTarget);
 
@@ -353,7 +362,7 @@ lptDeclRefPtr(Mesh);
 class MeshInstance : public EntityBase<IMeshInstance>
 {
 public:
-    void setMesh(IMesh* v) override;
+    MeshInstance(IMesh* v = nullptr);
     void setMaterial(IMaterial* v) override;
     void setTransform(const float4x4& v) override;
     void setJointMatrices(const float4x4* v) override;
@@ -378,7 +387,9 @@ public:
     void setRenderTarget(IRenderTarget* v) override;
     void setCamera(ICamera* v) override;
     void addLight(ILight* v) override;
+    void removeLight(ILight* v) override;
     void addMesh(IMeshInstance* v) override;
+    void removeMesh(IMeshInstance* v) override;
     void clear() override;
 
 public:
@@ -398,6 +409,23 @@ public:
 };
 lptDeclRefPtr(Context);
 
+
+#define DefBaseT(T, I)\
+    class T;\
+    inline T* base_t(I* v) { return static_cast<T*>(v); }\
+    inline T& base_t(I& v) { return static_cast<T&>(v); }
+
+DefBaseT(Camera, ICamera)
+DefBaseT(Light, ILight)
+DefBaseT(Texture, ITexture)
+DefBaseT(RenderTarget, IRenderTarget)
+DefBaseT(Material, IMaterial)
+DefBaseT(Mesh, IMesh)
+DefBaseT(MeshInstance, IMeshInstance)
+DefBaseT(Scene, IScene)
+DefBaseT(Context, IContext)
+
+#undef DefBaseT
 
 
 struct GlobalSettings

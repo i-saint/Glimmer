@@ -1,6 +1,9 @@
 #pragma once
+#include "lptInterface.h"
 
 namespace lpt {
+
+#define lptEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
 
 template<class R, class... Args>
 struct lambda_traits_impl
@@ -58,6 +61,19 @@ inline bool find_any(const Container& src, const Condition& cond)
             return true;
     }
     return false;
+}
+
+
+
+template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
+ref_ptr<T>& cast(ref_ptr<U>& v)
+{
+    return (ref_ptr<T>&)v;
+}
+template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
+const ref_ptr<T>& cast(const ref_ptr<U>& v)
+{
+    return (const ref_ptr<T>&)v;
 }
 
 

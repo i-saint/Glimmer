@@ -14,6 +14,11 @@ void MeshDXR::clearBLAS()
 }
 
 
+MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
+    : super(v)
+{
+}
+
 void MeshInstanceDXR::clearBLAS()
 {
     m_blas_scratch = nullptr;

@@ -473,6 +473,18 @@ DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format)
         DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_R32G32_TYPELESS, DXGI_FORMAT_R32G32B32A32_TYPELESS>(format);
 }
 
+UINT GetWidth(ID3D12Resource* v)
+{
+    if (!v)
+        return 0;
+    return (UINT)v->GetDesc().Width;
+}
+UINT GetHeight(ID3D12Resource* v)
+{
+    if (!v)
+        return 0;
+    return v->GetDesc().Height;
+}
 UINT64 GetSize(ID3D12Resource* v)
 {
     if (!v)

@@ -126,7 +126,6 @@ public:
 class IMeshInstance : public IEntity
 {
 public:
-    virtual void setMesh(IMesh* v) = 0;
     virtual void setMaterial(IMaterial* v) = 0;
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
@@ -139,7 +138,9 @@ public:
     virtual void setRenderTarget(IRenderTarget* v) = 0;
     virtual void setCamera(ICamera* v) = 0;
     virtual void addLight(ILight* v) = 0;
+    virtual void removeLight(ILight* v) = 0;
     virtual void addMesh(IMeshInstance* v) = 0;
+    virtual void removeMesh(IMeshInstance* v) = 0;
     virtual void clear() = 0;
 };
 
@@ -153,36 +154,42 @@ public:
     virtual ITexture*       createTexture() = 0;
     virtual IMaterial*      createMaterial() = 0;
     virtual IMesh*          createMesh() = 0;
-    virtual IMeshInstance*  createMeshInstance() = 0;
+    virtual IMeshInstance*  createMeshInstance(IMesh* v) = 0;
     virtual IScene*         createScene() = 0;
 
-    virtual void frameBegin() = 0;
-    virtual void renderBegin(IScene* v) = 0;
-    virtual void renderEnd(IScene* v) = 0;
-    virtual void frameEnd() = 0;
+    virtual void render() = 0;
+    virtual void finish() = 0;
 
     virtual void* getDevice() = 0;
 };
 
 
 template<class T>
+class releaser
+{
+public:
+    static void addRef(T* v) { v->addRef(); }
+    static void release(T* v) { v->release(); }
+};
+
+template<class T, class Releaser = releaser<T>>
 class ref_ptr
 {
 public:
     ref_ptr() {}
-    ref_ptr(T* data) { reset(data); }
-    ref_ptr(T&& data) { swap(data); }
+    ref_ptr(T* p) { reset(p); }
+    ref_ptr(T&& p) { swap(p); }
     ref_ptr(const ref_ptr& v) { reset(v.m_ptr); }
     ref_ptr& operator=(const ref_ptr& v) { reset(v.m_ptr); return *this; }
     ~ref_ptr() { reset(); }
 
-    void reset(T* data = nullptr)
+    void reset(T* p = nullptr)
     {
         if (m_ptr)
-            m_ptr->release();
-        m_ptr = data;
+            Releaser::release(m_ptr);
+        m_ptr = p;
         if (m_ptr)
-            m_ptr->addRef();
+            Releaser::addRef(m_ptr);
     }
 
     void swap(ref_ptr& v)

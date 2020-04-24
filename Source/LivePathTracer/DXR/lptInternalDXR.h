@@ -194,7 +194,10 @@ DXGI_FORMAT GetDXGIFormat(TextureFormat format);
 DXGI_FORMAT GetFloatFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetUIntFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
+UINT GetWidth(ID3D12Resource* v);
+UINT GetHeight(ID3D12Resource* v);
 UINT64 GetSize(ID3D12Resource* v);
+
 std::string ToString(ID3DBlob* blob);
 void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc);
 

@@ -32,7 +32,7 @@ public:
 
 class CameraDXR : public DXREntity<Camera>
 {
-using super = Camera;
+using super = DXREntity<Camera>;
 friend class ContextDXR;
 public:
 
@@ -43,7 +43,7 @@ lptDeclRefPtr(CameraDXR);
 
 class LightDXR : public DXREntity<Light>
 {
-using super = Light;
+using super = DXREntity<Light>;
 friend class ContextDXR;
 public:
 
@@ -54,13 +54,14 @@ lptDeclRefPtr(LightDXR);
 
 class TextureDXR : public DXREntity<Texture>
 {
-using super = Texture;
+using super = DXREntity<Texture>;
 friend class ContextDXR;
 public:
     void* getDeviceObject() override;
 
 public:
     ID3D12ResourcePtr m_texture;
+    ID3D12ResourcePtr m_upload_buffer;
     DescriptorHandleDXR m_uav;
 };
 lptDeclRefPtr(TextureDXR);
@@ -68,13 +69,14 @@ lptDeclRefPtr(TextureDXR);
 
 class RenderTargetDXR : public DXREntity<RenderTarget>
 {
-using super = RenderTarget;
+using super = DXREntity<RenderTarget>;
 friend class ContextDXR;
 public:
     void* getDeviceObject() override;
 
 public:
     ID3D12ResourcePtr m_texture;
+    ID3D12ResourcePtr m_readback_buffer;
     DescriptorHandleDXR m_uav;
 };
 lptDeclRefPtr(RenderTargetDXR);
@@ -82,7 +84,7 @@ lptDeclRefPtr(RenderTargetDXR);
 
 class MaterialDXR : public DXREntity<Material>
 {
-using super = Material;
+using super = DXREntity<Material>;
 friend class ContextDXR;
 public:
 
@@ -93,15 +95,15 @@ lptDeclRefPtr(MaterialDXR);
 
 class MeshDXR : public DXREntity<Mesh>
 {
-using super = Mesh;
+using super = DXREntity<Mesh>;
 friend class ContextDXR;
 public:
     void clearBLAS();
 
 public:
     // vertex buffers
-    ID3D12ResourcePtr m_buf_indices;
-    ID3D12ResourcePtr m_buf_points;
+    ID3D12ResourcePtr m_buf_indices, m_buf_indices_staging;
+    ID3D12ResourcePtr m_buf_points, m_buf_points_staging;
     ID3D12ResourcePtr m_buf_normals;
     ID3D12ResourcePtr m_buf_tangents;
     ID3D12ResourcePtr m_buf_uv;
@@ -127,13 +129,13 @@ lptDeclRefPtr(MeshDXR);
 
 class MeshInstanceDXR : public DXREntity<MeshInstance>
 {
-using super = MeshInstance;
+using super = DXREntity<MeshInstance>;
 friend class ContextDXR;
 public:
+    MeshInstanceDXR(IMesh* v = nullptr);
     void clearBLAS();
 
 public:
-    MeshDXRPtr m_mesh;
     ID3D12DescriptorHeapPtr m_desc_heap;
 
     // deformation
@@ -151,7 +153,7 @@ lptDeclRefPtr(MeshInstanceDXR);
 
 class SceneDXR : public DXREntity<Scene>
 {
-using super = Scene;
+using super = DXREntity<Scene>;
 friend class ContextDXR;
 public:
     bool hasFlag(RenderFlag f) const;
@@ -170,12 +172,7 @@ public:
     ID3D12ResourcePtr m_scene_data;
     RenderTargetDXRPtr m_render_target;
 
-    FenceEventDXR m_fence_event;
     uint32_t m_render_flags = 0;
-
-#ifdef lptEnableTimestamp
-    TimestampDXRPtr m_timestamp;
-#endif // lptEnableTimestamp
 };
 lptDeclRefPtr(SceneDXR);
 
@@ -183,7 +180,7 @@ lptDeclRefPtr(SceneDXR);
 
 class ContextDXR : public DXREntity<Context>
 {
-using super = Context;
+using super = DXREntity<Context>;
 public:
     ContextDXR();
     ~ContextDXR();
@@ -194,40 +191,45 @@ public:
     TextureDXR*      createTexture() override;
     MaterialDXR*     createMaterial() override;
     MeshDXR*         createMesh() override;
-    MeshInstanceDXR* createMeshInstance() override;
+    MeshInstanceDXR* createMeshInstance(IMesh* v) override;
     SceneDXR*        createScene() override;
 
-    void frameBegin() override;
-    void renderBegin(IScene* v) override;
-    void renderEnd(IScene* v) override;
-    void frameEnd() override;
+    void render() override;
+    void finish() override;
     void* getDevice() override;
 
+    void updateEntities();
     void setupMaterials();
     void setupMeshes();
     void setupScenes();
+    void dispatchRays();
+    void resetState();
 
 
     bool checkError();
     bool initializeDevice();
     uint64_t incrementFenceValue();
+
     ID3D12ResourcePtr createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state, const D3D12_HEAP_PROPERTIES& heap_props);
+    ID3D12ResourcePtr createBuffer(uint64_t size);
+    ID3D12ResourcePtr createUploadBuffer(uint64_t size);
+
     ID3D12ResourcePtr createTexture(int width, int height, DXGI_FORMAT format);
+    ID3D12ResourcePtr createTextureUploadBuffer(int width, int height, DXGI_FORMAT format);
+    ID3D12ResourcePtr createTextureReadbackBuffer(int width, int height, DXGI_FORMAT format);
 
+
+    uint64_t insertSignal();
     void addResourceBarrier(ID3D12GraphicsCommandList* cl, ID3D12ResourcePtr resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after);
-    uint64_t submitResourceBarrier(ID3D12ResourcePtr resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after, uint64_t preceding_fv = 0);
-    uint64_t submitDirectCommandList(ID3D12GraphicsCommandList* cl, uint64_t preceding_fv = 0);
-    uint64_t submitComputeCommandList(ID3D12GraphicsCommandList* cl, uint64_t preceding_fv = 0);
-    uint64_t submitCommandList(ID3D12CommandQueue* cq, ID3D12GraphicsCommandList* cl, uint64_t preceding_fv = 0);
 
-    uint64_t readbackBuffer(void* dst, ID3D12Resource* src, UINT64 size);
-    uint64_t uploadBuffer(ID3D12Resource* dst, const void* src, UINT64 size, bool immediate = true);
-    uint64_t writeBuffer(ID3D12Resource* dst, UINT64 size, const std::function<void(void*)>& src, bool immediate = true);
-    uint64_t copyBuffer(ID3D12Resource* dst, ID3D12Resource* src, UINT64 size, bool immediate = true);
-    uint64_t readbackTexture(void* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format);
-    uint64_t uploadTexture(ID3D12Resource* dst, const void* src, UINT width, UINT height, DXGI_FORMAT format, bool immediate = true);
-    uint64_t copyTexture(ID3D12Resource* dst, ID3D12Resource* src, bool immediate = true, uint64_t preceding_fv = 0);
-    uint64_t submitCopy(ID3D12GraphicsCommandList4Ptr& cl, bool immediate, uint64_t preceding_fv = 0);
+    void uploadBuffer(ID3D12Resource* dst, ID3D12Resource* staging, const void* src, UINT64 size);
+    void writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging, UINT64 size, const std::function<void(void*)>& src);
+    void copyBuffer(ID3D12Resource* dst, ID3D12Resource* src, UINT64 size);
+    void readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size);
+
+    void uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, const void* src, UINT width, UINT height, DXGI_FORMAT format);
+    void copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format);
+    void readbackTexture(void* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
 
 public:
     std::vector<CameraDXRPtr> m_cameras;
@@ -242,8 +244,8 @@ public:
 
     ID3D12Device5Ptr m_device;
     ID3D12CommandQueuePtr m_cmd_queue_direct;
-    ID3D12CommandQueuePtr m_cmd_queue_compute;
-    ID3D12CommandQueuePtr m_cmd_queue_copy;
+    CommandListManagerDXRPtr m_clm_direct;
+    ID3D12GraphicsCommandList4Ptr m_cl;
     ID3D12FencePtr m_fence;
     uint64_t m_fence_value = 0;
     uint64_t m_fv_upload = 0;
@@ -252,11 +254,8 @@ public:
     uint64_t m_fv_tlas = 0;
     uint64_t m_fv_rays = 0;
     uint64_t m_fv_readback = 0;
-    uint64_t m_fv_last_rays = 0;
+    FenceEventDXR m_fence_event;
 
-    CommandListManagerDXRPtr m_clm_direct;
-    CommandListManagerDXRPtr m_clm_compute;
-    CommandListManagerDXRPtr m_clm_copy;
     FenceEventDXR m_event_copy;
     std::vector<ID3D12ResourcePtr> m_tmp_resources;
 
@@ -266,7 +265,7 @@ public:
     uint64_t m_shader_record_size = 0;
 
     ID3D12ResourcePtr m_buf_vertices;
-    ID3D12ResourcePtr m_buf_materials;
+    ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
 
 #ifdef lptEnableTimestamp
     TimestampDXRPtr m_timestamp;
@@ -275,15 +274,21 @@ public:
 lptDeclRefPtr(ContextDXR);
 
 
-CameraDXR&       dxr_t(ICamera& v) { return static_cast<CameraDXR&>(v); }
-LightDXR&        dxr_t(ILight& v) { return static_cast<LightDXR&>(v); }
-TextureDXR&      dxr_t(ITexture& v) { return static_cast<TextureDXR&>(v); }
-RenderTargetDXR& dxr_t(IRenderTarget& v) { return static_cast<RenderTargetDXR&>(v); }
-MaterialDXR&     dxr_t(IMaterial& v) { return static_cast<MaterialDXR&>(v); }
-MeshDXR&         dxr_t(IMesh& v) { return static_cast<MeshDXR&>(v); }
-MeshInstanceDXR& dxr_t(IMeshInstance& v) { return static_cast<MeshInstanceDXR&>(v); }
-SceneDXR&        dxr_t(IScene& v) { return static_cast<SceneDXR&>(v); }
-ContextDXR&      dxr_t(IContext& v) { return static_cast<ContextDXR&>(v); }
+#define DefDXRT(T, I)\
+    inline T* dxr_t(I* v) { return static_cast<T*>(v); }\
+    inline T& dxr_t(I& v) { return static_cast<T&>(v); }
+
+DefDXRT(CameraDXR, ICamera)
+DefDXRT(LightDXR, ILight)
+DefDXRT(TextureDXR, ITexture)
+DefDXRT(RenderTargetDXR, IRenderTarget)
+DefDXRT(MaterialDXR, IMaterial)
+DefDXRT(MeshDXR, IMesh)
+DefDXRT(MeshInstanceDXR, IMeshInstance)
+DefDXRT(SceneDXR, IScene)
+DefDXRT(ContextDXR, IContext)
+
+#undef DefDXRT
 
 
 } // namespace lpt
