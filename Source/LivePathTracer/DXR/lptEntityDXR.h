@@ -174,8 +174,6 @@ public:
     ID3D12ResourcePtr m_scene_data;
     RenderTargetDXRPtr m_render_target;
 
-    uint64_t m_fv_tlas = 0;
-    uint64_t m_fv_rays = 0;
     FenceEventDXR m_fence_event;
     uint32_t m_render_flags = 0;
 
@@ -209,8 +207,9 @@ public:
     void frameEnd() override;
     void* getDevice() override;
 
+    void setupMaterials();
     void setupMeshes();
-    void setupScene(SceneDXR& scene);
+    void setupScenes();
 
 
     bool initializeDevice();
@@ -226,6 +225,7 @@ public:
 
     uint64_t readbackBuffer(void* dst, ID3D12Resource* src, UINT64 size);
     uint64_t uploadBuffer(ID3D12Resource* dst, const void* src, UINT64 size, bool immediate = true);
+    uint64_t writeBuffer(ID3D12Resource* dst, UINT64 size, const std::function<void(void*)>& src, bool immediate = true);
     uint64_t copyBuffer(ID3D12Resource* dst, ID3D12Resource* src, UINT64 size, bool immediate = true);
     uint64_t readbackTexture(void* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format);
     uint64_t uploadTexture(ID3D12Resource* dst, const void* src, UINT width, UINT height, DXGI_FORMAT format, bool immediate = true);
@@ -254,6 +254,8 @@ public:
     uint64_t m_fv_upload = 0;
     uint64_t m_fv_deform = 0;
     uint64_t m_fv_blas = 0;
+    uint64_t m_fv_tlas = 0;
+    uint64_t m_fv_rays = 0;
     uint64_t m_fv_last_rays = 0;
 
     CommandListManagerDXRPtr m_clm_direct;
@@ -266,8 +268,8 @@ public:
     ID3D12ResourcePtr m_shader_table;
     uint64_t m_shader_record_size = 0;
 
-    ID3D12ResourcePtr m_vertex_buffer;
-    ID3D12ResourcePtr m_material_data;
+    ID3D12ResourcePtr m_buf_vertices;
+    ID3D12ResourcePtr m_buf_materials;
 
 #ifdef lptEnableTimestamp
     TimestampDXRPtr m_timestamp;

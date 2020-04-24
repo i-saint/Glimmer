@@ -64,11 +64,13 @@ enum class DirtyFlag : uint32_t
     Camera      = 0x01000000,
     Light       = 0x02000000,
     Texture     = 0x04000000,
-    Material    = 0x08000000,
-    Mesh        = 0x10000000,
-    Instance    = 0x20000000,
+    TextureData = 0x08000000,
+    Material    = 0x10000000,
+    Mesh        = 0x20000000,
+    Instance    = 0x40000000,
 
     Deform = Transform | Blendshape | Joints,
+    Topology = Indices | Points,
     Vertices = Indices | Points | Normals | Tangents | UV,
     Any = 0xffffffff,
 };
@@ -297,6 +299,7 @@ public:
     void setEmissionTexture(ITexture* v) override;
 
 public:
+    int m_index = 0;
     MaterialData m_data;
 };
 lptDeclRefPtr(Material);

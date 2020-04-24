@@ -101,6 +101,7 @@ TextureDXR* ContextDXR::createTexture()
 {
     auto r = new TextureDXR();
     r->m_context = this;
+    r->m_index = (int)m_textures.size();
     m_textures.push_back(r);
     return r;
 }
@@ -109,6 +110,7 @@ MaterialDXR* ContextDXR::createMaterial()
 {
     auto r = new MaterialDXR();
     r->m_context = this;
+    r->m_index = (int)m_materials.size();
     m_materials.push_back(r);
     return r;
 }
@@ -139,6 +141,7 @@ SceneDXR* ContextDXR::createScene()
 
 void ContextDXR::frameBegin()
 {
+    // erase unreferenced resources
     auto erase_unreferenced = [](auto& container) {
         erase_if(container, [](auto& obj) { return obj->getRef() == 0; });
     };
@@ -150,6 +153,17 @@ void ContextDXR::frameBegin()
     erase_unreferenced(m_meshes);
     erase_unreferenced(m_mesh_instances);
     erase_unreferenced(m_scenes);
+
+    // clear states
+    for (auto& pmesh : m_meshes) {
+        pmesh->m_blas_updated = false;
+    }
+    for (auto& pinst : m_mesh_instances) {
+        pinst->m_blas_updated = false;
+    }
+    m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
+
+
 
     for (auto& obj : m_cameras) {
         if (obj->isDirty()) {
@@ -165,59 +179,62 @@ void ContextDXR::frameBegin()
         }
     }
 
-    for (auto& obj : m_textures) {
-        if (obj->isDirty()) {
-            // todo
-            obj->clearDirty();
+    setupMaterials();
+    setupMeshes();
+    setupScenes();
+}
+
+void ContextDXR::setupMaterials()
+{
+    // update textures
+    for (auto& ptex : m_textures) {
+        auto& tex = *ptex;
+        if (tex.isDirty()) {
+            auto format = GetDXGIFormat(tex.m_format);
+            if (tex.isDirty(DirtyFlag::Texture)) {
+                tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+            }
+            if (tex.isDirty(DirtyFlag::TextureData) && tex.m_texture) {
+                m_fv_upload = uploadTexture(tex.m_texture, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
+            }
+            tex.clearDirty();
         }
     }
 
-    for (auto& obj : m_materials) {
-        if (obj->isDirty()) {
-            // todo
-            obj->clearDirty();
+    // update materials
+    {
+        // check update
+        bool materials_updated = false;
+        for (auto& pmat : m_materials) {
+            auto& mat = *pmat;
+            if (mat.isDirty()) {
+                materials_updated = true;
+                mat.clearDirty();
+            }
         }
-    }
 
-    for (auto& obj : m_meshes) {
-        if (obj->isDirty()) {
-            // todo
-            obj->clearDirty();
-        }
-    }
+        // create buffer
+        size_t buffer_size = sizeof(MaterialData) * std::max(256, (int)m_materials.size());
+        if (!m_buf_materials || GetSize(m_buf_materials) < buffer_size)
+            m_buf_materials = createBuffer(buffer_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
 
-    for (auto& obj : m_mesh_instances) {
-        if (obj->isDirty()) {
-            // todo
-            obj->clearDirty();
-        }
-    }
-
-    for (auto& obj : m_scenes) {
-        if (obj->isDirty()) {
-            // todo
-            obj->clearDirty();
+        // update buffer
+        if (materials_updated) {
+            m_fv_upload = writeBuffer(m_buf_materials, buffer_size, [this](void* dst_) {
+                auto* dst = (MaterialData*)dst_;
+                for (auto& pmat : m_materials)
+                    *dst++ = pmat->m_data;
+                });
         }
     }
 }
 
 void ContextDXR::setupMeshes()
 {
-    // clear state
-    for (auto& pmesh : m_meshes) {
-        pmesh->m_blas_updated = false;
-    }
-    for (auto& pinst : m_mesh_instances) {
-        pinst->m_blas_updated = false;
-    }
-    m_fv_upload = m_fv_deform = m_fv_blas = 0;
-
-
-
     // create vertex buffers
     auto create_buffer = [this](const void* buffer, size_t size) {
         auto res = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
-        uploadBuffer(res, buffer, size);
+        m_fv_upload = uploadBuffer(res, buffer, size);
         return res;
     };
     for (auto& pmesh : m_meshes) {
@@ -276,7 +293,7 @@ void ContextDXR::setupMeshes()
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS begin");
     for (auto& pmesh : m_meshes) {
         auto& mesh = *pmesh;
-        if (!mesh.m_blas || mesh.isDirty(DirtyFlag::Points)) {
+        if (mesh.m_buf_points && mesh.m_buf_indices && (!mesh.m_blas || mesh.isDirty(DirtyFlag::Topology))) {
             // BLAS for non-deformable meshes
 
             bool perform_update = mesh.m_blas != nullptr;
@@ -296,7 +313,7 @@ void ContextDXR::setupMeshes()
 
             D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
             inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-            if (mesh.m_buf_points && mesh.m_dynamic) {
+            if (mesh.m_dynamic) {
                 inputs.Flags =
                     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
                     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
@@ -309,7 +326,7 @@ void ContextDXR::setupMeshes()
             inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
             inputs.pGeometryDescs = &geom_desc;
 
-            if (!mesh.m_blas) {
+            if (!mesh.m_blas || mesh.isDirty(DirtyFlag::Indices)) {
                 D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
                 m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
@@ -402,26 +419,34 @@ void ContextDXR::setupMeshes()
 
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS end");
     cl_blas->Close();
-    m_fv_blas = submitDirectCommandList(cl_blas, m_fv_deform);
+    m_fv_blas = submitDirectCommandList(cl_blas, m_fv_deform != 0 ? m_fv_deform : m_fv_upload);
 }
 
-void ContextDXR::setupScene(SceneDXR& scene)
+void ContextDXR::setupScenes()
 {
-    size_t instance_count = scene.m_instances.size();
-    bool needs_build_tlas = true;
-
-    if (!needs_build_tlas) {
-        // if there are no BLAS updates, check geometry list is the same as last render.
-        // if true, no TLAS update is needed.
-        needs_build_tlas = scene.m_instances != scene.m_instances_prev;
-    }
-
-    // build TLAS
     auto cl_tlas = m_clm_direct->get();
-    lptTimestampQuery(scene.m_timestamp, cl_tlas, "Building TLAS begin");
-    if (needs_build_tlas) {
-        auto& td = scene.m_tlas_data;
+    lptTimestampQuery(m_timestamp, cl_tlas, "Building TLAS begin");
 
+    for (auto& pscene : m_scenes) {
+        auto& scene = *pscene;
+
+        bool needs_update_tlas = false;
+        for (auto& pinst : scene.m_instances) {
+            if (pinst->m_blas_updated) {
+                needs_update_tlas = true;
+                break;
+            }
+        }
+        if (!needs_update_tlas) {
+            needs_update_tlas = scene.m_instances != scene.m_instances_prev;
+            if (!needs_update_tlas)
+                continue; // no need to update
+        }
+
+        // build TLAS
+
+        auto& td = scene.m_tlas_data;
+        size_t instance_count = scene.m_instances.size();
         // get the size of the TLAS buffers
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
         inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
@@ -508,43 +533,44 @@ void ContextDXR::setupScene(SceneDXR& scene)
             uav_barrier.UAV.pResource = td.buffer;
             cl_tlas->ResourceBarrier(1, &uav_barrier);
         }
-    }
-    lptTimestampQuery(scene.m_timestamp, cl_tlas, "Building TLAS end");
-    cl_tlas->Close();
-    scene.m_fv_tlas = submitDirectCommandList(cl_tlas, m_fv_blas);
 
-
-    // setup per-instance data
-    if (needs_build_tlas) {
-        size_t stride = sizeof(InstanceDataDXR);
-        bool expanded = ReuseOrExpandBuffer(scene.m_instance_data, stride, instance_count, 4096, [this, &scene](size_t size) {
-            auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-            lptSetName(ret, scene.m_name + " Instance Data");
-            return ret;
-            });
-        if (expanded) {
-            auto capacity = scene.m_instance_data->GetDesc().Width;
-            D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-            desc.Format = DXGI_FORMAT_UNKNOWN;
-            desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-            desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            desc.Buffer.FirstElement = 0;
-            desc.Buffer.NumElements = UINT(capacity / stride);
-            desc.Buffer.StructureByteStride = UINT(stride);
-            desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-            m_device->CreateShaderResourceView(scene.m_instance_data, &desc, scene.m_instance_data_srv.hcpu);
-        }
-
-        InstanceDataDXR* dst;
-        if (SUCCEEDED(scene.m_instance_data->Map(0, nullptr, (void**)&dst))) {
-            for (auto& inst : scene.m_instances) {
-                InstanceDataDXR tmp{};
-                tmp.instance_flags = inst->m_instance_flags;
-                *dst++ = tmp;
+        // setup per-instance data
+        {
+            size_t stride = sizeof(InstanceDataDXR);
+            bool expanded = ReuseOrExpandBuffer(scene.m_instance_data, stride, instance_count, 4096, [this, &scene](size_t size) {
+                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+                lptSetName(ret, scene.m_name + " Instance Data");
+                return ret;
+                });
+            if (expanded) {
+                auto capacity = scene.m_instance_data->GetDesc().Width;
+                D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+                desc.Format = DXGI_FORMAT_UNKNOWN;
+                desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+                desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                desc.Buffer.FirstElement = 0;
+                desc.Buffer.NumElements = UINT(capacity / stride);
+                desc.Buffer.StructureByteStride = UINT(stride);
+                desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+                m_device->CreateShaderResourceView(scene.m_instance_data, &desc, scene.m_instance_data_srv.hcpu);
             }
-            scene.m_instance_data->Unmap(0, nullptr);
+
+            InstanceDataDXR* dst;
+            if (SUCCEEDED(scene.m_instance_data->Map(0, nullptr, (void**)&dst))) {
+                for (auto& inst : scene.m_instances) {
+                    InstanceDataDXR tmp{};
+                    tmp.instance_flags = inst->m_instance_flags;
+                    // todo: update
+                    *dst++ = tmp;
+                }
+                scene.m_instance_data->Unmap(0, nullptr);
+            }
         }
     }
+
+    lptTimestampQuery(m_timestamp, cl_tlas, "Building TLAS end");
+    cl_tlas->Close();
+    m_fv_tlas = submitDirectCommandList(cl_tlas, m_fv_blas);
 }
 
 
@@ -596,9 +622,6 @@ void ContextDXR::renderBegin(IScene* v)
     std::swap(scene.m_instances, scene.m_instances_prev);
     scene.m_instances.clear();
 
-    // reset fence values
-    scene.m_fv_tlas = scene.m_fv_rays = 0;
-
     if (m_fv_last_rays != 0) {
         // wait for complete previous renderer's DispatchRays() because there may be dependencies. (e.g. building BLAS)
         m_cmd_queue_direct->Wait(m_fence, m_fv_last_rays);
@@ -612,6 +635,9 @@ void ContextDXR::renderEnd(IScene* v)
 
 void ContextDXR::frameEnd()
 {
+    m_clm_direct->reset();
+    m_clm_copy->reset();
+    m_tmp_resources.clear();
 }
 
 void* ContextDXR::getDevice()
@@ -989,6 +1015,20 @@ uint64_t ContextDXR::uploadBuffer(ID3D12Resource* dst, const void* src, UINT64 s
     void* mapped;
     if (SUCCEEDED(upload_buf->Map(0, nullptr, &mapped))) {
         memcpy(mapped, src, size);
+        upload_buf->Unmap(0, nullptr);
+        if (!immediate)
+            m_tmp_resources.push_back(upload_buf);
+        return copyBuffer(dst, upload_buf, size, immediate);
+    }
+    return 0;
+}
+uint64_t ContextDXR::writeBuffer(ID3D12Resource* dst, UINT64 size, const std::function<void(void*)>& src, bool immediate)
+{
+    auto upload_buf = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+    lptSetName(upload_buf, L"Temporary Upload Buffer");
+    void* mapped;
+    if (SUCCEEDED(upload_buf->Map(0, nullptr, &mapped))) {
+        src(mapped);
         upload_buf->Unmap(0, nullptr);
         if (!immediate)
             m_tmp_resources.push_back(upload_buf);

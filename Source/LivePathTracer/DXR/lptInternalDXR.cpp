@@ -473,6 +473,17 @@ DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format)
         DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_R32G32_TYPELESS, DXGI_FORMAT_R32G32B32A32_TYPELESS>(format);
 }
 
+UINT64 GetSize(ID3D12Resource* v)
+{
+    if (!v)
+        return 0;
+    auto desc = v->GetDesc();
+    UINT64 ret = desc.Width;
+    if (desc.Height != 0)
+        ret *= desc.Height;
+    return ret;
+}
+
 
 std::string ToString(ID3DBlob* blob)
 {

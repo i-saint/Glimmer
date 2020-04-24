@@ -2,15 +2,17 @@
 #ifdef _WIN32
 namespace lpt {
 
+class ContextDXR;
+
 class DeformerDXR
 {
 public:
     DeformerDXR(ID3D12Device5Ptr device);
     ~DeformerDXR();
     bool valid() const;
-    bool prepare(RenderDataDXR& rd);
-    bool deform(RenderDataDXR& rd, MeshInstanceDXR& inst);
-    uint64_t flush(RenderDataDXR& rd);
+    bool prepare(ContextDXR& rd);
+    bool deform(ContextDXR& rd, MeshInstanceDXR& inst);
+    uint64_t flush(ContextDXR& rd);
     bool reset();
 
 private:

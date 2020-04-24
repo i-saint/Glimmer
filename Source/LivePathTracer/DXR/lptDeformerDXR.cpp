@@ -103,7 +103,7 @@ bool DeformerDXR::valid() const
     return this && m_device && m_rootsig && m_pipeline_state;
 }
 
-bool DeformerDXR::prepare(RenderDataDXR& rd)
+bool DeformerDXR::prepare(ContextDXR& rd)
 {
     if (!valid())
         return false;
@@ -113,7 +113,7 @@ bool DeformerDXR::prepare(RenderDataDXR& rd)
     return true;
 }
 
-bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDXR& inst)
+bool DeformerDXR::deform(ContextDXR& rd, MeshInstanceDXR& inst)
 {
     if (!valid() || !inst.m_mesh)
         return false;
@@ -340,7 +340,7 @@ bool DeformerDXR::deform(RenderDataDXR& rd, MeshInstanceDXR& inst)
     return true;
 }
 
-uint64_t DeformerDXR::flush(RenderDataDXR& rd)
+uint64_t DeformerDXR::flush(ContextDXR& rd)
 {
     if (!valid() || !rd.cl_deform)
         return 0;

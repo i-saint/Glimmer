@@ -124,7 +124,7 @@ void Texture::upload(const void* src)
     auto v = (const char*)src;
     size_t size = m_width * m_height * SizeOfTexel(m_format);
     m_data.assign(v, v + size);
-    markDirty(DirtyFlag::Texture);
+    markDirty(DirtyFlag::TextureData);
 }
 
 
