@@ -23,7 +23,13 @@ class ContextDXR;
 template<class T>
 class DXREntity : public T
 {
+using super = T;
 public:
+    template<class... T>
+    DXREntity(T&&... v)
+        : super(std::forward<T>(v)...)
+    {
+    }
 
 public:
     ContextDXR* m_context = nullptr;
@@ -52,21 +58,6 @@ public:
 lptDeclRefPtr(LightDXR);
 
 
-class TextureDXR : public DXREntity<Texture>
-{
-using super = DXREntity<Texture>;
-friend class ContextDXR;
-public:
-    void* getDeviceObject() override;
-
-public:
-    ID3D12ResourcePtr m_texture;
-    ID3D12ResourcePtr m_buf_upload;
-    DescriptorHandleDXR m_uav;
-};
-lptDeclRefPtr(TextureDXR);
-
-
 class RenderTargetDXR : public DXREntity<RenderTarget>
 {
 using super = DXREntity<RenderTarget>;
@@ -80,6 +71,21 @@ public:
     DescriptorHandleDXR m_uav;
 };
 lptDeclRefPtr(RenderTargetDXR);
+
+
+class TextureDXR : public DXREntity<Texture>
+{
+using super = DXREntity<Texture>;
+friend class ContextDXR;
+public:
+    void* getDeviceObject() override;
+
+public:
+    ID3D12ResourcePtr m_texture;
+    ID3D12ResourcePtr m_buf_upload;
+    DescriptorHandleDXR m_uav;
+};
+lptDeclRefPtr(TextureDXR);
 
 
 class MaterialDXR : public DXREntity<Material>
@@ -157,7 +163,6 @@ using super = DXREntity<Scene>;
 friend class ContextDXR;
 public:
     bool hasFlag(RenderFlag f) const;
-    void clear();
 
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;

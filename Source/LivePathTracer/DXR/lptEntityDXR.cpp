@@ -6,6 +6,15 @@
 
 namespace lpt {
 
+void* RenderTargetDXR::getDeviceObject()
+{
+    return m_texture;
+}
+
+void* TextureDXR::getDeviceObject()
+{
+    return m_texture;
+}
 
 void MeshDXR::clearBLAS()
 {

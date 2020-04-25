@@ -15,7 +15,6 @@
     <ClCompile Include="DXR\lptDeformerDXR.cpp" />
     <ClCompile Include="DXR\lptEntityDXR.cpp" />
     <ClCompile Include="DXR\lptInternalDXR.cpp" />
-    <ClCompile Include="DXR\lptRendererDXR.cpp" />
     <ClCompile Include="Foundation\lptLog.cpp" />
     <ClCompile Include="Foundation\lptMath.cpp" />
     <ClCompile Include="Foundation\lptMisc.cpp" />

@@ -2,7 +2,7 @@
 #ifdef _WIN32
 #include "Foundation/lptLog.h"
 #include "Foundation/lptMisc.h"
-#include "lptGfxContextDXR.h"
+#include "lptContextDXR.h"
 #include "lptDeformerDXR.h"
 
 // shader binaries
@@ -10,6 +10,7 @@
 
 namespace lpt {
 
+#if 0
 enum class DeformFlag : uint32_t
 {
     Blendshape = 1,
@@ -118,10 +119,10 @@ bool DeformerDXR::deform(ContextDXR& rd, MeshInstanceDXR& inst)
     if (!valid() || !inst.m_mesh)
         return false;
 
-    auto& mesh = *inst.m_mesh;
+    auto& mesh = dxr_t(*inst.m_mesh);
 
-    bool blendshape_updated = inst.isUpdated(UpdateFlag::Blendshape);
-    bool bone_updated = inst.isUpdated(UpdateFlag::Bones);
+    bool blendshape_updated = inst.isDirty(DirtyFlag::Blendshape);
+    bool bone_updated = inst.isDirty(DirtyFlag::Joints);
     if (!blendshape_updated && !bone_updated)
         return false; // no need to deform
 
@@ -450,6 +451,6 @@ bool DeformerDXR::writeBuffer(ID3D12Resource *res, const Body& body)
     return false;
 }
 
-
+#endif
 } // namespace lpt
 #endif // _WIN32

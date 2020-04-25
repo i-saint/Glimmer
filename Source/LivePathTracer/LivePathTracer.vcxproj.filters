@@ -24,9 +24,6 @@
     <ClCompile Include="DXR\lptDeformerDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="DXR\lptRendererDXR.cpp">
-      <Filter>DXR</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="lptEntity.cpp" />
     <ClCompile Include="DXR\lptEntityDXR.cpp">
