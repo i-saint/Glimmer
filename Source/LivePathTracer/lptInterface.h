@@ -26,11 +26,55 @@ enum class LightType : uint32_t
 };
 
 #ifndef lptImpl
-struct float2 { float x, y; };
-struct float3 { float x, y, z; };
-struct float4 { float x, y, z, w; };
+struct float2
+{
+    float x, y;
+
+    float& operator[](int i) { return ((float*)this)[i]; }
+    const float& operator[](int i) const { return ((float*)this)[i]; }
+
+    static constexpr float2 zero() { return{ 0, 0 }; }
+};
+
+struct float3
+{
+    float x, y, z;
+
+    float& operator[](int i) { return ((float*)this)[i]; }
+    const float& operator[](int i) const { return ((float*)this)[i]; }
+
+    static constexpr float3 zero() { return{ 0, 0, 0 }; }
+    static constexpr float3 up() { return{ 0, 1, 0 }; }
+};
+
+struct float4
+{
+    float x, y, z, w;
+
+    float& operator[](int i) { return ((float*)this)[i]; }
+    const float& operator[](int i) const { return ((float*)this)[i]; }
+
+    static constexpr float4 zero() { return{ 0, 0, 0, 0 }; }
+};
 using quatf = float4;
-struct float4x4 { float v[4][4]; };
+
+struct float4x4
+{
+    float4 v[4];
+
+    float4& operator[](int i) { return v[i]; }
+    const float4& operator[](int i) const { return v[i]; }
+
+    static constexpr float4x4 identity()
+    {
+        return{ {
+            { 1, 0, 0, 0 },
+            { 0, 1, 0, 0 },
+            { 0, 0, 1, 0 },
+            { 0, 0, 0, 1 },
+        } };
+    }
+};
 #endif
 
 struct JointWeight
@@ -57,7 +101,7 @@ class ICamera : public IEntity
 {
 public:
     virtual void setPosition(float3 v) = 0;
-    virtual void setRotation(quatf v) = 0;
+    virtual void setDirection(float3 v, float3 up = float3::up()) = 0;
     virtual void setFOV(float v) = 0;
     virtual void setNear(float v) = 0;
     virtual void setFar(float v) = 0;
@@ -100,7 +144,7 @@ public:
     virtual void setEmissive(float3 v) = 0;
 
     virtual void setDiffuseTexture(ITexture* v) = 0;
-    virtual void setEmissionTexture(ITexture* v) = 0;
+    virtual void setEmissiveTexture(ITexture* v) = 0;
 };
 
 
@@ -116,6 +160,8 @@ public:
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
     virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
     virtual void setJointCounts(const uint8_t* v, size_t n) = 0;
+
+    virtual void markDynamic() = 0;
 };
 
 

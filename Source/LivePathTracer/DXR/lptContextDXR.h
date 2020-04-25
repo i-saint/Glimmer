@@ -87,8 +87,9 @@ public:
     ID3D12ResourcePtr m_shader_table;
     uint64_t m_shader_record_size = 0;
 
+    ID3D12ResourcePtr m_buf_instances;
+    ID3D12ResourcePtr m_buf_materials;
     ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
-    ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
 
 #ifdef lptEnableTimestamp
     TimestampDXRPtr m_timestamp;

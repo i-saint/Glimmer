@@ -5,14 +5,6 @@
 
 namespace lpt {
 
-struct InstanceDataDXR
-{
-    uint32_t mesh_index;
-    uint32_t material_index;
-    uint32_t instance_flags; // combination of InstanceFlags
-    uint32_t layer_mask;
-};
-
 class SceneDataDXR : public SceneData
 {
 };
@@ -169,13 +161,14 @@ public:
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
     ID3D12DescriptorHeapPtr m_desc_heap;
-    DescriptorHandleDXR m_render_target_uav;
-    DescriptorHandleDXR m_instance_data_srv;
-    DescriptorHandleDXR m_scene_data_cbv;
+    DescriptorHandleDXR m_uav_render_target;
+    DescriptorHandleDXR m_srv_instances;
+    DescriptorHandleDXR m_srv_materials;
+    DescriptorHandleDXR m_srv_vertex_buffers;
+    DescriptorHandleDXR m_cbv_scene;
 
     SceneData m_scene_data_prev{};
     TLASDataDXR m_tlas_data;
-    ID3D12ResourcePtr m_buf_instance_data;
     ID3D12ResourcePtr m_buf_scene_data;
     RenderTargetDXRPtr m_render_target;
 

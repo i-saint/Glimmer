@@ -52,9 +52,9 @@ void Camera::setPosition(float3 v)
     m_data.position = v;
     markDirty(DirtyFlag::Camera);
 }
-void Camera::setRotation(quatf v)
+void Camera::setDirection(float3 v, float3 up)
 {
-    m_data.rotation = v;
+    m_data.rotation = mu::look_quat(v, up);
     markDirty(DirtyFlag::Camera);
 }
 void Camera::setFOV(float v)
@@ -163,13 +163,13 @@ void Material::setEmissive(float3 v)
 
 void Material::setDiffuseTexture(ITexture* v)
 {
-    m_data.diffuse_tex = v ? static_cast<Texture*>(v)->m_index : 0;
+    m_tex_diffuse = base_t(v);
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setEmissionTexture(ITexture* v)
+void Material::setEmissiveTexture(ITexture* v)
 {
-    m_data.emissive_tex = v ? static_cast<Texture*>(v)->m_index : 0;
+    m_tex_emissive = base_t(v);
     markDirty(DirtyFlag::Material);
 }
 
@@ -222,6 +222,11 @@ void Mesh::setJointCounts(const uint8_t* v, size_t n)
     markDirty(DirtyFlag::Joints);
 }
 
+void Mesh::markDynamic()
+{
+    m_dynamic = true;
+}
+
 
 MeshInstance::MeshInstance(IMesh* v)
 {
@@ -237,7 +242,8 @@ void MeshInstance::setMaterial(IMaterial* v)
 
 void MeshInstance::setTransform(const float4x4& v)
 {
-    m_transform = v;
+    m_data.local_to_world = v;
+    m_data.world_to_local = mu::invert(v);
     markDirty(DirtyFlag::Transform);
 }
 

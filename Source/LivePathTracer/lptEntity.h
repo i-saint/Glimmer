@@ -69,7 +69,7 @@ enum class DirtyFlag : uint32_t
     Instance    = 0x80000000,
 
     Deform = Transform | Blendshape | Joints,
-    Topology = Indices | Points,
+    Shape = Indices | Points,
     Vertices = Indices | Points | Normals | Tangents | UV,
     SceneEntities = Camera | Light | RenderTarget | Instance,
     Any = 0xffffffff,
@@ -96,7 +96,7 @@ struct CameraData
     float near_plane{};
     float far_plane{};
     float fov{};
-    float aspect{};
+    float pad{};
 
     DefCompare(CameraData);
 };
@@ -128,6 +128,18 @@ struct MaterialData
     int2 pad_tex{};
 
     DefCompare(MaterialData);
+};
+
+struct InstanceData
+{
+    float4x4 local_to_world;
+    float4x4 world_to_local;
+    uint32_t mesh_index;
+    uint32_t material_index;
+    uint32_t instance_flags; // combination of InstanceFlags
+    uint32_t layer_mask;
+
+    DefCompare(InstanceData);
 };
 
 struct SceneData
@@ -242,7 +254,7 @@ class Camera : public EntityBase<ICamera>
 {
 public:
     void setPosition(float3 v) override;
-    void setRotation(quatf v) override;
+    void setDirection(float3 v, float3 up) override;
     void setFOV(float v) override;
     void setNear(float v) override;
     void setFar(float v) override;
@@ -307,11 +319,13 @@ public:
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;
     void setDiffuseTexture(ITexture* v) override;
-    void setEmissionTexture(ITexture* v) override;
+    void setEmissiveTexture(ITexture* v) override;
 
 public:
     int m_index = 0;
     MaterialData m_data;
+    TexturePtr m_tex_diffuse;
+    TexturePtr m_tex_emissive;
 };
 lptDeclRefPtr(Material);
 
@@ -339,7 +353,10 @@ public:
     void setJointWeights(const JointWeight* v, size_t n) override;
     void setJointCounts(const uint8_t* v, size_t n) override;
 
+    void markDynamic() override;
+
 public:
+    int m_index = 0;
     RawVector<int>    m_indices;
     RawVector<float3> m_points;
     RawVector<float3> m_normals;
@@ -367,9 +384,9 @@ public:
     bool hasFlag(InstanceFlag flag) const;
 
 public:
+    InstanceData m_data;
     MeshPtr m_mesh;
     MaterialPtr m_material;
-    float4x4 m_transform = float4x4::identity();
     RawVector<float4x4> m_joint_matrices;
     RawVector<float> m_blendshape_weights;
 

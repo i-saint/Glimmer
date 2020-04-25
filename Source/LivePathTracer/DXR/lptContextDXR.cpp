@@ -481,84 +481,102 @@ void ContextDXR::updateEntities()
     }
     m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
 
-    if (GetGlobals().hasDebugFlag(DebugFlag::ForceUpdateAS)) {
-        // clear BLAS (for debug & measure time)
-        for (auto& pmesh : m_meshes)
-            pmesh->clearBLAS();
-        for (auto& pinst : m_mesh_instances)
-            pinst->clearBLAS();
-    }
+
+    // update entity indices
+    each_with_index(m_textures, [](TextureDXRPtr& pobj, int index) {
+        pobj->m_index = index;
+        });
+
+    each_with_index(m_materials, [](MaterialDXRPtr& pobj, int index) {
+        auto& obj = *pobj;
+        obj.m_index = index;
+        obj.m_data.diffuse_tex = obj.m_tex_diffuse ? obj.m_tex_diffuse->m_index : 0;
+        obj.m_data.emissive_tex = obj.m_tex_emissive ? obj.m_tex_emissive->m_index : 0;
+        });
+
+    each_with_index(m_meshes, [](MeshDXRPtr& pobj, int index) {
+        pobj->m_index = index;
+        });
+
+    each(m_mesh_instances, [](MeshInstanceDXRPtr& pobj) {
+        auto& obj = *pobj;
+        obj.m_data.mesh_index = obj.m_mesh->m_index;
+        obj.m_data.material_index = obj.m_material ? obj.m_material->m_index : 0;
+        });
+
+    each(m_scenes, [](SceneDXRPtr& pobj) {
+        auto& obj = *pobj;
+        if (obj.m_camera)
+            obj.m_data.camera = obj.m_camera->m_data;
+
+        size_t nlights = std::min(obj.m_lights.size(), (size_t)lptMaxLights);
+        for (size_t li = 0; li < nlights; ++li)
+            obj.m_data.lights[li] = obj.m_lights[li]->m_data;
+        });
 }
 
 void ContextDXR::updateBuffers()
 {
     m_cl = m_clm_direct->get();
 
-    // update textures
+    if (GetGlobals().hasDebugFlag(DebugFlag::ForceUpdateAS)) {
+        // clear BLAS (for debug & measure time)
+        for (auto& pobj : m_meshes)
+            pobj->clearBLAS();
+        for (auto& pobj : m_mesh_instances)
+            pobj->clearBLAS();
+    }
+
+    // update render targets
     for (auto& ptex : m_render_targets) {
         auto& tex = *ptex;
-        if (tex.isDirty()) {
+
+        if (!tex.m_texture) {
             auto format = GetDXGIFormat(tex.m_format);
-            if (tex.isDirty(DirtyFlag::Texture)) {
-                tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-                tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
-            }
+            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+            tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
         }
     }
 
     // update textures
     for (auto& ptex : m_textures) {
         auto& tex = *ptex;
-        if (tex.isDirty()) {
-            auto format = GetDXGIFormat(tex.m_format);
-            if (tex.isDirty(DirtyFlag::Texture)) {
-                tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-                tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
-            }
-            if (tex.isDirty(DirtyFlag::TextureData) && tex.m_texture) {
-                uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
-            }
+
+        auto format = GetDXGIFormat(tex.m_format);
+        if (!tex.m_texture) {
+            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
+        }
+        if (tex.isDirty(DirtyFlag::TextureData)) {
+            uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
         }
     }
 
-    // update materials
+    // materials
     {
-        // check update
-        bool materials_updated = false;
-        for (auto& pmat : m_materials) {
-            auto& mat = *pmat;
-            if (mat.isDirty()) {
-                materials_updated = true;
-            }
-        }
-
-        // create buffer
-        size_t buffer_size = sizeof(MaterialData) * std::max(256, (int)m_materials.size());
-        if (!m_buf_materials || GetSize(m_buf_materials) < buffer_size) {
-            m_buf_materials = createBuffer(buffer_size);
-            m_buf_materials_staging = createUploadBuffer(buffer_size);
-        }
-
-        // update buffer
-        if (materials_updated) {
-            writeBuffer(m_buf_materials, m_buf_materials_staging, buffer_size, [this](void* dst_) {
-                auto* dst = (MaterialData*)dst_;
-                for (auto& pmat : m_materials)
-                    *dst++ = pmat->m_data;
-                });
-        }
+        bool expanded = ReuseOrExpandBuffer(m_buf_materials, sizeof(MaterialData), m_materials.size(), 256, [this](size_t size) {
+            auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+            lptSetName(ret, "Material Buffer");
+            return ret;
+            });
+        Map(m_buf_materials, [this](MaterialData* dst) {
+            size_t n = m_materials.size();
+            for (size_t i = 0; i < n; ++i)
+                dst[i] = m_materials[i]->m_data;
+            });
     }
 
-    // create vertex buffers
-    auto create_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
-        dst = createBuffer(size);
-        staging = createUploadBuffer(size);
-        uploadBuffer(dst, staging, buffer, size);
-    };
+    // mesh
     for (auto& pmesh : m_meshes) {
         auto& mesh = *pmesh;
         if (mesh.m_points.empty() || mesh.m_indices.empty())
             continue;
+
+        auto create_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
+            dst = createBuffer(size);
+            staging = createUploadBuffer(size);
+            uploadBuffer(dst, staging, buffer, size);
+        };
 
         // indices
         if (!mesh.m_buf_indices) {
@@ -573,70 +591,23 @@ void ContextDXR::updateBuffers()
         }
     }
 
-
-    for (auto& obj : m_cameras) {
-        if (obj->isDirty()) {
-            // todo
-        }
+    // instance
+    {
+        bool expanded = ReuseOrExpandBuffer(m_buf_instances, sizeof(InstanceData), m_mesh_instances.size(), 4096, [this](size_t size) {
+            auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+            lptSetName(ret, "Instance Buffer");
+            return ret;
+            });
+        Map(m_buf_instances, [this](InstanceData* dst) {
+            size_t n = m_mesh_instances.size();
+            for (size_t i = 0; i < n; ++i)
+                dst[i] = m_mesh_instances[i]->m_data;
+            });
     }
 
-    for (auto& obj : m_lights) {
-        if (obj->isDirty()) {
-            // todo
-        }
-    }
-
+    // scene
     for (auto& pscene : m_scenes) {
         auto& scene = dxr_t(*pscene);
-
-        // setup per-instance data
-        if (scene.isDirty()) {
-            size_t stride = sizeof(InstanceDataDXR);
-            bool expanded = ReuseOrExpandBuffer(scene.m_buf_instance_data, stride, scene.m_instances.size(), 4096, [this, &scene](size_t size) {
-                auto ret = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-                lptSetName(ret, scene.m_name + " Instance Data");
-                return ret;
-                });
-            if (expanded) {
-                auto capacity = scene.m_buf_instance_data->GetDesc().Width;
-                D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-                desc.Format = DXGI_FORMAT_UNKNOWN;
-                desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-                desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-                desc.Buffer.FirstElement = 0;
-                desc.Buffer.NumElements = UINT(capacity / stride);
-                desc.Buffer.StructureByteStride = UINT(stride);
-                desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-                m_device->CreateShaderResourceView(scene.m_buf_instance_data, &desc, scene.m_instance_data_srv.hcpu);
-            }
-
-            Map(scene.m_buf_instance_data, [this, &scene](InstanceDataDXR* dst) {
-                for (auto& inst : scene.m_instances) {
-                    InstanceDataDXR tmp{};
-                    tmp.instance_flags = inst->m_instance_flags;
-                    // todo: update
-                    *dst++ = tmp;
-                }
-                });
-
-
-            // scene constant buffer
-            if (!scene.m_buf_scene_data) {
-                // size of constant buffer must be multiple of 256
-                int cb_size = align_to(256, sizeof(SceneData));
-                scene.m_buf_scene_data = createBuffer(cb_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-                lptSetName(scene.m_buf_scene_data, scene.m_name + " Scene Data");
-
-                Map(scene.m_buf_scene_data, [](SceneData* dst) {
-                    *dst = SceneData{};
-                    });
-
-                D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
-                cbv_desc.BufferLocation = scene.m_buf_scene_data->GetGPUVirtualAddress();
-                cbv_desc.SizeInBytes = cb_size;
-                m_device->CreateConstantBufferView(&cbv_desc, scene.m_scene_data_cbv.hcpu);
-            }
-        }
 
         // desc heap
         if (!scene.m_desc_heap) {
@@ -648,12 +619,58 @@ void ContextDXR::updateBuffers()
             lptSetName(scene.m_desc_heap, scene.m_name + " Desc Heap");
 
             auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, scene.m_desc_heap);
-            scene.m_render_target_uav = handle_allocator.allocate();
+            scene.m_uav_render_target = handle_allocator.allocate();
             scene.m_tlas_data.srv = handle_allocator.allocate();
-            //scene.m_vertex_buffer_srv = handle_allocator.allocate();
-            //scene.m_material_data_srv = handle_allocator.allocate();
-            scene.m_instance_data_srv = handle_allocator.allocate();
-            scene.m_scene_data_cbv = handle_allocator.allocate();
+            scene.m_srv_instances = handle_allocator.allocate();
+            scene.m_srv_materials = handle_allocator.allocate();
+            scene.m_srv_vertex_buffers = handle_allocator.allocate();
+            scene.m_cbv_scene = handle_allocator.allocate();
+        }
+
+        // scene constant buffer
+        if (!scene.m_buf_scene_data) {
+            // size of constant buffer must be multiple of 256
+            int cb_size = align_to(256, sizeof(SceneData));
+            scene.m_buf_scene_data = createBuffer(cb_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
+            lptSetName(scene.m_buf_scene_data, scene.m_name + " Scene Data");
+
+            D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
+            cbv_desc.BufferLocation = scene.m_buf_scene_data->GetGPUVirtualAddress();
+            cbv_desc.SizeInBytes = cb_size;
+            m_device->CreateConstantBufferView(&cbv_desc, scene.m_cbv_scene.hcpu);
+        }
+
+        // write data
+        Map(scene.m_buf_scene_data, [&scene](SceneData* dst) {
+            *dst = scene.m_data;
+            });
+
+        // SRV materials
+        {
+            auto capacity = m_buf_materials->GetDesc().Width;
+            D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+            desc.Format = DXGI_FORMAT_UNKNOWN;
+            desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+            desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            desc.Buffer.FirstElement = 0;
+            desc.Buffer.NumElements = UINT(capacity / sizeof(MaterialData));
+            desc.Buffer.StructureByteStride = UINT(sizeof(MaterialData));
+            desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+            m_device->CreateShaderResourceView(m_buf_materials, &desc, scene.m_srv_materials.hcpu);
+        }
+
+        // SRV instances
+        {
+            auto capacity = m_buf_instances->GetDesc().Width;
+            D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+            desc.Format = DXGI_FORMAT_UNKNOWN;
+            desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+            desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            desc.Buffer.FirstElement = 0;
+            desc.Buffer.NumElements = UINT(capacity / sizeof(InstanceData));
+            desc.Buffer.StructureByteStride = UINT(sizeof(InstanceData));
+            desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+            m_device->CreateShaderResourceView(m_buf_instances, &desc, scene.m_srv_instances.hcpu);
         }
     }
 
@@ -687,7 +704,7 @@ void ContextDXR::updateBLAS()
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS begin");
     for (auto& pmesh : m_meshes) {
         auto& mesh = *pmesh;
-        if (mesh.m_buf_points && mesh.m_buf_indices && (!mesh.m_blas || mesh.isDirty(DirtyFlag::Topology))) {
+        if (mesh.m_buf_points && mesh.m_buf_indices && (!mesh.m_blas || mesh.isDirty(DirtyFlag::Shape))) {
             // BLAS for non-deformable meshes
 
             bool perform_update = mesh.m_blas != nullptr;
@@ -837,19 +854,19 @@ void ContextDXR::updateTLAS()
         // update instance desc
         {
             Map(td.instance_desc, [&](D3D12_RAYTRACING_INSTANCE_DESC* instance_descs) {
-                UINT iid = 0;
                 D3D12_RAYTRACING_INSTANCE_DESC desc{};
-                for (auto& pinst : scene.m_instances) {
-                    auto& inst = dxr_t(*pinst);
+                UINT n = (UINT)scene.m_instances.size();
+                for (UINT i = 0; i < n; ++i) {
+                    auto& inst = dxr_t(*scene.m_instances[i]);
                     auto& mesh = dxr_t(*inst.m_mesh);
                     auto& blas = inst.m_blas_deformed ? inst.m_blas_deformed : mesh.m_blas;
 
-                    (float3x4&)desc.Transform = to_mat3x4(inst.m_transform);
-                    desc.InstanceID = iid++;
+                    (float3x4&)desc.Transform = to_mat3x4(inst.m_data.local_to_world);
+                    desc.InstanceID = i;
                     desc.InstanceMask = ~0;
                     desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
                     desc.AccelerationStructure = blas->GetGPUVirtualAddress();
-                    *instance_descs++ = desc;
+                    instance_descs[i] = desc;
                 }
                 });
             inputs.NumDescs = instance_count;
@@ -968,7 +985,7 @@ void ContextDXR::dispatchRays()
     for (auto& pscene : m_scenes) {
         auto& scene = dxr_t(*pscene);
         auto& rt = scene.m_render_target->m_texture;
-        auto rt_uav = scene.m_render_target_uav;
+        auto rt_uav = scene.m_uav_render_target;
 
         cl_rays->SetComputeRootSignature(m_rootsig);
         cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());

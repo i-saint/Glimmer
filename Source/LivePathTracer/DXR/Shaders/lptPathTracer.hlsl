@@ -38,7 +38,7 @@ struct CameraData
     float near_plane;
     float far_plane;
     float fov;
-    float aspect;
+    float pad;
 };
 
 struct LightData
@@ -76,6 +76,8 @@ struct MeshData
 
 struct InstanceData
 {
+    float4x4 local_to_world;
+    float4x4 world_to_local;
     uint mesh_index;
     uint material_index;
     uint instance_flags;
@@ -100,9 +102,9 @@ RWTexture2D<float> g_output : register(u0);
 
 // slot 1
 RaytracingAccelerationStructure g_tlas : register(t0);
-Texture1DArray<float> g_vertex_buffers : register(t1);
+StructuredBuffer<InstanceData> g_instance_data : register(t1);
 StructuredBuffer<MaterialData> g_material_data : register(t2);
-StructuredBuffer<InstanceData> g_instance_data : register(t3);
+Texture1DArray<float> g_vertex_buffers : register(t3);
 ConstantBuffer<SceneData> g_scene_data : register(b0);
 
 // slot 2

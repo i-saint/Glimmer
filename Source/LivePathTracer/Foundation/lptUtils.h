@@ -30,6 +30,21 @@ struct lambda_traits<R(T::*)(Args...) const> : lambda_traits_impl<R, Args...>
 {};
 
 
+template<class Container, class Body>
+inline void each(Container& dst, const Body& body)
+{
+    for (auto& v : dst)
+        body(v);
+}
+
+template<class Container, class Body>
+inline void each_with_index(Container& dst, const Body& body)
+{
+    int i = 0;
+    for (auto& v : dst)
+        body(v, i++);
+}
+
 template<class Container, class Condition>
 inline bool erase_if(Container& dst, const Condition& cond)
 {

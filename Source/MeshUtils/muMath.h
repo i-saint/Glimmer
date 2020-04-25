@@ -59,6 +59,7 @@ struct tvec3
 
     static constexpr tvec3 zero() { return{ (T)0, (T)0, (T)0 }; }
     static constexpr tvec3 one() { return{ (T)1, (T)1, (T)1 }; }
+    static constexpr tvec3 up() { return{ (T)0, (T)1, (T)0 }; }
     static constexpr tvec3 set(T v) { return{ v, v, v }; }
 };
 
@@ -854,36 +855,13 @@ template<class T> inline tvec3<T> to_euler_zxy(const tquat<T>& q)
 
 template<class T> inline void to_axis_angle(const tquat<T>& q, tvec3<T>& axis, T& angle)
 {
-    angle = T(2.0) * acos(q.w);
+    angle = T(2) * acos(q.w);
+    T r = T(1) / sqrt(T(1) - (q.w * q.w));
     axis = {
-        q.x / sqrt(T(1.0) - q.w*q.w),
-        q.y / sqrt(T(1.0) - q.w*q.w),
-        q.z / sqrt(T(1.0) - q.w*q.w)
+        q.x * r,
+        q.y * r,
+        q.z * r
     };
-}
-
-template<class T> inline tmat3x3<T> look33(const tvec3<T>& forward, const tvec3<T>& up)
-{
-    auto z = normalize(forward);
-    auto x = normalize(cross(up, z));
-    auto y = cross(z, x);
-    return{ {
-        { x.x, y.x, z.x },
-        { x.y, y.y, z.y },
-        { x.z, y.z, z.z },
-    } };
-}
-template<class T> inline tmat4x4<T> look44(const tvec3<T>& forward, const tvec3<T>& up)
-{
-    auto z = normalize(forward);
-    auto x = normalize(cross(up, z));
-    auto y = cross(z, x);
-    return{ {
-        { x.x, y.x, z.x, T(0) },
-        { x.y, y.y, z.y, T(0) },
-        { x.z, y.z, z.z, T(0) },
-        {T(0),T(0),T(0), T(1) },
-    } };
 }
 
 template<class T> inline tvec3<T> flip_x(const tvec3<T>& v) { return { -v.x, v.y, v.z }; }
@@ -1079,6 +1057,63 @@ template<class T> inline tmat4x4<T> to_mat4x4(const tquat<T>& q)
         {T(0.0),                                T(0.0),                                  T(0.0),                                  T(1.0)}
     }};
 }
+
+template<class TMat>
+inline tquat<typename TMat::scalar_t> to_quat_impl(const TMat& m_)
+{
+    using T = typename TMat::scalar_t;
+    tmat3x3<T> m{
+        normalize((tvec3<T>&)m_[0]),
+        normalize((tvec3<T>&)m_[1]),
+        normalize((tvec3<T>&)m_[2])
+    };
+
+    T trace = m[0][0] + m[1][1] + m[2][2];
+    T root;
+    tquat<T> q;
+
+    if (trace > 0.0f)
+    {
+        // |w| > 1/2, may as well choose w > 1/2
+        root = sqrt(trace + 1.0f);   // 2w
+        q.w = 0.5f * root;
+        root = 0.5f / root;  // 1/(4w)
+        q.x = (m[2][1] - m[1][2]) * root;
+        q.y = (m[0][2] - m[2][0]) * root;
+        q.z = (m[1][0] - m[0][1]) * root;
+    }
+    else
+    {
+        // |w| <= 1/2
+        int next[3] = { 1, 2, 0 };
+        int i = 0;
+        if (m[1][1] > m[0][0])
+            i = 1;
+        if (m[2][2] > m[i][i])
+            i = 2;
+        int j = next[i];
+        int k = next[j];
+
+        root = sqrt(m[i][i] - m[j][j] - m[k][k] + T(1.0));
+        float* qv[3] = { &q.x, &q.y, &q.z };
+        *qv[i] = T(0.5) * root;
+        root = T(0.5) / root;
+        q.w = (m[k][j] - m[j][k]) * root;
+        *qv[j] = (m[j][i] + m[i][j]) * root;
+        *qv[k] = (m[k][i] + m[i][k]) * root;
+    }
+    q = normalize(q);
+    return q;
+}
+template<class T> inline tquat<T> to_quat(const tmat3x3<T>& m)
+{
+    return to_quat_impl(m);
+}
+template<class T> inline tquat<T> to_quat(const tmat4x4<T>& m)
+{
+    return to_quat_impl(m);
+}
+
 
 template<class T> inline bool is_negative(const tmat3x3<T>& m)
 {
@@ -1281,19 +1316,49 @@ template<class T> inline tmat4x4<T> invert(const tmat4x4<T>& x)
     return s;
 }
 
-template <typename T>
-inline tmat4x4<T> look_at(const tvec3<T>& eye, const tvec3<T>& target, const tvec3<T>& up)
+template<class T>
+inline tmat3x3<T> look33(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
 {
-    tvec3<T> f = { normalize(target - eye) };
-    tvec3<T> r = { normalize(cross(f, up)) };
-    tvec3<T> u = { cross(r, f) };
-    tvec3<T> p = { -dot(r, eye), -dot(u, eye), dot(f, eye) };
+    auto f = normalize(forward);
+    auto r = normalize(cross(up, f));
+    auto u = cross(f, r);
+    return{ {
+        { r.x, u.x, f.x },
+        { r.y, u.y, f.y },
+        { r.z, u.z, f.z },
+    } };
+}
+template<class T>
+inline tmat4x4<T> look44(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
+{
+    auto f = normalize(forward);
+    auto r = normalize(cross(up, f));
+    auto u = cross(f, r);
+    return{ {
+        { r.x, u.x, f.x, T(0) },
+        { r.y, u.y, f.y, T(0) },
+        { r.z, u.z, f.z, T(0) },
+        {T(0),T(0),T(0), T(1) },
+    } };
+}
+template<class T>
+inline tquat<T> look_quat(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
+{
+    return to_quat(look33(forward, up));
+}
 
+template <typename T>
+inline tmat4x4<T> look_at(const tvec3<T>& eye, const tvec3<T>& target, const tvec3<T>& up = tvec3<T>::up())
+{
+    auto f = -normalize(target - eye);
+    auto r = normalize(cross(f, up));
+    auto u = cross(r, f);
+    auto p = tvec3<T>{ -dot(r, eye), -dot(u, eye), dot(f, eye) };
     return { {
-        { r.x, u.x, -f.x, T(0.0) },
-        { r.y, u.y, -f.y, T(0.0) },
-        { r.z, u.z, -f.z, T(0.0) },
-        { p.x, p.y,  p.z, T(1.0) },
+        { r.x, u.x, f.x, T(0) },
+        { r.y, u.y, f.y, T(0) },
+        { r.z, u.z, f.z, T(0) },
+        { p.x, p.y, p.z, T(1) },
     } };
 }
 
@@ -1371,66 +1436,9 @@ inline void extract_look_data(const tmat4x4<T>& view, tvec3<T>& pos, tquat<T>& r
 {
     tvec3<T> forward, up, right;
     extract_look_data(view, pos, forward, up, right);
-    rot = to_quat(look33(forward, up));
+    rot = look_quat(forward, up);
 }
 
-
-template<class TMat>
-inline tquat<typename TMat::scalar_t> to_quat_impl(const TMat& m_)
-{
-    using T = typename TMat::scalar_t;
-    tmat3x3<T> m {
-        normalize((tvec3<T>&)m_[0]),
-        normalize((tvec3<T>&)m_[1]),
-        normalize((tvec3<T>&)m_[2])
-    };
-
-    T trace = m[0][0] + m[1][1] + m[2][2];
-    T root;
-    tquat<T> q;
-
-    if (trace > 0.0f)
-    {
-        // |w| > 1/2, may as well choose w > 1/2
-        root = sqrt(trace + 1.0f);   // 2w
-        q.w = 0.5f * root;
-        root = 0.5f / root;  // 1/(4w)
-        q.x = (m[2][1] - m[1][2]) * root;
-        q.y = (m[0][2] - m[2][0]) * root;
-        q.z = (m[1][0] - m[0][1]) * root;
-    }
-    else
-    {
-        // |w| <= 1/2
-        int next[3] = { 1, 2, 0 };
-        int i = 0;
-        if (m[1][1] > m[0][0])
-            i = 1;
-        if (m[2][2] > m[i][i])
-            i = 2;
-        int j = next[i];
-        int k = next[j];
-
-        root = sqrt(m[i][i] - m[j][j] - m[k][k] + T(1.0));
-        float* qv[3] = { &q.x, &q.y, &q.z };
-        *qv[i] = T(0.5) * root;
-        root = T(0.5) / root;
-        q.w = (m[k][j] - m[j][k]) * root;
-        *qv[j] = (m[j][i] + m[i][j]) * root;
-        *qv[k] = (m[k][i] + m[i][k]) * root;
-    }
-    q = normalize(q);
-    return q;
-}
-
-template<class T> inline tquat<T> to_quat(const tmat3x3<T>& m)
-{
-    return to_quat_impl(m);
-}
-template<class T> inline tquat<T> to_quat(const tmat4x4<T>& m)
-{
-    return to_quat_impl(m);
-}
 
 template<class T> inline tvec3<T> extract_position(const tmat4x4<T>& m)
 {
