@@ -25,15 +25,16 @@ public:
     void* getDevice() override;
 
 
+    bool checkError();
+    bool initializeDevice();
     void updateEntities();
-    void uploadBuffers();
+    void updateBuffers();
     void deform();
     void updateBLAS();
     void updateTLAS();
     void dispatchRays();
+    void resetState();
 
-    bool checkError();
-    bool initializeDevice();
     uint64_t incrementFenceValue();
 
     ID3D12ResourcePtr createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state, const D3D12_HEAP_PROPERTIES& heap_props);
@@ -81,15 +82,12 @@ public:
     uint64_t m_fv_rays = 0;
     FenceEventDXR m_fence_event;
 
-    FenceEventDXR m_event_copy;
-    std::vector<ID3D12ResourcePtr> m_tmp_resources;
-
     ID3D12RootSignaturePtr m_rootsig;
     ID3D12StateObjectPtr m_pipeline_state;
     ID3D12ResourcePtr m_shader_table;
     uint64_t m_shader_record_size = 0;
 
-    ID3D12ResourcePtr m_buf_vertices;
+    ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
     ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
 
 #ifdef lptEnableTimestamp

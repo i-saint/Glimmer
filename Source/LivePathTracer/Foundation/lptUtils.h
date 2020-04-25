@@ -76,25 +76,4 @@ const ref_ptr<T>& cast(const ref_ptr<U>& v)
     return (const ref_ptr<T>&)v;
 }
 
-
-template<class Body>
-bool Map(ID3D12Resource* res, UINT subresource, const D3D12_RANGE* range, const Body& body)
-{
-    using arg_t = lambda_traits<Body>::arg<0>::type;
-    arg_t dst;
-    if (SUCCEEDED(res->Map(subresource, range, (void**)&dst))) {
-        body(dst);
-        res->Unmap(subresource, nullptr);
-        return true;
-    }
-    else {
-        return false;
-    }
-}
-template<class Body>
-bool Map(ID3D12Resource* res, const Body& body)
-{
-    return Map(res, 0, nullptr, body);
-}
-
 } // namespace lpt

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "lptEntity.h"
+#include "Foundation//lptUtils.h"
 
 namespace lpt {
 
@@ -274,6 +275,8 @@ void Scene::addLight(ILight* v)
 
 void Scene::removeLight(ILight* v)
 {
+    if (erase_if(m_lights, [v](LightPtr& l) { return l == v; }))
+        markDirty(DirtyFlag::Light);
 }
 
 void Scene::addMesh(IMeshInstance* v)
@@ -284,6 +287,8 @@ void Scene::addMesh(IMeshInstance* v)
 
 void Scene::removeMesh(IMeshInstance* v)
 {
+    if (erase_if(m_instances, [v](MeshInstancePtr& l) { return l == v; }))
+        markDirty(DirtyFlag::Instance);
 }
 
 void Scene::clear()

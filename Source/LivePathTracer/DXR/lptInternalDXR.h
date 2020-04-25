@@ -201,6 +201,27 @@ UINT64 GetSize(ID3D12Resource* v);
 std::string ToString(ID3DBlob* blob);
 void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc);
 
+
+template<class Body>
+bool Map(ID3D12Resource* res, UINT subresource, const D3D12_RANGE* range, const Body& body)
+{
+    using arg_t = lambda_traits<Body>::arg<0>::type;
+    arg_t dst;
+    if (SUCCEEDED(res->Map(subresource, range, (void**)&dst))) {
+        body(dst);
+        res->Unmap(subresource, nullptr);
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+template<class Body>
+bool Map(ID3D12Resource* res, const Body& body)
+{
+    return Map(res, 0, nullptr, body);
+}
+
 // Body : [](size_t size) -> ID3D12Resource
 // return true if expanded
 template<class Body>
