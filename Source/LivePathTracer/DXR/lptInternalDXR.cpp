@@ -269,7 +269,7 @@ std::string TimestampDXR::getLog()
 void SetNameImpl(ID3D12Object* obj, LPCSTR name)
 {
     if (obj && name) {
-        auto wname = ToWCS(name);
+        auto wname = mu::ToWCS(name);
         obj->SetName(wname.c_str());
     }
 }
@@ -282,7 +282,7 @@ void SetNameImpl(ID3D12Object* obj, LPCWSTR name)
 void SetNameImpl(ID3D12Object* obj, const std::string& name)
 {
     if (obj && !name.empty()) {
-        auto wname = ToWCS(name);
+        auto wname = mu::ToWCS(name);
         obj->SetName(wname.c_str());
     }
 }

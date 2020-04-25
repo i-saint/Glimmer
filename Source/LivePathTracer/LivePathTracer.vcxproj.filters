@@ -15,9 +15,6 @@
     <ClCompile Include="Foundation\lptLog.cpp">
       <Filter>Foundation</Filter>
     </ClCompile>
-    <ClCompile Include="Foundation\lptMisc.cpp">
-      <Filter>Foundation</Filter>
-    </ClCompile>
     <ClCompile Include="DXR\lptDeformerDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
@@ -35,9 +32,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Foundation\lptLog.h">
-      <Filter>Foundation</Filter>
-    </ClInclude>
-    <ClInclude Include="Foundation\lptMisc.h">
       <Filter>Foundation</Filter>
     </ClInclude>
     <ClInclude Include="DXR\lptDeformerDXR.h">

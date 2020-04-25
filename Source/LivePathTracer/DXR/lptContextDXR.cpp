@@ -266,7 +266,7 @@ bool ContextDXR::initializeDevice()
     // try to set power stable state. this requires Windows to be developer mode.
     // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-setstablepowerstate
     if (GetGlobals().hasDebugFlag(DebugFlag::PowerStableState)) {
-        if (!IsDeveloperMode()) {
+        if (!mu::IsDeveloperMode()) {
             SetErrorLog(
                 "Enabling power stable state requires Windows to be developer mode. "
                 "Check Windows Settings -> Update & Security -> For Developers -> Use developer features. "

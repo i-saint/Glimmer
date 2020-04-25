@@ -584,6 +584,26 @@ void DbgBreak()
 #endif
 }
 
+bool IsDeveloperMode()
+{
+#ifdef _WIN32
+    // thanks: https://stackoverflow.com/a/41232108
+    HKEY hKey;
+    auto err = ::RegOpenKeyExW(HKEY_LOCAL_MACHINE, LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock)", 0, KEY_READ, &hKey);
+    if (err != ERROR_SUCCESS)
+        return false;
+    DWORD value{};
+    DWORD dwordSize = sizeof(DWORD);
+    err = ::RegQueryValueExW(hKey, L"AllowDevelopmentWithoutDevLicense", 0, NULL, reinterpret_cast<LPBYTE>(&value), &dwordSize);
+    ::RegCloseKey(hKey);
+    if (err != ERROR_SUCCESS)
+        return false;
+    return value != 0;
+#else
+    return false;
+#endif
+}
+
 void SetMemoryProtection(void *addr, size_t size, MemoryFlags flags)
 {
 #ifdef _WIN32

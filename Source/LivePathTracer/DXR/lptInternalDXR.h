@@ -1,7 +1,6 @@
 #pragma once
 #include "lptSettings.h"
 #include "lptEntity.h"
-#include "Foundation/lptMisc.h"
 
 namespace lpt {
 

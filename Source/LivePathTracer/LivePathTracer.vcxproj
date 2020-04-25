@@ -16,7 +16,6 @@
     <ClCompile Include="DXR\lptEntityDXR.cpp" />
     <ClCompile Include="DXR\lptInternalDXR.cpp" />
     <ClCompile Include="Foundation\lptLog.cpp" />
-    <ClCompile Include="Foundation\lptMisc.cpp" />
     <ClCompile Include="lptEntity.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -28,7 +27,6 @@
     <ClInclude Include="DXR\lptEntityDXR.h" />
     <ClInclude Include="DXR\lptInternalDXR.h" />
     <ClInclude Include="Foundation\lptLog.h" />
-    <ClInclude Include="Foundation\lptMisc.h" />
     <ClInclude Include="Foundation\lptUtils.h" />
     <ClInclude Include="lptEntity.h" />
     <ClInclude Include="lptInterface.h" />

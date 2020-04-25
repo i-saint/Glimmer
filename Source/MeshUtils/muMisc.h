@@ -78,6 +78,7 @@ void* FindSymbolByName(const char *name, const char *module_name);
 int CaptureCallstack(void** dst, size_t dst_len);
 void AddressToSymbolName(char* dst, size_t dst_len, void* address);
 void DbgBreak();
+bool IsDeveloperMode();
 
 
 

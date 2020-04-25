@@ -1,7 +1,6 @@
 #include "pch.h"
 #ifdef _WIN32
 #include "Foundation/lptLog.h"
-#include "Foundation/lptMisc.h"
 #include "lptEntityDXR.h"
 
 namespace lpt {
