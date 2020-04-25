@@ -74,5 +74,7 @@ TestCase(TestMinimum)
     // render!
     ctx->render();
     ctx->finish();
+
+    printf("%s\n", ctx->getTimestampLog());
 }
 

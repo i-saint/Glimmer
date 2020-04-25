@@ -142,7 +142,7 @@ SceneDXR* ContextDXR::createScene()
 void ContextDXR::render()
 {
     lptTimestampReset(m_timestamp);
-    lptTimestampSetEnable(m_timestamp, GetGlobals().hasDebugFlag(DebugFlag::Timestamp));
+    //lptTimestampSetEnable(m_timestamp, GetGlobals().hasDebugFlag(DebugFlag::Timestamp));
 
     updateEntities();
     updateBuffers();
@@ -405,51 +405,6 @@ bool ContextDXR::initializeDevice()
         }
     }
 
-    // setup shader table
-    {
-        m_shader_record_size = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-        m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, m_shader_record_size);
-
-        const int capacity = 32;
-        auto tmp_buf = createBuffer(m_shader_record_size * capacity, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-
-        Map(tmp_buf, [this, &capacity](uint8_t* addr) {
-            ID3D12StateObjectPropertiesPtr sop;
-            m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
-
-            int shader_record_count = 0;
-            auto add_shader_record = [&](const WCHAR* name) {
-                if (shader_record_count++ == capacity) {
-                    assert(0 && "shader_record_count exceeded its capacity");
-                }
-                void* sid = sop->GetShaderIdentifier(name);
-                assert(sid && "shader id not found");
-
-                auto dst = addr;
-                memcpy(dst, sid, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-                dst += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-
-                addr += m_shader_record_size;
-            };
-
-            // ray-gen
-            for (auto name : kRayGenShaders)
-                add_shader_record(name);
-
-            // miss
-            for (auto name : kMissShaders)
-                add_shader_record(name);
-
-            // hit
-            for (auto name : kHitGroups)
-                add_shader_record(name);
-            });
-
-        m_shader_table = createBuffer(m_shader_record_size * capacity, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
-        lptSetName(m_shader_table, L"Shadow Shader Table");
-        copyBuffer(m_shader_table, tmp_buf, m_shader_record_size * capacity);
-    }
-
     lptTimestampInitialize(m_timestamp, m_device);
 
     return true;
@@ -459,7 +414,9 @@ void ContextDXR::updateEntities()
 {
     // erase unreferenced entities
     auto erase_unreferenced = [](auto& container) {
-        return erase_if(container, [](auto& obj) { return obj->getRef() < 1; });
+        return erase_if(container, [](auto& obj) {
+            return obj->getRef() <= 0 && obj->getRefInternal() <= 1;
+            });
     };
 
     erase_unreferenced(m_scenes);
@@ -525,6 +482,50 @@ void ContextDXR::updateBuffers()
             pobj->clearBLAS();
         for (auto& pobj : m_mesh_instances)
             pobj->clearBLAS();
+    }
+
+    // setup shader table
+    if (!m_shader_table) {
+        m_shader_record_size = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+        m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, m_shader_record_size);
+
+        const int capacity = 32;
+        auto staging = createUploadBuffer(m_shader_record_size * capacity);
+        Map(staging, [this, &capacity](uint8_t* addr) {
+            ID3D12StateObjectPropertiesPtr sop;
+            m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
+
+            int shader_record_count = 0;
+            auto add_shader_record = [&](const WCHAR* name) {
+                if (shader_record_count++ == capacity) {
+                    assert(0 && "shader_record_count exceeded its capacity");
+                }
+                void* sid = sop->GetShaderIdentifier(name);
+                assert(sid && "shader id not found");
+
+                auto dst = addr;
+                memcpy(dst, sid, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+                dst += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+
+                addr += m_shader_record_size;
+            };
+
+            // ray-gen
+            for (auto name : kRayGenShaders)
+                add_shader_record(name);
+
+            // miss
+            for (auto name : kMissShaders)
+                add_shader_record(name);
+
+            // hit
+            for (auto name : kHitGroups)
+                add_shader_record(name);
+            });
+
+        m_shader_table = createBuffer(m_shader_record_size * capacity);
+        lptSetName(m_shader_table, L"Shadow Shader Table");
+        copyBuffer(m_shader_table, staging, m_shader_record_size * capacity);
     }
 
     // update render targets
@@ -984,8 +985,8 @@ void ContextDXR::dispatchRays()
     // dispatch
     for (auto& pscene : m_scenes) {
         auto& scene = dxr_t(*pscene);
-        auto& rt = scene.m_render_target->m_texture;
-        auto rt_uav = scene.m_uav_render_target;
+        if (!scene.m_render_target)
+            continue;
 
         cl_rays->SetComputeRootSignature(m_rootsig);
         cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
@@ -993,9 +994,9 @@ void ContextDXR::dispatchRays()
         ID3D12DescriptorHeap* desc_heaps[] = { scene.m_desc_heap };
         cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
 
-        // default
-        do_dispatch(rt, RayGenType::Default, [&]() {
-            cl_rays->SetComputeRootDescriptorTable(0, rt_uav.hgpu);
+        auto& rt = dxr_t(*scene.m_render_target);
+        do_dispatch(rt.m_texture, RayGenType::Default, [&]() {
+            cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
             cl_rays->SetComputeRootDescriptorTable(1, scene.m_tlas_data.srv.hgpu);
             });
     }
@@ -1006,7 +1007,7 @@ void ContextDXR::dispatchRays()
     lptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
     for (auto& prt : m_render_targets) {
         auto& rt = dxr_t(*prt);
-        if (rt.m_readback_dst && rt.m_buf_readback)
+        if (rt.m_readback_enabled)
             copyTexture(rt.m_buf_readback, rt.m_texture, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
     }
     lptTimestampQuery(m_timestamp, cl_rays, "Readback end");
@@ -1045,19 +1046,23 @@ void ContextDXR::finish()
         ::WaitForSingleObject(m_fence_event, kTimeoutMS);
         lptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
     }
-
-    // handle render target readback
-    for (auto& prt : m_render_targets) {
-        auto& rt = dxr_t(*prt);
-        if (rt.m_readback_dst && rt.m_buf_readback)
-            readbackTexture(rt.m_readback_dst, rt.m_buf_readback, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
-        rt.m_readback_dst = nullptr;
-    }
 }
 
 void* ContextDXR::getDevice()
 {
     return m_device.GetInterfacePtr();
+}
+
+const char* ContextDXR::getTimestampLog()
+{
+#ifdef lptEnableTimestamp
+    static std::string s_log;
+    if (m_timestamp)
+        s_log = m_timestamp->getLog();
+    return s_log.c_str();
+#else
+    return "";
+#endif
 }
 
 uint64_t ContextDXR::incrementFenceValue()
@@ -1164,12 +1169,20 @@ void ContextDXR::addResourceBarrier(ID3D12GraphicsCommandList* cl, ID3D12Resourc
 
 void ContextDXR::uploadBuffer(ID3D12Resource* dst, ID3D12Resource* staging, const void* src, UINT64 size)
 {
+    if (!dst || !staging || !src || size == 0) {
+        return;
+    }
+
     if (Map(staging, [src, size](void* mapped) { memcpy(mapped, src, size); })) {
         copyBuffer(dst, staging, size);
     }
 }
 void ContextDXR::writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging, UINT64 size, const std::function<void(void*)>& src)
 {
+    if (!dst || !staging || size == 0) {
+        return;
+    }
+
     if (Map(staging, [&src](void* mapped) { src(mapped); })) {
         copyBuffer(dst, staging, size);
     }
@@ -1177,14 +1190,19 @@ void ContextDXR::writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging, UINT6
 
 void ContextDXR::copyBuffer(ID3D12Resource* dst, ID3D12Resource* src, UINT64 size)
 {
-    if (!dst || !src || size == 0)
+    if (!dst || !src || size == 0) {
         return;
+    }
 
     m_cl->CopyBufferRegion(dst, 0, src, 0, size);
 }
 
 void ContextDXR::readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size)
 {
+    if (!dst || !staging || size == 0) {
+        return;
+    }
+
     Map(staging, [dst, size](void* mapped) {
         memcpy(dst, mapped, size);
         });
@@ -1193,6 +1211,10 @@ void ContextDXR::readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size)
 
 void ContextDXR::uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, const void* src_, UINT width, UINT height, DXGI_FORMAT format)
 {
+    if (!dst || !staging || !src_) {
+        return;
+    }
+
     UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
 
@@ -1225,6 +1247,10 @@ void ContextDXR::uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, con
 
 void ContextDXR::copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format)
 {
+    if (!dst || !src) {
+        return;
+    }
+
     UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * texel_size;
@@ -1249,6 +1275,10 @@ void ContextDXR::copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT widt
 
 void ContextDXR::readbackTexture(void* dst_, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format)
 {
+    if (!dst_ || !staging) {
+        return;
+    }
+
     UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * texel_size;

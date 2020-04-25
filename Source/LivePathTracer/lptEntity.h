@@ -301,13 +301,13 @@ class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
     RenderTarget(TextureFormat format, int width, int height);
-    void readback(void* dst) override;
+    void enableReadback(bool v) override;
 
 public:
     TextureFormat m_format = TextureFormat::Unknown;
     int m_width = 0;
     int m_height = 0;
-    void* m_readback_dst = nullptr;
+    bool m_readback_enabled = false;
 };
 lptDeclRefPtr(RenderTarget);
 

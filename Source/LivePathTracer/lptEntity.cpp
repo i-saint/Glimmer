@@ -137,9 +137,9 @@ RenderTarget::RenderTarget(TextureFormat format, int width, int height)
     markDirty(DirtyFlag::Texture);
 }
 
-void RenderTarget::readback(void* dst)
+void RenderTarget::enableReadback(bool v)
 {
-    m_readback_dst = dst;
+    m_readback_enabled = v;
 }
 
 

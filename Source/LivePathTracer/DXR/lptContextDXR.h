@@ -23,6 +23,7 @@ public:
     void render() override;
     void finish() override;
     void* getDevice() override;
+    const char* getTimestampLog() override;
 
 
     bool checkError();

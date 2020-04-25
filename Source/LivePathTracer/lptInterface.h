@@ -131,7 +131,8 @@ public:
 class IRenderTarget : public IEntity
 {
 public:
-    virtual void readback(void* dst) = 0; // actual readback will be done after IContext::frameEnd()
+    virtual void enableReadback(bool v) = 0;
+    virtual void readback(void* dst) = 0;
     virtual void* getDeviceObject() = 0;
 };
 
@@ -203,6 +204,7 @@ public:
     virtual void finish() = 0;
 
     virtual void* getDevice() = 0;
+    virtual const char* getTimestampLog() = 0;
 };
 
 

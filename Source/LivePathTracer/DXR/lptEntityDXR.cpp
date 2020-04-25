@@ -2,12 +2,19 @@
 #ifdef _WIN32
 #include "Foundation/lptLog.h"
 #include "lptEntityDXR.h"
+#include "lptContextDXR.h"
 
 namespace lpt {
 
 RenderTargetDXR::RenderTargetDXR(TextureFormat format, int width, int height)
     : super(format, width, height)
 {
+}
+
+void RenderTargetDXR::readback(void* dst)
+{
+    if (m_readback_enabled)
+        m_context->readbackTexture(dst, m_buf_readback, m_width, m_height, GetDXGIFormat(m_format));
 }
 
 void* RenderTargetDXR::getDeviceObject()

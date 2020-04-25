@@ -56,6 +56,7 @@ using super = DXREntity<RenderTarget>;
 friend class ContextDXR;
 public:
     RenderTargetDXR(TextureFormat format, int width, int height);
+    void readback(void* dst) override;
     void* getDeviceObject() override;
 
 public:
@@ -167,10 +168,8 @@ public:
     DescriptorHandleDXR m_srv_vertex_buffers;
     DescriptorHandleDXR m_cbv_scene;
 
-    SceneData m_scene_data_prev{};
     TLASDataDXR m_tlas_data;
     ID3D12ResourcePtr m_buf_scene_data;
-    RenderTargetDXRPtr m_render_target;
 
     uint32_t m_render_flags = 0;
 };
