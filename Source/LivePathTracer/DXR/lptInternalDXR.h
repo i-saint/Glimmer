@@ -173,15 +173,6 @@ private:
 };
 using CommandListManagerDXRPtr = std::shared_ptr<CommandListManagerDXR>;
 
-class TLASDataDXR
-{
-public:
-    ID3D12ResourcePtr instance_desc;
-    ID3D12ResourcePtr scratch;
-    ID3D12ResourcePtr buffer;
-    DescriptorHandleDXR srv;
-};
-
 
 
 extern const D3D12_HEAP_PROPERTIES kDefaultHeapProps;
@@ -236,7 +227,7 @@ bool ReuseOrExpandBuffer(ID3D12ResourcePtr& buf, size_t stride, size_t size, siz
         size_t capacity = minimum;
         while (capacity < size)
             capacity *= 2;
-        buf = body(stride * capacity);
+        body(stride * capacity);
         return true;
     }
     return false;

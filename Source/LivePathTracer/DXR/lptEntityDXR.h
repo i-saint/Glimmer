@@ -5,10 +5,6 @@
 
 namespace lpt {
 
-class SceneDataDXR : public SceneData
-{
-};
-
 
 class ContextDXR;
 
@@ -105,11 +101,6 @@ public:
     // vertex buffers
     ID3D12ResourcePtr m_buf_indices, m_buf_indices_staging;
     ID3D12ResourcePtr m_buf_points, m_buf_points_staging;
-    ID3D12ResourcePtr m_buf_face_normals, m_buf_face_normals_staging;
-    ID3D12ResourcePtr m_buf_normals;
-    ID3D12ResourcePtr m_buf_tangents;
-    ID3D12ResourcePtr m_buf_uv;
-    ID3D12ResourcePtr m_buf_mesh_info;
 
     // blendshape data
     ID3D12ResourcePtr m_buf_bs_delta;
@@ -164,12 +155,12 @@ public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
     ID3D12DescriptorHeapPtr m_desc_heap;
     DescriptorHandleDXR m_uav_render_target;
-    DescriptorHandleDXR m_srv_instances;
-    DescriptorHandleDXR m_srv_materials;
-    DescriptorHandleDXR m_srv_vertex_buffers;
+    DescriptorHandleDXR m_srv_tlas;
     DescriptorHandleDXR m_cbv_scene;
 
-    TLASDataDXR m_tlas_data;
+    ID3D12ResourcePtr m_tlas_instance_desc;
+    ID3D12ResourcePtr m_tlas_scratch;
+    ID3D12ResourcePtr m_tlas;
     ID3D12ResourcePtr m_buf_scene_data;
 
     uint32_t m_render_flags = 0;

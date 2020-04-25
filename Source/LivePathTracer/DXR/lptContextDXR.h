@@ -90,7 +90,15 @@ public:
 
     ID3D12ResourcePtr m_buf_instances;
     ID3D12ResourcePtr m_buf_materials;
+    ID3D12ResourcePtr m_buf_meshes;
     ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
+    ID3D12ResourcePtr m_buf_faces, m_buf_faces_staging;
+    ID3D12DescriptorHeapPtr m_desc_heap;
+    DescriptorHandleDXR m_srv_instances;
+    DescriptorHandleDXR m_srv_materials;
+    DescriptorHandleDXR m_srv_meshes;
+    DescriptorHandleDXR m_srv_vertices;
+    DescriptorHandleDXR m_srv_faces;
 
 #ifdef lptEnableTimestamp
     TimestampDXRPtr m_timestamp;

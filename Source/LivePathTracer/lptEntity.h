@@ -70,7 +70,7 @@ enum class DirtyFlag : uint32_t
 
     Deform = Transform | Blendshape | Joints,
     Shape = Indices | Points,
-    Vertices = Indices | Points | Normals | Tangents | UV,
+    Vertices = Points | Normals | Tangents | UV,
     SceneEntities = Camera | Light | RenderTarget | Instance,
     Any = 0xffffffff,
 };
@@ -133,9 +133,13 @@ struct MaterialData
 struct MeshData
 {
     uint32_t face_offset = 0;
+    uint32_t face_count = 0;
     uint32_t index_offset = 0;
+    uint32_t index_count = 0;
     uint32_t vertex_offset = 0;
+    uint32_t vertex_count = 0;
     uint32_t mesh_flags = 0;
+    uint32_t pad = 0;
 };
 
 struct InstanceData
@@ -168,6 +172,27 @@ struct SceneData
             body(lights[li]);
     }
 };
+
+struct vertex_t
+{
+    float3 point;
+    float3 normal;
+    float3 tangent;
+    float2 uv;
+    float pad;
+
+    DefCompare(vertex_t);
+};
+
+struct face_t
+{
+    int3 indices;
+    float3 normal;
+    float2 pad;
+
+    DefCompare(face_t);
+};
+
 #undef DefCompare
 
 

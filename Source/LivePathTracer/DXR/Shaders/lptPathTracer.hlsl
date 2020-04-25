@@ -29,6 +29,22 @@ enum INSTANCE_FLAG
     IF_CAST_SHADOWS     = 0x04,
 };
 
+struct vertex_t
+{
+    float3 point_;
+    float3 normal;
+    float3 tangent;
+    float2 uv;
+    float pad;
+};
+
+struct face_t
+{
+    int3 indices;
+    float3 normal;
+    float2 pad;
+};
+
 struct CameraData
 {
     float4x4 view;
@@ -68,10 +84,14 @@ struct MaterialData
 
 struct MeshData
 {
-    uint point_offset;
-    uint normal_offset;
-    uint tangent_offset;
-    uint uv_offset;
+    uint face_offset;
+    uint face_count;
+    uint index_offset;
+    uint index_count;
+    uint vertex_offset;
+    uint vertex_count;
+    uint mesh_flags;
+    uint pad;
 };
 
 struct InstanceData
@@ -99,37 +119,39 @@ struct SceneData
 
 // slot 0
 RWTexture2D<float> g_output : register(u0);
+RaytracingAccelerationStructure g_tlas : register(t0);
+ConstantBuffer<SceneData> g_scene : register(b0);
 
 // slot 1
-RaytracingAccelerationStructure g_tlas : register(t0);
-StructuredBuffer<InstanceData> g_instance_data : register(t1);
-StructuredBuffer<MaterialData> g_material_data : register(t2);
-Texture1DArray<float> g_vertex_buffers : register(t3);
-ConstantBuffer<SceneData> g_scene_data : register(b0);
+StructuredBuffer<InstanceData> g_instances : register(t1);
+StructuredBuffer<MaterialData> g_materials : register(t2);
+StructuredBuffer<MeshData>     g_meshes : register(t3);
+StructuredBuffer<vertex_t>     g_vertices : register(t4);
+StructuredBuffer<face_t>       g_faces: register(t5);
 
 // slot 2
-Texture2D<float> g_prev_result : register(t4);
+Texture2D<float> g_prev_result : register(t6);
 
 
-float3 CameraPosition()     { return g_scene_data.camera.position.xyz; }
-float3 CameraRight()        { return g_scene_data.camera.view[0].xyz; }
-float3 CameraUp()           { return g_scene_data.camera.view[1].xyz; }
-float3 CameraForward()      { return -g_scene_data.camera.view[2].xyz; }
-float CameraFocalLength()   { return abs(g_scene_data.camera.proj[1][1]); }
-float CameraNearPlane()     { return g_scene_data.camera.near_plane; }
-float CameraFarPlane()      { return g_scene_data.camera.far_plane; }
+float3 CameraPosition()     { return g_scene.camera.position.xyz; }
+float3 CameraRight()        { return g_scene.camera.view[0].xyz; }
+float3 CameraUp()           { return g_scene.camera.view[1].xyz; }
+float3 CameraForward()      { return -g_scene.camera.view[2].xyz; }
+float CameraFocalLength()   { return abs(g_scene.camera.proj[1][1]); }
+float CameraNearPlane()     { return g_scene.camera.near_plane; }
+float CameraFarPlane()      { return g_scene.camera.far_plane; }
 
-uint  RenderFlags()         { return g_scene_data.render_flags; }
-float ShadowRayOffset()     { return g_scene_data.shadow_ray_offset; }
-float SelfShadowThreshold() { return g_scene_data.self_shadow_threshold; }
+uint  RenderFlags()         { return g_scene.render_flags; }
+float ShadowRayOffset()     { return g_scene.shadow_ray_offset; }
+float SelfShadowThreshold() { return g_scene.self_shadow_threshold; }
 
-int LightCount() { return g_scene_data.light_count; }
-LightData GetLight(int i) { return g_scene_data.lights[i]; }
+int LightCount() { return g_scene.light_count; }
+LightData GetLight(int i) { return g_scene.lights[i]; }
 
 float3 HitPosition() { return WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - ShadowRayOffset()); }
 
-uint InstanceFlags() { return g_instance_data[InstanceID()].instance_flags; }
-uint InstanceLayerMask() { return g_instance_data[InstanceID()].layer_mask; }
+uint InstanceFlags() { return g_instances[InstanceID()].instance_flags; }
+uint InstanceLayerMask() { return g_instances[InstanceID()].layer_mask; }
 
 // a & b must be normalized
 float angle_between(float3 a, float3 b) { return acos(clamp(dot(a, b), 0, 1)); }
