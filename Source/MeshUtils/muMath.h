@@ -276,6 +276,7 @@ using float4 = tvec4<float>;
 using quatf = tquat<float>;
 using float2x2 = tmat2x2<float>;
 using float3x3 = tmat3x3<float>;
+using float3x4 = tmat3x4<float>;
 using float4x4 = tmat4x4<float>;
 
 using double2 = tvec2<double>;
@@ -284,6 +285,7 @@ using double4 = tvec4<double>;
 using quatd = tquat<double>;
 using double2x2 = tmat2x2<double>;
 using double3x3 = tmat3x3<double>;
+using double3x4 = tmat3x4<double>;
 using double4x4 = tmat4x4<double>;
 
 using half2 = tvec2<half>;
@@ -292,7 +294,12 @@ using half4 = tvec4<half>;
 using quath = tquat<half>;
 using half2x2 = tmat2x2<half>;
 using half3x3 = tmat3x3<half>;
+using half3x4 = tmat3x4<half>;
 using half4x4 = tmat4x4<half>;
+
+using int2 = tvec2<int>;
+using int3 = tvec3<int>;
+using int4 = tvec4<int>;
 
 using snorm8x2 = tvec2<snorm8>;
 using snorm8x3 = tvec3<snorm8>;
@@ -1288,6 +1295,36 @@ inline tmat4x4<T> look_at(const tvec3<T>& eye, const tvec3<T>& target, const tve
         { r.z, u.z, -f.z, T(0.0) },
         { p.x, p.y,  p.z, T(1.0) },
     } };
+}
+
+template<class T>
+inline tmat4x4<T> perspective(T fovy, T aspect, T znear, T zfar)
+{
+    float radians = (fovy / T(2)) * DegToRad;
+    float cotangent = std::cos(radians) / std::sin(radians);
+    float z = znear - zfar;
+
+    return{ {
+         { cotangent / aspect, 0,         0,                  0                       },
+         { 0,                  cotangent, 0,                  0                       },
+         { 0,                  0,         (zfar + znear) / z, 2.0f * znear * zfar / z },
+         { 0,                  0,         -1,                 0                       },
+     } };
+}
+
+template<class T>
+inline tmat4x4<T> orthographic(T left, T right, T bottom, T top, T znear, T zfar)
+{
+    float x = right - left;
+    float y = top - bottom;
+    float z = zfar - znear;
+
+    return{ {
+         { T(2) / x, 0,        0,         -(right + left) / x },
+         { 0,        T(2) / y, 0,         -(top + bottom) / y },
+         { 0,        0,        -T(2) / z, -(zfar + znear) / z },
+         { 0,        0,        0,         1                   },
+     } };
 }
 
 template<class T>

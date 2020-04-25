@@ -13,8 +13,8 @@ public:
 
     CameraDXR*       createCamera() override;
     LightDXR*        createLight() override;
-    RenderTargetDXR* createRenderTarget() override;
-    TextureDXR*      createTexture() override;
+    RenderTargetDXR* createRenderTarget(TextureFormat format, int width, int height) override;
+    TextureDXR*      createTexture(TextureFormat format, int width, int height) override;
     MaterialDXR*     createMaterial() override;
     MeshDXR*         createMesh() override;
     MeshInstanceDXR* createMeshInstance(IMesh* v) override;

@@ -6,9 +6,19 @@
 
 namespace lpt {
 
+RenderTargetDXR::RenderTargetDXR(TextureFormat format, int width, int height)
+    : super(format, width, height)
+{
+}
+
 void* RenderTargetDXR::getDeviceObject()
 {
     return m_texture;
+}
+
+TextureDXR::TextureDXR(TextureFormat format, int width, int height)
+    : super(format, width, height)
+{
 }
 
 void* TextureDXR::getDeviceObject()

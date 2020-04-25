@@ -89,17 +89,17 @@ LightDXR* ContextDXR::createLight()
     return r;
 }
 
-RenderTargetDXR* ContextDXR::createRenderTarget()
+RenderTargetDXR* ContextDXR::createRenderTarget(TextureFormat format, int width, int height)
 {
-    auto r = new RenderTargetDXR();
+    auto r = new RenderTargetDXR(format, width, height);
     r->m_context = this;
     m_render_targets.push_back(r);
     return r;
 }
 
-TextureDXR* ContextDXR::createTexture()
+TextureDXR* ContextDXR::createTexture(TextureFormat format, int width, int height)
 {
-    auto r = new TextureDXR();
+    auto r = new TextureDXR(format, width, height);
     r->m_context = this;
     r->m_index = (int)m_textures.size();
     m_textures.push_back(r);
@@ -844,7 +844,7 @@ void ContextDXR::updateTLAS()
                     auto& mesh = dxr_t(*inst.m_mesh);
                     auto& blas = inst.m_blas_deformed ? inst.m_blas_deformed : mesh.m_blas;
 
-                    (float3x4&)desc.Transform = to_float3x4(inst.m_transform);
+                    (float3x4&)desc.Transform = to_mat3x4(inst.m_transform);
                     desc.InstanceID = iid++;
                     desc.InstanceMask = ~0;
                     desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
@@ -1099,7 +1099,7 @@ ID3D12ResourcePtr ContextDXR::createTexture(int width, int height, DXGI_FORMAT f
 
 ID3D12ResourcePtr ContextDXR::createTextureUploadBuffer(int width, int height, DXGI_FORMAT format)
 {
-    UINT stride = SizeOfTexel(format);
+    UINT stride = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * stride;
     return createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
@@ -1107,7 +1107,7 @@ ID3D12ResourcePtr ContextDXR::createTextureUploadBuffer(int width, int height, D
 
 ID3D12ResourcePtr ContextDXR::createTextureReadbackBuffer(int width, int height, DXGI_FORMAT format)
 {
-    UINT texel_size = SizeOfTexel(format);
+    UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * texel_size;
     return createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST, kReadbackHeapProps);
@@ -1176,7 +1176,7 @@ void ContextDXR::readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size)
 
 void ContextDXR::uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, const void* src_, UINT width, UINT height, DXGI_FORMAT format)
 {
-    UINT texel_size = SizeOfTexel(format);
+    UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
 
     Map(staging, [&](char* mapped) {
@@ -1208,7 +1208,7 @@ void ContextDXR::uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, con
 
 void ContextDXR::copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format)
 {
-    UINT texel_size = SizeOfTexel(format);
+    UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * texel_size;
 
@@ -1232,7 +1232,7 @@ void ContextDXR::copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT widt
 
 void ContextDXR::readbackTexture(void* dst_, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format)
 {
-    UINT texel_size = SizeOfTexel(format);
+    UINT texel_size = GetTexelSize(format);
     UINT width_a = align_to(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT, width);
     UINT size = width_a * height * texel_size;
 

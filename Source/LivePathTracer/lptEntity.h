@@ -1,8 +1,6 @@
 #pragma once
 #include "MeshUtils/MeshUtils.h"
 #include "lptSettings.h"
-#include "Foundation/lptMath.h"
-#include "Foundation/lptHalf.h"
 #include "lptInterface.h"
 
 #define lptDeclRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
@@ -77,7 +75,7 @@ enum class DirtyFlag : uint32_t
     Any = 0xffffffff,
 };
 
-int SizeOfTexel(TextureFormat v);
+int GetTexelSize(TextureFormat v);
 
 #define DefCompare(T)\
     bool operator==(const T& v) const { return std::memcmp(this, &v, sizeof(*this)) == 0; }\
@@ -274,7 +272,7 @@ lptDeclRefPtr(Light);
 class Texture : public EntityBase<ITexture>
 {
 public:
-    void setup(TextureFormat format, int width, int height) override;
+    Texture(TextureFormat format, int width, int height);
     void upload(const void* src) override;
 
 public:
@@ -290,7 +288,7 @@ lptDeclRefPtr(Texture);
 class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
-    void setup(TextureFormat format, int width, int height) override;
+    RenderTarget(TextureFormat format, int width, int height);
     void readback(void* dst) override;
 
 public:

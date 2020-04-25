@@ -49,6 +49,7 @@ DefPtr(IDxcOperationResult);
 DefPtr(IDxcBlob);
 #undef DefPtr
 
+#define align_to(_alignment, _val) (((_val + _alignment - 1) / _alignment) * _alignment)
 
 const int lptAdaptiveCascades = 3;
 
@@ -189,7 +190,7 @@ extern const D3D12_HEAP_PROPERTIES kUploadHeapProps;
 extern const D3D12_HEAP_PROPERTIES kReadbackHeapProps;
 static const DWORD kTimeoutMS = 3000;
 
-UINT SizeOfTexel(DXGI_FORMAT rtf);
+UINT GetTexelSize(DXGI_FORMAT rtf);
 DXGI_FORMAT GetDXGIFormat(TextureFormat format);
 DXGI_FORMAT GetFloatFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetUIntFormat(DXGI_FORMAT format);

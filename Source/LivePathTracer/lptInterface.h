@@ -1,6 +1,4 @@
 #pragma once
-#include "Foundation/lptMath.h"
-#include "Foundation/lptHalf.h"
 
 namespace lpt {
 
@@ -81,7 +79,6 @@ public:
 class ITexture : public IEntity
 {
 public:
-    virtual void setup(TextureFormat format, int width, int height) = 0;
     virtual void upload(const void* src) = 0;
     virtual void* getDeviceObject() = 0;
 };
@@ -90,7 +87,6 @@ public:
 class IRenderTarget : public IEntity
 {
 public:
-    virtual void setup(TextureFormat format, int width, int height) = 0;
     virtual void readback(void* dst) = 0; // actual readback will be done after IContext::frameEnd()
     virtual void* getDeviceObject() = 0;
 };
@@ -150,8 +146,8 @@ class IContext : public IEntity
 public:
     virtual ICamera*        createCamera() = 0;
     virtual ILight*         createLight() = 0;
-    virtual IRenderTarget*  createRenderTarget() = 0;
-    virtual ITexture*       createTexture() = 0;
+    virtual IRenderTarget*  createRenderTarget(TextureFormat format, int width, int height) = 0;
+    virtual ITexture*       createTexture(TextureFormat format, int width, int height) = 0;
     virtual IMaterial*      createMaterial() = 0;
     virtual IMesh*          createMesh() = 0;
     virtual IMeshInstance*  createMeshInstance(IMesh* v) = 0;

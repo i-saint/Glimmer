@@ -9,6 +9,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "setup", "setup.vcxproj", "{
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MeshUtils", "MeshUtils\MeshUtils.vcxproj", "{FD3FE1FF-ABE5-40DB-B867-144E9DD9B23C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{D298E969-681A-4E02-9066-504BF57DA58D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxproj", "{11990C37-1C63-418F-9AB1-74076C470584}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -39,9 +43,18 @@ Global
 		{FD3FE1FF-ABE5-40DB-B867-144E9DD9B23C}.Release|x64.Build.0 = Release|x64
 		{FD3FE1FF-ABE5-40DB-B867-144E9DD9B23C}.Release|x86.ActiveCfg = Release|Win32
 		{FD3FE1FF-ABE5-40DB-B867-144E9DD9B23C}.Release|x86.Build.0 = Release|Win32
+		{11990C37-1C63-418F-9AB1-74076C470584}.Debug|x64.ActiveCfg = Debug|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Debug|x64.Build.0 = Debug|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Debug|x86.ActiveCfg = Debug|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Release|x64.ActiveCfg = Release|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Release|x64.Build.0 = Release|x64
+		{11990C37-1C63-418F-9AB1-74076C470584}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{11990C37-1C63-418F-9AB1-74076C470584} = {D298E969-681A-4E02-9066-504BF57DA58D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {16A08EA7-4A75-49A1-9C80-17160F8BD906}

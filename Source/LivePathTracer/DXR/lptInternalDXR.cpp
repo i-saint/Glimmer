@@ -293,7 +293,7 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name)
     }
 }
 
-UINT SizeOfTexel(DXGI_FORMAT rtf)
+UINT GetTexelSize(DXGI_FORMAT rtf)
 {
     switch (rtf) {
     case DXGI_FORMAT_R8_TYPELESS:

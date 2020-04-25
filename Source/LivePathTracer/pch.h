@@ -38,3 +38,21 @@
 
 #include "MeshUtils/MeshUtils.h"
 #define lptImpl
+
+
+namespace lpt {
+
+using mu::float2;
+using mu::float3;
+using mu::float4;
+using mu::quatf;
+using mu::float2x2;
+using mu::float3x3;
+using mu::float3x4;
+using mu::float4x4;
+
+using mu::int2;
+using mu::int3;
+using mu::int4;
+
+} // namespace lpt

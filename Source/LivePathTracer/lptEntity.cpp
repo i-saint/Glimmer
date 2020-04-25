@@ -4,7 +4,7 @@
 
 namespace lpt {
 
-int SizeOfTexel(TextureFormat v)
+int GetTexelSize(TextureFormat v)
 {
     switch (v) {
     case TextureFormat::Ru8: return 1;
@@ -112,7 +112,7 @@ void Light::setColor(float3 v)
 }
 
 
-void Texture::setup(TextureFormat format, int width, int height)
+Texture::Texture(TextureFormat format, int width, int height)
 {
     m_format = format;
     m_width = width;
@@ -123,13 +123,13 @@ void Texture::setup(TextureFormat format, int width, int height)
 void Texture::upload(const void* src)
 {
     auto v = (const char*)src;
-    size_t size = m_width * m_height * SizeOfTexel(m_format);
+    size_t size = m_width * m_height * GetTexelSize(m_format);
     m_data.assign(v, v + size);
     markDirty(DirtyFlag::TextureData);
 }
 
 
-void RenderTarget::setup(TextureFormat format, int width, int height)
+RenderTarget::RenderTarget(TextureFormat format, int width, int height)
 {
     m_format = format;
     m_width = width;

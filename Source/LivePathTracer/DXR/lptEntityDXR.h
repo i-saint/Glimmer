@@ -63,6 +63,7 @@ class RenderTargetDXR : public DXREntity<RenderTarget>
 using super = DXREntity<RenderTarget>;
 friend class ContextDXR;
 public:
+    RenderTargetDXR(TextureFormat format, int width, int height);
     void* getDeviceObject() override;
 
 public:
@@ -78,6 +79,7 @@ class TextureDXR : public DXREntity<Texture>
 using super = DXREntity<Texture>;
 friend class ContextDXR;
 public:
+    TextureDXR(TextureFormat format, int width, int height);
     void* getDeviceObject() override;
 
 public:
