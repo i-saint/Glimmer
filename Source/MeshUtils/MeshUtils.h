@@ -24,6 +24,8 @@ namespace mu {
 
 struct MeshConnectionInfo;
 
+bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const IArray<float3> points, const IArray<int> indices, bool flip);
+
 bool GenerateNormalsPoly(RawVector<float3>& dst,
     const IArray<float3> points, const IArray<int> counts, const IArray<int> indices, bool flip);
 

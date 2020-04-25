@@ -62,4 +62,7 @@
       <Filter>DXR\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\MeshUtils\MeshUtils.natvis" />
+  </ItemGroup>
 </Project>

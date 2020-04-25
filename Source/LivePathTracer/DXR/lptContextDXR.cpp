@@ -452,7 +452,10 @@ void ContextDXR::updateEntities()
         });
 
     each_with_index(m_meshes, [](MeshDXRPtr& pobj, int index) {
-        pobj->m_index = index;
+        auto& obj = *pobj;
+        obj.m_index = index;
+        if (obj.isDirty(DirtyFlag::Shape))
+            obj.updateFaceNormals();
         });
 
     each(m_mesh_instances, [](MeshInstanceDXRPtr& pobj) {
@@ -466,8 +469,9 @@ void ContextDXR::updateEntities()
         if (obj.m_camera)
             obj.m_data.camera = obj.m_camera->m_data;
 
-        size_t nlights = std::min(obj.m_lights.size(), (size_t)lptMaxLights);
-        for (size_t li = 0; li < nlights; ++li)
+        uint32_t nlights = std::min((uint32_t)obj.m_lights.size(), (uint32_t)lptMaxLights);
+        obj.m_data.light_count = nlights;
+        for (uint32_t li = 0; li < nlights; ++li)
             obj.m_data.lights[li] = obj.m_lights[li]->m_data;
         });
 }
@@ -528,7 +532,7 @@ void ContextDXR::updateBuffers()
         copyBuffer(m_shader_table, staging, m_shader_record_size * capacity);
     }
 
-    // update render targets
+    // render targets
     for (auto& ptex : m_render_targets) {
         auto& tex = *ptex;
 
@@ -539,7 +543,7 @@ void ContextDXR::updateBuffers()
         }
     }
 
-    // update textures
+    // textures
     for (auto& ptex : m_textures) {
         auto& tex = *ptex;
 
@@ -573,22 +577,36 @@ void ContextDXR::updateBuffers()
         if (mesh.m_points.empty() || mesh.m_indices.empty())
             continue;
 
-        auto create_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
-            dst = createBuffer(size);
-            staging = createUploadBuffer(size);
+        auto update_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
+            bool allocated = false;
+            if (!dst || GetSize(dst) < size) {
+                dst = createBuffer(size);
+                staging = createUploadBuffer(size);
+                allocated = true;
+            }
             uploadBuffer(dst, staging, buffer, size);
+            return allocated;
         };
 
         // indices
-        if (!mesh.m_buf_indices) {
-            create_buffer(mesh.m_buf_indices, mesh.m_buf_indices_staging, mesh.m_indices.data(), mesh.m_indices.size() * sizeof(int));
-            lptSetName(mesh.m_buf_indices, mesh.m_name + " IB");
+        if (mesh.isDirty(DirtyFlag::Indices)) {
+            if (update_buffer(mesh.m_buf_indices, mesh.m_buf_indices_staging, mesh.m_indices.cdata(), mesh.m_indices.size() * sizeof(int))) {
+                lptSetName(mesh.m_buf_indices, mesh.m_name + " Indices");
+            }
         }
 
         // points
-        if (!mesh.m_buf_points) {
-            create_buffer(mesh.m_buf_points, mesh.m_buf_points_staging, mesh.m_points.data(), mesh.m_points.size() * sizeof(float3));
-            lptSetName(mesh.m_buf_points, mesh.m_name + " VB");
+        if (mesh.isDirty(DirtyFlag::Points)) {
+            if (update_buffer(mesh.m_buf_points, mesh.m_buf_points_staging, mesh.m_points.cdata(), mesh.m_points.size() * sizeof(float3))) {
+                lptSetName(mesh.m_buf_points, mesh.m_name + " Points");
+            }
+        }
+
+        // face normals
+        if (mesh.isDirty(DirtyFlag::Shape)) {
+            if (update_buffer(mesh.m_buf_face_normals, mesh.m_buf_face_normals_staging, mesh.m_face_normals.cdata(), mesh.m_face_normals.size() * sizeof(float3))) {
+                lptSetName(mesh.m_buf_points, mesh.m_name + " Face Normals");
+            }
         }
     }
 

@@ -5,6 +5,26 @@
 
 namespace mu {
 
+bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const IArray<float3> points, const IArray<int> indices_, bool flip)
+{
+    const size_t num_faces = indices_.size() / 3;
+    const int* indices = indices_.data();
+    const int i1 = flip ? 2 : 1;
+    const int i2 = flip ? 1 : 2;
+
+    dst.resize_discard(num_faces);
+    for (size_t fi = 0; fi < num_faces; ++fi) {
+        float3 p0 = points[indices[0]];
+        float3 p1 = points[indices[i1]];
+        float3 p2 = points[indices[i2]];
+        float3 n = cross(p1 - p0, p2 - p0);
+        dst[fi] = n;
+        indices += 3;
+    }
+    Normalize(dst.data(), dst.size());
+    return true;
+}
+
 bool GenerateNormalsPoly(RawVector<float3>& dst,
     const IArray<float3> points, const IArray<int> counts, const IArray<int> indices, bool flip)
 {

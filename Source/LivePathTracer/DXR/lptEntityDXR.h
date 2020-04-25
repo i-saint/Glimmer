@@ -105,6 +105,7 @@ public:
     // vertex buffers
     ID3D12ResourcePtr m_buf_indices, m_buf_indices_staging;
     ID3D12ResourcePtr m_buf_points, m_buf_points_staging;
+    ID3D12ResourcePtr m_buf_face_normals, m_buf_face_normals_staging;
     ID3D12ResourcePtr m_buf_normals;
     ID3D12ResourcePtr m_buf_tangents;
     ID3D12ResourcePtr m_buf_uv;

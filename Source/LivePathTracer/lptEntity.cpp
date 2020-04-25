@@ -227,6 +227,11 @@ void Mesh::markDynamic()
     m_dynamic = true;
 }
 
+void Mesh::updateFaceNormals()
+{
+    mu::GenerateTriangleFaceNormals(m_face_normals, m_points, m_indices, false);
+}
+
 
 MeshInstance::MeshInstance(IMesh* v)
 {

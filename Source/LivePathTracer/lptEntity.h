@@ -85,17 +85,17 @@ int GetTexelSize(TextureFormat v);
 
 struct CameraData
 {
-    float4x4 view{};
-    float4x4 proj{};
+    float4x4 view = float4x4::identity();
+    float4x4 proj = float4x4::identity();
     union {
         float3 position;
-        float4 position4;
+        float4 position4 = float4::zero();
     };
-    quatf rotation{};
+    quatf rotation = quatf::identity();
 
-    float near_plane{};
-    float far_plane{};
-    float fov{};
+    float near_plane = 0.01f;
+    float far_plane = 100.0f;
+    float fov = 60.0f;
     float pad{};
 
     DefCompare(CameraData);
@@ -106,11 +106,11 @@ struct LightData
     LightType light_type{};
     uint32_t pad1[3];
 
-    float3 position{};
-    float range{};
-    float3 direction{};
-    float spot_angle{}; // radian
-    float3 color{};
+    float3 position = float3::zero();
+    float range = 1.0f;
+    float3 direction = -float3::up();
+    float spot_angle = 0.0f; // radian
+    float3 color = float3::one();
     float pad2{};
 
     DefCompare(LightData);
@@ -118,26 +118,34 @@ struct LightData
 
 struct MaterialData
 {
-    float3 diffuse{};
-    float roughness{};
-    float3 emissive{};
-    float opacity{};
+    float3 diffuse = float3::one();
+    float roughness = 0.5f;
+    float3 emissive = float3::zero();
+    float opacity = 1.0f;
 
-    int diffuse_tex{};
-    int emissive_tex{};
+    int diffuse_tex = 0;
+    int emissive_tex = 0;
     int2 pad_tex{};
 
     DefCompare(MaterialData);
 };
 
+struct MeshData
+{
+    uint32_t face_offset = 0;
+    uint32_t index_offset = 0;
+    uint32_t vertex_offset = 0;
+    uint32_t mesh_flags = 0;
+};
+
 struct InstanceData
 {
-    float4x4 local_to_world;
-    float4x4 world_to_local;
-    uint32_t mesh_index;
-    uint32_t material_index;
-    uint32_t instance_flags; // combination of InstanceFlags
-    uint32_t layer_mask;
+    float4x4 local_to_world = float4x4::identity();
+    float4x4 world_to_local = float4x4::identity();
+    uint32_t mesh_index = 0;
+    uint32_t material_index = 0;
+    uint32_t instance_flags = 0; // combination of InstanceFlags
+    uint32_t layer_mask = 0;
 
     DefCompare(InstanceData);
 };
@@ -355,9 +363,13 @@ public:
 
     void markDynamic() override;
 
+    void updateFaceNormals();
+
 public:
     int m_index = 0;
+    MeshData m_data;
     RawVector<int>    m_indices;
+    RawVector<float3> m_face_normals;
     RawVector<float3> m_points;
     RawVector<float3> m_normals;
     RawVector<float3> m_tangents;
