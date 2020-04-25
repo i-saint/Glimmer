@@ -168,8 +168,8 @@ public:
 
     SceneData m_scene_data_prev{};
     TLASDataDXR m_tlas_data;
-    ID3D12ResourcePtr m_instance_data;
-    ID3D12ResourcePtr m_scene_data;
+    ID3D12ResourcePtr m_buf_instance_data;
+    ID3D12ResourcePtr m_buf_scene_data;
     RenderTargetDXRPtr m_render_target;
 
     uint32_t m_render_flags = 0;

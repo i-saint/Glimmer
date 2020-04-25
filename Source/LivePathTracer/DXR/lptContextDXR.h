@@ -24,12 +24,13 @@ public:
     void finish() override;
     void* getDevice() override;
 
-    void updateEntities();
-    void setupMaterials();
-    void setupMeshes();
-    void setupScenes();
-    void dispatchRays();
 
+    void updateEntities();
+    void uploadBuffers();
+    void deform();
+    void updateBLAS();
+    void updateTLAS();
+    void dispatchRays();
 
     bool checkError();
     bool initializeDevice();
@@ -44,7 +45,7 @@ public:
     ID3D12ResourcePtr createTextureReadbackBuffer(int width, int height, DXGI_FORMAT format);
 
 
-    uint64_t insertSignal();
+    uint64_t submit(uint64_t preceding_fv = 0);
     void addResourceBarrier(ID3D12GraphicsCommandList* cl, ID3D12ResourcePtr resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after);
 
     void uploadBuffer(ID3D12Resource* dst, ID3D12Resource* staging, const void* src, UINT64 size);
@@ -78,7 +79,6 @@ public:
     uint64_t m_fv_blas = 0;
     uint64_t m_fv_tlas = 0;
     uint64_t m_fv_rays = 0;
-    uint64_t m_fv_readback = 0;
     FenceEventDXR m_fence_event;
 
     FenceEventDXR m_event_copy;
