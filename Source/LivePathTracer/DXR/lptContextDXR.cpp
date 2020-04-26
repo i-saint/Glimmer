@@ -7,32 +7,25 @@
 
 namespace lpt {
 
-#define lptMaxTraceRecursionLevel  2
-#define lptMaxDescriptorCount 8192
-#define lptMaxTextureCount 1024
-#define lptMaxShaderRecords 64
-
 enum class RayGenType : int
 {
     Default,
-    AdaptiveSampling,
-    Antialiasing,
 };
 
 static const WCHAR* kRayGenShaders[]{
     L"RayGenDefault",
 };
 static const WCHAR* kMissShaders[]{
-    L"MissCamera",
-    L"MissLight" ,
+    L"MissRadiance",
+    L"MissOcclusion" ,
 };
 static const WCHAR* kHitGroups[]{
-    L"CameraToObj",
-    L"ObjToLights" ,
+    L"Radiance",
+    L"Occlusion" ,
 };
 static const WCHAR* kClosestHitShaders[]{
-    L"ClosestHitCamera",
-    L"ClosestHitLight",
+    L"ClosestHitRadiance",
+    L"ClosestHitOcclusion",
 };
 
 const D3D12_HEAP_PROPERTIES kDefaultHeapProps =
@@ -307,27 +300,35 @@ bool ContextDXR::initializeDevice()
 
     // root signature
     {
+        // scene data
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
             { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
+
+        // global data
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
-        };
-        D3D12_DESCRIPTOR_RANGE ranges2[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptMaxTextureCount, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            // instance / mesh / material info
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            // vertex buffers
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxMeshCount, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            // face buffers
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxMeshCount, 0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            // textures
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxTextureCount, 0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
-        D3D12_ROOT_PARAMETER params[3]{};
-        auto append = [&params](int i, auto& range) {
+        D3D12_ROOT_PARAMETER params[2]{};
+        auto append = [&params](const int i, auto& range) {
             params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[i].DescriptorTable.NumDescriptorRanges = _countof(range);
             params[i].DescriptorTable.pDescriptorRanges = range;
         };
-        append(0, ranges0);
-        append(1, ranges1);
-        append(2, ranges2);
+#define Append(I) static_assert(I < _countof(params), "param size exceeded"); append(I, ranges##I)
+        Append(0);
+        Append(1);
+#undef Append
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
         desc.NumParameters = _countof(params);
@@ -390,7 +391,7 @@ bool ContextDXR::initializeDevice()
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &global_rootsig);
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_desc{};
-        pipeline_desc.MaxTraceRecursionDepth = lptMaxTraceRecursionLevel;
+        pipeline_desc.MaxTraceRecursionDepth = lptDXRMaxTraceRecursionLevel;
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipeline_desc);
 
         D3D12_STATE_OBJECT_DESC pso_desc{};
@@ -459,24 +460,13 @@ void ContextDXR::updateEntities()
         });
 
     {
-        uint32_t face_offset = 0;
-        uint32_t index_offset = 0;
-        uint32_t vertex_offset = 0;
         each_with_index(m_meshes, [&](MeshDXRPtr& pobj, int index) {
             auto& obj = *pobj;
             obj.m_index = index;
 
-            obj.m_data.face_offset = face_offset;
             obj.m_data.face_count = (uint32_t)obj.m_indices.size() / 3;
-            face_offset += obj.m_data.face_count;
-
-            obj.m_data.index_offset = index_offset;
             obj.m_data.index_count = (uint32_t)obj.m_indices.size();
-            index_offset += obj.m_data.index_count;
-
-            obj.m_data.vertex_offset = vertex_offset;
             obj.m_data.vertex_count = (uint32_t)obj.m_points.size();
-            vertex_offset += obj.m_data.vertex_count;
 
             if (obj.isDirty(DirtyFlag::Shape)) {
                 obj.updateFaceNormals();
@@ -588,14 +578,14 @@ void ContextDXR::updateResources()
     if (!m_buf_shader_table) {
         m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
-        write_buffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * lptMaxShaderRecords, [this](void* addr_) {
+        write_buffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * lptDXRMaxShaderRecords, [this](void* addr_) {
             auto* addr = (uint8_t*)addr_;
             ID3D12StateObjectPropertiesPtr sop;
             m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
 
             int shader_record_count = 0;
             auto add_shader_record = [&](const WCHAR* name) {
-                if (shader_record_count++ == lptMaxShaderRecords) {
+                if (shader_record_count++ == lptDXRMaxShaderRecords) {
                     assert(0 && "shader_record_count exceeded its capacity");
                 }
                 void* sid = sop->GetShaderIdentifier(name);
@@ -627,7 +617,7 @@ void ContextDXR::updateResources()
     // desc heap
     if (!m_desc_heap) {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = lptMaxDescriptorCount;
+        desc.NumDescriptors = lptDXRMaxDescriptorCount;
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
@@ -635,11 +625,11 @@ void ContextDXR::updateResources()
 
         m_desc_alloc.reset(m_device, m_desc_heap);
         m_srv_instances = m_desc_alloc.allocate();
-        m_srv_materials = m_desc_alloc.allocate();
         m_srv_meshes = m_desc_alloc.allocate();
-        m_srv_vertices = m_desc_alloc.allocate();
-        m_srv_faces = m_desc_alloc.allocate();
-        m_srv_textures = m_desc_alloc.allocate(lptMaxTextureCount);
+        m_srv_materials = m_desc_alloc.allocate();
+        m_srv_vertices = m_desc_alloc.allocate(lptDXRMaxMeshCount);
+        m_srv_faces = m_desc_alloc.allocate(lptDXRMaxMeshCount);
+        m_srv_textures = m_desc_alloc.allocate(lptDXRMaxTextureCount);
     }
 
     // render targets
@@ -710,59 +700,40 @@ void ContextDXR::updateResources()
 
     // mesh
     {
-        size_t nfaces = 0;
-        size_t nindices = 0;
-        size_t nvertices = 0;
-        bool dirty_any = false;
-        bool dirty_faces = false;
-        bool dirty_vertices = false;
+        bool dirty_meshes = false;
+        auto srv_vertices = m_srv_vertices;
+        auto srv_faces = m_srv_faces ;
+        auto desc_strice = m_desc_alloc.getStride();
 
         for (auto& pmesh : m_meshes) {
             auto& mesh = *pmesh;
             if (mesh.m_points.empty() || mesh.m_indices.empty())
                 continue;
 
-            nfaces += mesh.m_indices.size() / 3;
-            nindices += mesh.m_indices.size();
-            nvertices += mesh.m_points.size();
             if (mesh.isDirty())
-                dirty_any = true;
-            if (mesh.isDirty(DirtyFlag::Shape))
-                dirty_faces = true;
-            if (mesh.isDirty(DirtyFlag::Vertices))
-                dirty_vertices = true;
+                dirty_meshes = true;
 
-            // create points & index buffer for BLAS
-            if (mesh.isDirty(DirtyFlag::Indices))
-                update_buffer(mesh.m_buf_indices, mesh.m_buf_indices_staging, mesh.m_indices.cdata(), mesh.m_indices.size() * sizeof(int));
-            if (mesh.isDirty(DirtyFlag::Points))
-                update_buffer(mesh.m_buf_points, mesh.m_buf_points_staging, mesh.m_points.cdata(), mesh.m_points.size() * sizeof(float3));
-        }
+            bool ib_allocated = false;
+            bool vb_allocated = false;
+            bool fb_allocated = false;
 
-        // create mesh data buffer
-        if (dirty_any) {
-            bool allocated = write_buffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.size(), [this](void* dst_) {
-                auto* dst = (MeshData*)dst_;
-                for (auto& pmesh : m_meshes)
-                    *dst++ = pmesh->m_data;
-                });
-            if (allocated) {
-                lptSetName(m_buf_meshes, "Mesh Buffer");
-                create_buffer_srv(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
+            // update index buffer
+            if (mesh.isDirty(DirtyFlag::Indices)) {
+                ib_allocated = update_buffer(mesh.m_buf_indices, mesh.m_buf_indices_staging, mesh.m_indices.cdata(), mesh.m_indices.size() * sizeof(int));
+                if (ib_allocated) {
+                    lptSetName(mesh.m_buf_indices, mesh.m_name + " Index Buffer");
+                }
             }
-        }
 
-        // create monolithic vertex & face buffer
-        if (dirty_vertices) {
-            bool allocated = write_buffer(m_buf_vertices, m_buf_vertices_staging, nvertices * sizeof(vertex_t), [this](void* dst_) {
-                auto* dst = (vertex_t*)dst_;
-                vertex_t tmp{};
-                for (auto& pmesh : m_meshes) {
-                    auto& mesh = *pmesh;
+            // update vertex buffer
+            if (mesh.isDirty(DirtyFlag::Vertices)) {
+                vb_allocated = write_buffer(mesh.m_buf_vertices, mesh.m_buf_vertices_staging, mesh.m_points.size() * sizeof(vertex_t), [&mesh](void* dst_) {
+                    auto* dst = (vertex_t*)dst_;
                     auto* points = mesh.m_points.cdata();
                     auto* normals = mesh.m_normals.cdata();
                     auto* tangents = mesh.m_tangents.cdata();
                     auto* uv = mesh.m_uv.cdata();
+                    vertex_t tmp{};
                     size_t n = mesh.m_points.size();
                     for (size_t vi = 0; vi < n; ++vi) {
                         tmp.point = *points++;
@@ -771,34 +742,57 @@ void ContextDXR::updateResources()
                         tmp.uv = *uv++;
                         *dst++ = tmp;
                     }
+                    });
+                if (vb_allocated) {
+                    lptSetName(mesh.m_buf_vertices, mesh.m_name + " Vertex Buffer");
                 }
-                });
-            if (allocated) {
-                lptSetName(m_buf_vertices, "Vertex Buffer");
-                create_buffer_srv(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
             }
-        }
-        if (dirty_faces) {
-            bool allocated = write_buffer(m_buf_faces, m_buf_faces_staging, nvertices * sizeof(face_t), [this](void* dst_) {
-                auto* dst = (face_t*)dst_;
-                face_t tmp{};
-                for (auto& pmesh : m_meshes) {
-                    auto& mesh = *pmesh;
+
+            // update face buffer
+            if (mesh.isDirty(DirtyFlag::Shape)) {
+                fb_allocated = write_buffer(mesh.m_buf_faces, mesh.m_buf_faces_staging, mesh.m_face_normals.size() * sizeof(face_t), [&mesh](void* dst_) {
+                    auto* dst = (face_t*)dst_;
                     auto* indices = mesh.m_indices.cdata();
                     auto* normals = mesh.m_face_normals.cdata();
+                    face_t tmp{};
                     size_t n = mesh.m_face_normals.size();
-                    for (size_t vi = 0; vi < n; ++vi) {
+                    for (size_t fi = 0; fi < n; ++fi) {
                         for (int i = 0; i < 3; ++i)
                             tmp.indices[i] = indices[i];
                         indices += 3;
                         tmp.normal = *normals++;
                         *dst++ = tmp;
                     }
+                    });
+                if (fb_allocated) {
+                    lptSetName(mesh.m_buf_faces, mesh.m_name + " Face Buffer");
                 }
+            }
+
+            // update SRV
+            if (vb_allocated || mesh.m_srv_vertices != srv_vertices) {
+                mesh.m_srv_vertices = srv_vertices;
+                create_buffer_srv(mesh.m_srv_vertices, mesh.m_buf_vertices, sizeof(vertex_t));
+            }
+            if (fb_allocated || mesh.m_srv_faces != srv_faces) {
+                mesh.m_srv_faces = srv_faces;
+                create_buffer_srv(mesh.m_srv_faces, mesh.m_buf_faces, sizeof(face_t));
+            }
+
+            srv_vertices += desc_strice;
+            srv_faces += desc_strice;
+        }
+
+        // create mesh data buffer
+        if (dirty_meshes) {
+            bool allocated = write_buffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.size(), [this](void* dst_) {
+                auto* dst = (MeshData*)dst_;
+                for (auto& pmesh : m_meshes)
+                    *dst++ = pmesh->m_data;
                 });
             if (allocated) {
-                lptSetName(m_buf_faces, "Face Buffer");
-                create_buffer_srv(m_srv_faces, m_buf_faces, sizeof(face_t));
+                lptSetName(m_buf_meshes, "Mesh Buffer");
+                create_buffer_srv(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
             }
         }
     }
@@ -886,7 +880,8 @@ void ContextDXR::updateBLAS()
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS begin");
     for (auto& pmesh : m_meshes) {
         auto& mesh = *pmesh;
-        if (mesh.m_buf_points && mesh.m_buf_indices && (!mesh.m_blas || mesh.isDirty(DirtyFlag::Shape))) {
+        bool update_blas = mesh.m_buf_vertices && mesh.m_buf_indices && (!mesh.m_blas || mesh.isDirty(DirtyFlag::Shape));
+        if (update_blas) {
             // BLAS for non-deformable meshes
 
             bool perform_update = mesh.m_blas != nullptr;
@@ -895,8 +890,8 @@ void ContextDXR::updateBLAS()
             geom_desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
             geom_desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
-            geom_desc.Triangles.VertexBuffer.StartAddress = mesh.m_buf_points->GetGPUVirtualAddress();
-            geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(float3);
+            geom_desc.Triangles.VertexBuffer.StartAddress = mesh.m_buf_vertices->GetGPUVirtualAddress();
+            geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(vertex_t);
             geom_desc.Triangles.VertexCount = (UINT)mesh.m_points.size();
             geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 
@@ -999,7 +994,7 @@ void ContextDXR::updateBLAS()
         }
 
         if (!inst.m_blas_updated) {
-            if (inst.isDirty(DirtyFlag::Deform) || mesh.m_blas_updated) {
+            if (inst.isDirty(DirtyFlag::Transform | DirtyFlag::Deform) || mesh.m_blas_updated) {
                 // transform or mesh are updated. TLAS needs to be updated.
                 inst.m_blas_updated = true;
             }
@@ -1124,9 +1119,17 @@ void ContextDXR::dispatchRays()
     auto& cl_rays = m_cl;
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays begin");
 
-    auto do_dispatch = [&](ID3D12Resource* rt, RayGenType raygen_type, const auto& body) {
+    cl_rays->SetComputeRootSignature(m_rootsig);
+    cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
+
+    ID3D12DescriptorHeap* desc_heaps[] = { m_desc_heap };
+    cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
+
+    // global descriptors
+    cl_rays->SetComputeRootDescriptorTable(1, m_srv_instances.hgpu);
+
+    auto do_dispatch = [&](ID3D12Resource* rt, RayGenType raygen_type) {
         addResourceBarrier(rt, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        body();
 
         auto rt_desc = rt->GetDesc();
 
@@ -1157,24 +1160,15 @@ void ContextDXR::dispatchRays()
         addResourceBarrier(rt, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
     };
 
-    // dispatch
+    // dispatch for each enabled scene
     for (auto& pscene : m_scenes) {
         auto& scene = dxr_t(*pscene);
         if (!scene.m_enabled || !scene.m_render_target)
             continue;
 
-        cl_rays->SetComputeRootSignature(m_rootsig);
-        cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
-
-        ID3D12DescriptorHeap* desc_heaps[] = { m_desc_heap };
-        cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
-
         auto& rt = dxr_t(*scene.m_render_target);
-        do_dispatch(rt.m_texture, RayGenType::Default, [&]() {
-            cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
-            cl_rays->SetComputeRootDescriptorTable(1, m_srv_instances.hgpu);
-            cl_rays->SetComputeRootDescriptorTable(2, m_srv_textures.hgpu);
-            });
+        cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
+        do_dispatch(rt.m_texture, RayGenType::Default);
     }
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
 

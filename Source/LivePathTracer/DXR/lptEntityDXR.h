@@ -99,7 +99,10 @@ public:
 public:
     // vertex buffers
     ID3D12ResourcePtr m_buf_indices, m_buf_indices_staging;
-    ID3D12ResourcePtr m_buf_points, m_buf_points_staging;
+    ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
+    ID3D12ResourcePtr m_buf_faces, m_buf_faces_staging;
+    DescriptorHandleDXR m_srv_vertices;
+    DescriptorHandleDXR m_srv_faces;
 
     // blendshape data
     ID3D12ResourcePtr m_buf_bs_delta;

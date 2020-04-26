@@ -4,6 +4,12 @@
 
 namespace lpt {
 
+#define lptDXRMaxTraceRecursionLevel  2
+#define lptDXRMaxDescriptorCount 8192
+#define lptDXRMaxMeshCount 2048
+#define lptDXRMaxTextureCount 2048
+#define lptDXRMaxShaderRecords 64
+
 class ContextDXR : public DXREntity<Context>
 {
 using super = DXREntity<Context>;
@@ -91,14 +97,12 @@ public:
     ID3D12ResourcePtr m_buf_instances, m_buf_instances_staging;
     ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
     ID3D12ResourcePtr m_buf_meshes, m_buf_meshes_staging;
-    ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
-    ID3D12ResourcePtr m_buf_faces, m_buf_faces_staging;
 
     ID3D12DescriptorHeapPtr m_desc_heap;
     DescriptorHeapAllocatorDXR m_desc_alloc;
     DescriptorHandleDXR m_srv_instances;
-    DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_meshes;
+    DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_vertices;
     DescriptorHandleDXR m_srv_faces;
     DescriptorHandleDXR m_srv_textures;

@@ -68,12 +68,14 @@ enum class DirtyFlag : uint32_t
     Mesh        = 0x40000000,
     Instance    = 0x80000000,
 
-    Deform = Transform | Blendshape | Joints,
     Shape = Indices | Points,
     Vertices = Points | Normals | Tangents | UV,
+    Deform = Blendshape | Joints,
     SceneEntities = Camera | Light | RenderTarget | Instance,
     Any = 0xffffffff,
 };
+inline DirtyFlag operator|(DirtyFlag a, DirtyFlag b) { return (DirtyFlag)((uint32_t)a | (uint32_t)b); }
+
 
 int GetTexelSize(TextureFormat v);
 
@@ -129,14 +131,10 @@ struct MaterialData
 
 struct MeshData
 {
-    uint32_t face_offset = 0;
     uint32_t face_count = 0;
-    uint32_t index_offset = 0;
     uint32_t index_count = 0;
-    uint32_t vertex_offset = 0;
     uint32_t vertex_count = 0;
     uint32_t mesh_flags = 0;
-    uint32_t pad = 0;
 };
 
 struct InstanceData

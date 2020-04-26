@@ -80,14 +80,10 @@ struct MaterialData
 
 struct MeshData
 {
-    uint face_offset;
     uint face_count;
-    uint index_offset;
     uint index_count;
-    uint vertex_offset;
     uint vertex_count;
     uint mesh_flags;
-    uint pad;
 };
 
 struct InstanceData
@@ -120,12 +116,11 @@ Texture2D<float4>               g_prev_result   : register(t1, space0);
 ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
-StructuredBuffer<MaterialData>  g_materials     : register(t1, space1);
-StructuredBuffer<MeshData>      g_meshes        : register(t2, space1);
-StructuredBuffer<vertex_t>      g_vertices      : register(t3, space1);
-StructuredBuffer<face_t>        g_faces         : register(t4, space1);
-
-Texture2D<float4>               g_textures[]    : register(t0, space2);
+StructuredBuffer<MeshData>      g_meshes        : register(t1, space1);
+StructuredBuffer<MaterialData>  g_materials     : register(t2, space1);
+StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space2);
+StructuredBuffer<face_t>        g_faces[]       : register(t0, space3);
+Texture2D<float4>               g_textures[]    : register(t0, space4);
 
 
 float3 CameraPosition()     { return g_scene.camera.position.xyz; }
@@ -204,7 +199,7 @@ RayDesc GetCameraRay(float2 offset = 0.0f)
     return ray;
 }
 
-Payload ShootCameraRay(float2 offset = 0.0f)
+Payload ShootRadianceRay(float2 offset = 0.0f)
 {
     Payload payload;
     init(payload);
@@ -255,24 +250,24 @@ uint SampleDifferentialI(int2 idx, out uint center, out uint diff)
 void RayGenDefault()
 {
     uint2 screen_idx = DispatchRaysIndex().xy;
-    Payload payload = ShootCameraRay();
+    Payload payload = ShootRadianceRay();
     g_output[screen_idx] = float4(payload.color, payload.t);
 }
 
 [shader("miss")]
-void MissCamera(inout Payload payload : SV_RayPayload)
+void MissRadiance(inout Payload payload : SV_RayPayload)
 {
     payload.color = BackgroundColor();
 }
 
-bool ShootShadowRay(uint flags, in RayDesc ray, inout Payload payload)
+bool ShootOcclusionRay(uint flags, in RayDesc ray, inout Payload payload)
 {
     TraceRay(g_tlas, flags, 0xff, 1, 0, 1, ray, payload);
     return payload.t >= 0.0f;
 }
 
 [shader("closesthit")]
-void ClosestHitCamera(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     // shoot shadow ray (hit position -> light)
 
@@ -293,7 +288,7 @@ void ClosestHitCamera(inout Payload payload : SV_RayPayload, in BuiltInTriangleI
             ray.Direction = -light.direction.xyz;
             ray.TMin = 0.0f;
             ray.TMax = CameraFarPlane();
-            hit = ShootShadowRay(ray_flags, ray, payload);
+            hit = ShootOcclusionRay(ray_flags, ray, payload);
         }
         else if (light.type == LT_SPOT) {
             // spot light
@@ -306,7 +301,7 @@ void ClosestHitCamera(inout Payload payload : SV_RayPayload, in BuiltInTriangleI
                 ray.Direction = dir;
                 ray.TMin = 0.0f;
                 ray.TMax = distance;
-                hit = ShootShadowRay(ray_flags, ray, payload);
+                hit = ShootOcclusionRay(ray_flags, ray, payload);
             }
             else
                 continue;
@@ -323,7 +318,7 @@ void ClosestHitCamera(inout Payload payload : SV_RayPayload, in BuiltInTriangleI
                 ray.Direction = dir;
                 ray.TMin = 0.0f;
                 ray.TMax = distance;
-                hit = ShootShadowRay(ray_flags, ray, payload);
+                hit = ShootOcclusionRay(ray_flags, ray, payload);
             }
             else
                 continue;
@@ -340,7 +335,7 @@ void ClosestHitCamera(inout Payload payload : SV_RayPayload, in BuiltInTriangleI
                 ray.Direction = -dir;
                 ray.TMin = 0.0f;
                 ray.TMax = light.range - distance;
-                hit = ShootShadowRay(ray_flags, ray, payload);
+                hit = ShootOcclusionRay(ray_flags, ray, payload);
             }
             else
                 continue;
@@ -354,13 +349,13 @@ void ClosestHitCamera(inout Payload payload : SV_RayPayload, in BuiltInTriangleI
 
 
 [shader("miss")]
-void MissLight(inout Payload payload : SV_RayPayload)
+void MissOcclusion(inout Payload payload : SV_RayPayload)
 {
     payload.color = float3(0.4f, 0.4f, 0.4f);
 }
 
 [shader("closesthit")]
-void ClosestHitLight(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void ClosestHitOcclusion(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     payload.t = RayTCurrent();
 }
