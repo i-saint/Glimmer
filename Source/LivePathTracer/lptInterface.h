@@ -88,130 +88,6 @@ struct JointWeight
 };
 
 
-class IEntity
-{
-public:
-    virtual ~IEntity() {}
-    virtual int addRef() = 0;
-    virtual int release() = 0;
-    virtual int getRef() const = 0;
-
-    virtual void setName(const char* name) = 0;
-    virtual const char* getName() const = 0;
-};
-
-
-class ICamera : public IEntity
-{
-public:
-    virtual void setPosition(float3 v) = 0;
-    virtual void setDirection(float3 v, float3 up = float3::up()) = 0;
-    virtual void setFOV(float v) = 0;
-    virtual void setNear(float v) = 0;
-    virtual void setFar(float v) = 0;
-};
-
-
-class ILight : public IEntity
-{
-public:
-    virtual void setType(LightType v) = 0;
-    virtual void setPosition(float3 v) = 0;
-    virtual void setDirection(float3 v) = 0;
-    virtual void setRange(float v) = 0;
-    virtual void setSpotAngle(float v) = 0;
-    virtual void setColor(float3 v) = 0;
-};
-
-
-class ITexture : public IEntity
-{
-public:
-    virtual void upload(const void* src) = 0;
-    virtual void* getDeviceObject() = 0;
-};
-
-
-class IRenderTarget : public IEntity
-{
-public:
-    virtual void enableReadback(bool v) = 0;
-    virtual void readback(void* dst) = 0;
-    virtual void* getDeviceObject() = 0;
-};
-
-
-class IMaterial : public IEntity
-{
-public:
-    virtual void setType(MaterialType v) = 0;
-    virtual void setDiffuse(float3 v) = 0;
-    virtual void setRoughness(float v) = 0;
-    virtual void setEmissive(float3 v) = 0;
-    virtual void setDiffuseTexture(ITexture* v) = 0;
-    virtual void setEmissiveTexture(ITexture* v) = 0;
-};
-
-
-class IMesh : public IEntity
-{
-public:
-    virtual void setIndices(const int* v, size_t n) = 0;
-    virtual void setPoints(const float3* v, size_t n) = 0;
-    virtual void setNormals(const float3* v, size_t n) = 0;
-    virtual void setTangents(const float3* v, size_t n) = 0;
-    virtual void setUV(const float2* v, size_t n) = 0;
-
-    virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
-    virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
-    virtual void setJointCounts(const uint8_t* v, size_t n) = 0;
-
-    virtual void markDynamic() = 0;
-};
-
-
-class IMeshInstance : public IEntity
-{
-public:
-    virtual void setMaterial(IMaterial* v) = 0;
-    virtual void setTransform(const float4x4& v) = 0;
-    virtual void setJointMatrices(const float4x4* v) = 0;
-};
-
-
-class IScene : public IEntity
-{
-public:
-    virtual void setRenderTarget(IRenderTarget* v) = 0;
-    virtual void setCamera(ICamera* v) = 0;
-    virtual void addLight(ILight* v) = 0;
-    virtual void removeLight(ILight* v) = 0;
-    virtual void addMesh(IMeshInstance* v) = 0;
-    virtual void removeMesh(IMeshInstance* v) = 0;
-    virtual void clear() = 0;
-};
-
-
-class IContext : public IEntity
-{
-public:
-    virtual ICamera*        createCamera() = 0;
-    virtual ILight*         createLight() = 0;
-    virtual IRenderTarget*  createRenderTarget(TextureFormat format, int width, int height) = 0;
-    virtual ITexture*       createTexture(TextureFormat format, int width, int height) = 0;
-    virtual IMaterial*      createMaterial() = 0;
-    virtual IMesh*          createMesh() = 0;
-    virtual IMeshInstance*  createMeshInstance(IMesh* v) = 0;
-    virtual IScene*         createScene() = 0;
-
-    virtual void render() = 0;
-    virtual void finish() = 0;
-
-    virtual void* getDevice() = 0;
-    virtual const char* getTimestampLog() = 0;
-};
-
-
 template<class T>
 class releaser
 {
@@ -261,14 +137,138 @@ public:
 private:
     T* m_ptr = nullptr;
 };
+
+
+class IEntity
+{
+public:
+    virtual ~IEntity() {}
+    virtual int addRef() = 0;
+    virtual int release() = 0;
+    virtual int getRef() const = 0;
+
+    virtual void setName(const char* name) = 0;
+    virtual const char* getName() const = 0;
+};
+
+
+class ICamera : public IEntity
+{
+public:
+    virtual void setPosition(float3 v) = 0;
+    virtual void setDirection(float3 v, float3 up = float3::up()) = 0;
+    virtual void setFOV(float v) = 0;
+    virtual void setNear(float v) = 0;
+    virtual void setFar(float v) = 0;
+};
 using ICameraPtr = ref_ptr<ICamera>;
+
+
+class ILight : public IEntity
+{
+public:
+    virtual void setType(LightType v) = 0;
+    virtual void setPosition(float3 v) = 0;
+    virtual void setDirection(float3 v) = 0;
+    virtual void setRange(float v) = 0;
+    virtual void setSpotAngle(float v) = 0;
+    virtual void setColor(float3 v) = 0;
+};
 using ILightPtr = ref_ptr<ILight>;
+
+
+class ITexture : public IEntity
+{
+public:
+    virtual void upload(const void* src) = 0;
+    virtual void* getDeviceObject() = 0;
+};
 using ITexturePtr = ref_ptr<ITexture>;
+
+
+class IRenderTarget : public IEntity
+{
+public:
+    virtual void enableReadback(bool v) = 0;
+    virtual void readback(void* dst) = 0;
+    virtual void* getDeviceObject() = 0;
+};
 using IRenderTargetPtr = ref_ptr<IRenderTarget>;
+
+
+class IMaterial : public IEntity
+{
+public:
+    virtual void setType(MaterialType v) = 0;
+    virtual void setDiffuse(float3 v) = 0;
+    virtual void setRoughness(float v) = 0;
+    virtual void setEmissive(float3 v) = 0;
+    virtual void setDiffuseTexture(ITexture* v) = 0;
+    virtual void setEmissiveTexture(ITexture* v) = 0;
+};
 using IMaterialPtr = ref_ptr<IMaterial>;
+
+
+class IMesh : public IEntity
+{
+public:
+    virtual void setIndices(const int* v, size_t n) = 0;
+    virtual void setPoints(const float3* v, size_t n) = 0;
+    virtual void setNormals(const float3* v, size_t n) = 0;
+    virtual void setTangents(const float3* v, size_t n) = 0;
+    virtual void setUV(const float2* v, size_t n) = 0;
+
+    virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
+    virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
+    virtual void setJointCounts(const uint8_t* v, size_t n) = 0;
+
+    virtual void markDynamic() = 0;
+};
 using IMeshPtr = ref_ptr<IMesh>;
+
+
+class IMeshInstance : public IEntity
+{
+public:
+    virtual void setMaterial(IMaterial* v) = 0;
+    virtual void setTransform(const float4x4& v) = 0;
+    virtual void setJointMatrices(const float4x4* v) = 0;
+};
 using IMeshInstancePtr = ref_ptr<IMeshInstance>;
+
+
+class IScene : public IEntity
+{
+public:
+    virtual void setRenderTarget(IRenderTarget* v) = 0;
+    virtual void setCamera(ICamera* v) = 0;
+    virtual void addLight(ILight* v) = 0;
+    virtual void removeLight(ILight* v) = 0;
+    virtual void addMesh(IMeshInstance* v) = 0;
+    virtual void removeMesh(IMeshInstance* v) = 0;
+    virtual void clear() = 0;
+};
 using IScenePtr = ref_ptr<IScene>;
+
+
+class IContext : public IEntity
+{
+public:
+    virtual ICameraPtr       createCamera() = 0;
+    virtual ILightPtr        createLight() = 0;
+    virtual IRenderTargetPtr createRenderTarget(TextureFormat format, int width, int height) = 0;
+    virtual ITexturePtr      createTexture(TextureFormat format, int width, int height) = 0;
+    virtual IMaterialPtr     createMaterial() = 0;
+    virtual IMeshPtr         createMesh() = 0;
+    virtual IMeshInstancePtr createMeshInstance(IMesh* v) = 0;
+    virtual IScenePtr        createScene() = 0;
+
+    virtual void render() = 0;
+    virtual void finish() = 0;
+
+    virtual void* getDevice() = 0;
+    virtual const char* getTimestampLog() = 0;
+};
 using IContextPtr = ref_ptr<IContext>;
 
 } // namespace lpt

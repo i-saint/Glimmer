@@ -11,25 +11,25 @@ public:
     ContextDXR();
     ~ContextDXR();
 
-    CameraDXR*       createCamera() override;
-    LightDXR*        createLight() override;
-    RenderTargetDXR* createRenderTarget(TextureFormat format, int width, int height) override;
-    TextureDXR*      createTexture(TextureFormat format, int width, int height) override;
-    MaterialDXR*     createMaterial() override;
-    MeshDXR*         createMesh() override;
-    MeshInstanceDXR* createMeshInstance(IMesh* v) override;
-    SceneDXR*        createScene() override;
+    ICameraPtr       createCamera() override;
+    ILightPtr        createLight() override;
+    IRenderTargetPtr createRenderTarget(TextureFormat format, int width, int height) override;
+    ITexturePtr      createTexture(TextureFormat format, int width, int height) override;
+    IMaterialPtr     createMaterial() override;
+    IMeshPtr         createMesh() override;
+    IMeshInstancePtr createMeshInstance(IMesh* v) override;
+    IScenePtr        createScene() override;
 
     void render() override;
     void finish() override;
     void* getDevice() override;
     const char* getTimestampLog() override;
 
-
+    void clear();
     bool checkError();
     bool initializeDevice();
     void updateEntities();
-    void updateBuffers();
+    void updateResources();
     void deform();
     void updateBLAS();
     void updateTLAS();

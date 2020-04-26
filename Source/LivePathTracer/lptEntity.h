@@ -203,13 +203,20 @@ public:
     }
     int release() override
     {
-        // deleting entities is responsible for Context.
-        // (ContextDXR::frameBegin() etc.)
-        return --m_ref_external;
+        int ret = --m_ref_external;
+        if (ret == 0)
+            onRefCountZero();
+        return ret;
     }
     int getRef() const override
     {
         return m_ref_external;
+    }
+
+    virtual void onRefCountZero()
+    {
+        // deleting entities is responsible for Context.
+        // (ContextDXR::frameBegin() etc.)
     }
 
     int addRefInternal()
@@ -459,6 +466,11 @@ lptDeclRefPtr(Scene);
 class Context : public RefCount<IContext>
 {
 public:
+    void onRefCountZero() override
+    {
+        delete this;
+    }
+
 public:
 };
 lptDeclRefPtr(Context);

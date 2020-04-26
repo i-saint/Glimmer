@@ -58,7 +58,9 @@ public:
 public:
     ID3D12ResourcePtr m_texture;
     ID3D12ResourcePtr m_buf_readback;
-    DescriptorHandleDXR m_uav;
+#ifdef lptEnableBufferValidation
+    ID3D12ResourcePtr m_buf_upload;
+#endif
 };
 lptDeclRefPtr(RenderTargetDXR);
 
@@ -74,7 +76,6 @@ public:
 public:
     ID3D12ResourcePtr m_texture;
     ID3D12ResourcePtr m_buf_upload;
-    DescriptorHandleDXR m_uav;
 };
 lptDeclRefPtr(TextureDXR);
 
@@ -160,7 +161,7 @@ public:
     ID3D12ResourcePtr m_tlas_instance_desc;
     ID3D12ResourcePtr m_tlas_scratch;
     ID3D12ResourcePtr m_tlas;
-    ID3D12ResourcePtr m_buf_scene_data;
+    ID3D12ResourcePtr m_buf_scene, m_buf_scene_staging;
 
     uint32_t m_render_flags = 0;
 };

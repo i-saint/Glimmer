@@ -14,7 +14,7 @@
     //// https://docs.microsoft.com/en-us/windows/desktop/direct3d12/use-dred
     //#define lptEnableD3D12DREAD
 
-    //#define lptEnableBufferValidation
+    #define lptEnableBufferValidation
     //#define lptEnableRenderTargetValidation
     //#define lptForceSoftwareDevice
 #endif // lptDebug

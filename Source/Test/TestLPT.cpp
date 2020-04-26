@@ -10,12 +10,12 @@ TestCase(TestMinimum)
     const int rt_height = 1024;
     const lpt::TextureFormat rt_format = lpt::TextureFormat::RGBAf32;
 
-    lpt::IContextPtr ctx = lptCreateContextDXR();
-    lpt::IScenePtr scene = ctx->createScene();
-    lpt::ICameraPtr camera = ctx->createCamera();
-    lpt::ILightPtr light = ctx->createLight();
-    lpt::IMaterialPtr material = ctx->createMaterial();
-    lpt::IRenderTargetPtr render_target = ctx->createRenderTarget(rt_format, rt_width, rt_height);
+    auto ctx = lptCreateContextDXR();
+    auto scene = ctx->createScene();
+    auto camera = ctx->createCamera();
+    auto light = ctx->createLight();
+    auto material = ctx->createMaterial();
+    auto render_target = ctx->createRenderTarget(rt_format, rt_width, rt_height);
 
     render_target->enableReadback(true);
     scene->setRenderTarget(render_target);
@@ -33,7 +33,7 @@ TestCase(TestMinimum)
         static const int indices[]{
             0, 1, 2,
         };
-        auto *triangle = ctx->createMesh();
+        auto triangle = ctx->createMesh();
         triangle->setPoints((const lpt::float3*)points, _countof(points));
         triangle->setIndices(indices, _countof(indices));
 
@@ -53,7 +53,7 @@ TestCase(TestMinimum)
         static const int indices[]{
             0, 1, 2, 0, 2, 3,
         };
-        auto *quad = ctx->createMesh();
+        auto quad = ctx->createMesh();
         quad->setPoints((const lpt::float3*)points, _countof(points));
         quad->setIndices(indices, _countof(indices));
 

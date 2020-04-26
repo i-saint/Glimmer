@@ -65,9 +65,22 @@ ContextDXR::ContextDXR()
 
 ContextDXR::~ContextDXR()
 {
+    clear();
 }
 
-CameraDXR* ContextDXR::createCamera()
+void ContextDXR::clear()
+{
+    m_cameras.clear();
+    m_lights.clear();
+    m_render_targets.clear();
+    m_textures.clear();
+    m_materials.clear();
+    m_meshes.clear();
+    m_mesh_instances.clear();
+    m_scenes.clear();
+}
+
+ICameraPtr ContextDXR::createCamera()
 {
     auto r = new CameraDXR();
     r->m_context = this;
@@ -75,7 +88,7 @@ CameraDXR* ContextDXR::createCamera()
     return r;
 }
 
-LightDXR* ContextDXR::createLight()
+ILightPtr ContextDXR::createLight()
 {
     auto r = new LightDXR();
     r->m_context = this;
@@ -83,7 +96,7 @@ LightDXR* ContextDXR::createLight()
     return r;
 }
 
-RenderTargetDXR* ContextDXR::createRenderTarget(TextureFormat format, int width, int height)
+IRenderTargetPtr ContextDXR::createRenderTarget(TextureFormat format, int width, int height)
 {
     auto r = new RenderTargetDXR(format, width, height);
     r->m_context = this;
@@ -91,7 +104,7 @@ RenderTargetDXR* ContextDXR::createRenderTarget(TextureFormat format, int width,
     return r;
 }
 
-TextureDXR* ContextDXR::createTexture(TextureFormat format, int width, int height)
+ITexturePtr ContextDXR::createTexture(TextureFormat format, int width, int height)
 {
     auto r = new TextureDXR(format, width, height);
     r->m_context = this;
@@ -100,7 +113,7 @@ TextureDXR* ContextDXR::createTexture(TextureFormat format, int width, int heigh
     return r;
 }
 
-MaterialDXR* ContextDXR::createMaterial()
+IMaterialPtr ContextDXR::createMaterial()
 {
     auto r = new MaterialDXR();
     r->m_context = this;
@@ -109,7 +122,7 @@ MaterialDXR* ContextDXR::createMaterial()
     return r;
 }
 
-MeshDXR* ContextDXR::createMesh()
+IMeshPtr ContextDXR::createMesh()
 {
     auto r = new MeshDXR();
     r->m_context = this;
@@ -117,7 +130,7 @@ MeshDXR* ContextDXR::createMesh()
     return r;
 }
 
-MeshInstanceDXR* ContextDXR::createMeshInstance(IMesh* v)
+IMeshInstancePtr ContextDXR::createMeshInstance(IMesh* v)
 {
     auto r = new MeshInstanceDXR(v);
     r->m_context = this;
@@ -125,7 +138,7 @@ MeshInstanceDXR* ContextDXR::createMeshInstance(IMesh* v)
     return r;
 }
 
-SceneDXR* ContextDXR::createScene()
+IScenePtr ContextDXR::createScene()
 {
     auto r = new SceneDXR();
     r->m_context = this;
@@ -139,7 +152,7 @@ void ContextDXR::render()
     //lptTimestampSetEnable(m_timestamp, GetGlobals().hasDebugFlag(DebugFlag::Timestamp));
 
     updateEntities();
-    updateBuffers();
+    updateResources();
     deform();
     updateBLAS();
     updateTLAS();
@@ -490,7 +503,7 @@ void ContextDXR::updateEntities()
         });
 }
 
-void ContextDXR::updateBuffers()
+void ContextDXR::updateResources()
 {
     m_cl = m_clm_direct->get();
 
@@ -504,6 +517,8 @@ void ContextDXR::updateBuffers()
 
     // helpers
     auto create_srv = [this](DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride) {
+        if (!res)
+            return;
         uint64_t capacity = GetSize(res);
         D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
         desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -514,6 +529,15 @@ void ContextDXR::updateBuffers()
         desc.Buffer.StructureByteStride = UINT(stride);
         desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
         m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
+    };
+
+    auto create_uav = [this](DescriptorHandleDXR& handle, ID3D12Resource* res) {
+        if (!res)
+            return;
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
+        uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        uav_desc.Format = GetFloatFormat(res->GetDesc().Format);
+        m_device->CreateUnorderedAccessView(res, nullptr, &uav_desc, handle.hcpu);
     };
 
     auto update_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
@@ -603,9 +627,13 @@ void ContextDXR::updateBuffers()
         auto& tex = *ptex;
 
         if (!tex.m_texture) {
-            auto format = GetDXGIFormat(tex.m_format);
-            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-            tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
+            tex.m_texture = createTexture(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
+        }
+        if (tex.m_readback_enabled && !tex.m_buf_readback) {
+            tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
+#ifdef lptEnableBufferValidation
+            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
+#endif
         }
     }
 
@@ -765,22 +793,26 @@ void ContextDXR::updateBuffers()
         }
 
         // scene constant buffer
-        if (!scene.m_buf_scene_data) {
-            // size of constant buffer must be multiple of 256
-            int cb_size = align_to(256, sizeof(SceneData));
-            scene.m_buf_scene_data = createBuffer(cb_size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-            lptSetName(scene.m_buf_scene_data, scene.m_name + " Scene Data");
+        // size of constant buffer must be multiple of 256
+        int cb_size = align_to(256, sizeof(SceneData));
+        bool allocated = write_buffer(scene.m_buf_scene, scene.m_buf_scene_staging, cb_size, [&scene](void* mapped) {
+            *(SceneData*)mapped = scene.m_data;
+            });
+        if (allocated) {
+            lptSetName(scene.m_buf_scene, scene.m_name + " Scene Data");
 
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
-            cbv_desc.BufferLocation = scene.m_buf_scene_data->GetGPUVirtualAddress();
+            cbv_desc.BufferLocation = scene.m_buf_scene->GetGPUVirtualAddress();
             cbv_desc.SizeInBytes = cb_size;
             m_device->CreateConstantBufferView(&cbv_desc, scene.m_cbv_scene.hcpu);
         }
 
-        // write data
-        Map(scene.m_buf_scene_data, [&scene](SceneData* dst) {
-            *dst = scene.m_data;
-            });
+        if (scene.isDirty(DirtyFlag::RenderTarget)) {
+            if (scene.m_render_target) {
+                auto& rt = dxr_t(*scene.m_render_target);
+                create_uav(scene.m_cbv_scene, rt.m_texture);
+            }
+        }
     }
 
     m_fv_upload = submit();
