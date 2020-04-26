@@ -103,15 +103,12 @@ struct CameraData
 
 struct LightData
 {
-    LightType light_type{};
-    uint32_t pad1[3];
-
+    LightType light_type = LightType::Directional;
     float3 position = float3::zero();
-    float range = 1.0f;
     float3 direction = -float3::up();
-    float spot_angle = 0.0f; // radian
+    float range = 1.0f;
     float3 color = float3::one();
-    float pad2{};
+    float spot_angle = 0.0f; // radian
 
     DefCompare(LightData);
 };
@@ -286,6 +283,7 @@ public:
 class Camera : public EntityBase<ICamera>
 {
 public:
+    Camera();
     void setPosition(float3 v) override;
     void setDirection(float3 v, float3 up) override;
     void setFOV(float v) override;
@@ -301,6 +299,7 @@ lptDeclRefPtr(Camera);
 class Light : public EntityBase<ILight>
 {
 public:
+    Light();
     void setType(LightType v) override;
     void setPosition(float3 v) override;
     void setDirection(float3 v) override;
@@ -348,6 +347,7 @@ lptDeclRefPtr(RenderTarget);
 class Material : public EntityBase<IMaterial>
 {
 public:
+    Material();
     void setDiffuse(float3 v) override;
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;
@@ -388,6 +388,7 @@ public:
 
     void markDynamic() override;
 
+    void padVertexBuffers();
     void updateFaceNormals();
 
 public:

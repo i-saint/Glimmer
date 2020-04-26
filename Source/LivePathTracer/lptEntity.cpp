@@ -47,6 +47,11 @@ GlobalSettings& GetGlobals()
 }
 
 
+Camera::Camera()
+{
+    markDirty(DirtyFlag::Camera);
+}
+
 void Camera::setPosition(float3 v)
 {
     m_data.position = v;
@@ -74,6 +79,11 @@ void Camera::setFar(float v)
     markDirty(DirtyFlag::Camera);
 }
 
+
+Light::Light()
+{
+    markDirty(DirtyFlag::Light);
+}
 
 void Light::setType(LightType v)
 {
@@ -142,6 +152,11 @@ void RenderTarget::enableReadback(bool v)
     m_readback_enabled = v;
 }
 
+
+Material::Material()
+{
+    markDirty(DirtyFlag::Material);
+}
 
 void Material::setDiffuse(float3 v)
 {
@@ -225,6 +240,17 @@ void Mesh::setJointCounts(const uint8_t* v, size_t n)
 void Mesh::markDynamic()
 {
     m_dynamic = true;
+}
+
+void Mesh::padVertexBuffers()
+{
+    size_t npoints = m_points.size();
+    if (m_normals.size() != npoints)
+        m_normals.resize_zeroclear(npoints);
+    if (m_tangents.size() != npoints)
+        m_tangents.resize_zeroclear(npoints);
+    if (m_uv.size() != npoints)
+        m_uv.resize_zeroclear(npoints);
 }
 
 void Mesh::updateFaceNormals()

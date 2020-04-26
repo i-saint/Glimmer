@@ -472,8 +472,10 @@ void ContextDXR::updateEntities()
             obj.m_data.vertex_count = (uint32_t)obj.m_points.size();
             vertex_offset += obj.m_data.vertex_count;
 
-            if (obj.isDirty(DirtyFlag::Shape))
+            if (obj.isDirty(DirtyFlag::Shape)) {
                 obj.updateFaceNormals();
+                obj.padVertexBuffers();
+            }
             });
     }
 
@@ -610,7 +612,7 @@ void ContextDXR::updateBuffers()
 
     auto update_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
         bool allocated = false;
-        if (!dst || GetSize(dst) < size) {
+        if (GetSize(dst) < size) {
             dst = createBuffer(size);
             staging = createUploadBuffer(size);
             allocated = true;
@@ -619,20 +621,36 @@ void ContextDXR::updateBuffers()
         return allocated;
     };
 
+    auto write_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, auto body) {
+        bool allocated = false;
+        if (GetSize(dst) < size) {
+            dst = createBuffer(size);
+            staging = createUploadBuffer(size);
+            allocated = true;
+        }
+        writeBuffer(dst, staging, size, body);
+        return allocated;
+    };
+
 
     // materials
     {
-        bool expanded = ReuseOrExpandBuffer(m_buf_materials, sizeof(MaterialData), m_materials.size(), 256, [this](size_t size) {
-            m_buf_materials = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-            lptSetName(m_buf_materials, "Material Buffer");
-            });
-        if (expanded)
-            create_srv(m_srv_materials, m_buf_materials, sizeof(MaterialData));
-        Map(m_buf_materials, [this](MaterialData* dst) {
-            size_t n = m_materials.size();
-            for (size_t i = 0; i < n; ++i)
-                dst[i] = m_materials[i]->m_data;
-            });
+        bool dirty = false;
+        for (auto& pmat : m_materials) {
+            if (pmat->isDirty()) {
+                dirty = true;
+                break;
+            }
+        }
+        if (dirty) {
+            bool allocated = write_buffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.size(), [this](void* dst_) {
+                auto* dst = (MaterialData*)dst_;
+                for (auto& pmat : m_materials)
+                    *dst++ = pmat->m_data;
+                });
+            if (allocated)
+                create_srv(m_srv_materials, m_buf_materials, sizeof(MaterialData));
+        }
     }
 
     // mesh
@@ -640,6 +658,7 @@ void ContextDXR::updateBuffers()
         size_t nfaces = 0;
         size_t nindices = 0;
         size_t nvertices = 0;
+        bool dirty_any = false;
         bool dirty_faces = false;
         bool dirty_vertices = false;
 
@@ -651,38 +670,87 @@ void ContextDXR::updateBuffers()
             nfaces += mesh.m_indices.size() / 3;
             nindices += mesh.m_indices.size();
             nvertices += mesh.m_points.size();
+            if (mesh.isDirty())
+                dirty_any = true;
             if (mesh.isDirty(DirtyFlag::Shape))
                 dirty_faces = true;
             if (mesh.isDirty(DirtyFlag::Vertices))
                 dirty_vertices = true;
 
+            // create points & index buffer for BLAS
             if (mesh.isDirty(DirtyFlag::Indices))
                 update_buffer(mesh.m_buf_indices, mesh.m_buf_indices_staging, mesh.m_indices.cdata(), mesh.m_indices.size() * sizeof(int));
             if (mesh.isDirty(DirtyFlag::Points))
                 update_buffer(mesh.m_buf_points, mesh.m_buf_points_staging, mesh.m_points.cdata(), mesh.m_points.size() * sizeof(float3));
         }
 
+        // create mesh data buffer
+        if (dirty_any) {
+            bool allocated = write_buffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.size(), [this](void* dst_) {
+                auto* dst = (MeshData*)dst_;
+                for (auto& pmesh : m_meshes)
+                    *dst++ = pmesh->m_data;
+                });
+            if (allocated)
+                create_srv(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
+        }
+
+        // create monolithic vertex & face buffer
         if (dirty_vertices) {
-            // todo
+            bool allocated = write_buffer(m_buf_vertices, m_buf_vertices_staging, nvertices * sizeof(vertex_t), [this](void* dst_) {
+                auto* dst = (vertex_t*)dst_;
+                vertex_t tmp{};
+                for (auto& pmesh : m_meshes) {
+                    auto& mesh = *pmesh;
+                    auto* points = mesh.m_points.cdata();
+                    auto* normals = mesh.m_normals.cdata();
+                    auto* tangents = mesh.m_tangents.cdata();
+                    auto* uv = mesh.m_uv.cdata();
+                    size_t n = mesh.m_points.size();
+                    for (size_t vi = 0; vi < n; ++vi) {
+                        tmp.point = *points++;
+                        tmp.normal = *normals++;
+                        tmp.tangent = *tangents++;
+                        tmp.uv = *uv++;
+                        *dst++ = tmp;
+                    }
+                }
+                });
+            if (allocated)
+                create_srv(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
         }
         if (dirty_faces) {
-            // todo
+            bool allocated = write_buffer(m_buf_faces, m_buf_faces_staging, nvertices * sizeof(face_t), [this](void* dst_) {
+                auto* dst = (face_t*)dst_;
+                face_t tmp{};
+                for (auto& pmesh : m_meshes) {
+                    auto& mesh = *pmesh;
+                    auto* indices = mesh.m_indices.cdata();
+                    auto* normals = mesh.m_face_normals.cdata();
+                    size_t n = mesh.m_face_normals.size();
+                    for (size_t vi = 0; vi < n; ++vi) {
+                        for (int i = 0; i < 3; ++i)
+                            tmp.indices[i] = indices[i];
+                        indices += 3;
+                        tmp.normal = *normals++;
+                        *dst++ = tmp;
+                    }
+                }
+                });
+            if (allocated)
+                create_srv(m_srv_faces, m_buf_faces, sizeof(face_t));
         }
     }
 
     // instance
     {
-        bool expanded = ReuseOrExpandBuffer(m_buf_instances, sizeof(InstanceData), m_mesh_instances.size(), 4096, [this](size_t size) {
-            m_buf_instances = createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-            lptSetName(m_buf_instances, "Instance Buffer");
+        bool allocated = write_buffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.size(), [this](void* dst_) {
+            auto* dst = (InstanceData*)dst_;
+            for (auto& pinst : m_mesh_instances)
+                *dst++ = pinst->m_data;
             });
-        if (expanded)
+        if (allocated)
             create_srv(m_srv_instances, m_buf_instances, sizeof(InstanceData));
-        Map(m_buf_instances, [this](InstanceData* dst) {
-            size_t n = m_mesh_instances.size();
-            for (size_t i = 0; i < n; ++i)
-                dst[i] = m_mesh_instances[i]->m_data;
-            });
     }
 
     // scene
@@ -852,10 +920,10 @@ void ContextDXR::updateBLAS()
                 }
 
                 D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
+                as_desc.DestAccelerationStructureData = inst.m_blas_deformed->GetGPUVirtualAddress();
                 as_desc.Inputs = inputs;
                 if (perform_update)
                     as_desc.SourceAccelerationStructureData = inst.m_blas_deformed->GetGPUVirtualAddress();
-                as_desc.DestAccelerationStructureData = inst.m_blas_deformed->GetGPUVirtualAddress();
                 as_desc.ScratchAccelerationStructureData = inst.m_blas_scratch->GetGPUVirtualAddress();
 
                 addResourceBarrier(cl_blas, inst.m_buf_points_deformed, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -949,10 +1017,7 @@ void ContextDXR::updateTLAS()
             D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
             as_desc.DestAccelerationStructureData = scene.m_tlas->GetGPUVirtualAddress();
             as_desc.Inputs = inputs;
-            if (scene.m_tlas_instance_desc)
-                as_desc.Inputs.InstanceDescs = scene.m_tlas_instance_desc->GetGPUVirtualAddress();
-            if (scene.m_tlas_scratch)
-                as_desc.ScratchAccelerationStructureData = scene.m_tlas_scratch->GetGPUVirtualAddress();
+            as_desc.ScratchAccelerationStructureData = scene.m_tlas_scratch->GetGPUVirtualAddress();
 
             // build
             cl_tlas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
@@ -1041,8 +1106,8 @@ void ContextDXR::dispatchRays()
 
         auto& rt = dxr_t(*scene.m_render_target);
         do_dispatch(rt.m_texture, RayGenType::Default, [&]() {
-            cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
-            cl_rays->SetComputeRootDescriptorTable(1, m_srv_instances.hgpu);
+            cl_rays->SetComputeRootDescriptorTable(0, scene.m_desc_heap->GetGPUDescriptorHandleForHeapStart());
+            cl_rays->SetComputeRootDescriptorTable(1, m_desc_heap->GetGPUDescriptorHandleForHeapStart());
             });
     }
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");

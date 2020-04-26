@@ -2,16 +2,10 @@
 
 enum LIGHT_TYPE
 {
-    LT_DIRECTIONAL = 1,
-    LT_SPOT = 2,
-    LT_POINT = 3,
-    LT_REVERSE_POINT = 4,
-};
-
-enum OUTPUT_FORMAT
-{
-    OF_BIT_MASK = 0,
-    OF_FLOAT = 1,
+    LT_DIRECTIONAL,
+    LT_SPOT,
+    LT_POINT,
+    LT_REVERSE_POINT,
 };
 
 enum RENDER_FLAG
@@ -60,15 +54,11 @@ struct CameraData
 struct LightData
 {
     uint light_type;
-    uint3 pad1;
-
     float3 position;
-    float range;
     float3 direction;
-    float spot_angle; // radian
-
+    float range;
     float3 color;
-    float pad2;
+    float spot_angle; // radian
 };
 
 struct MaterialData

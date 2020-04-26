@@ -4,7 +4,7 @@ namespace lpt {
 
 enum class TextureFormat : uint32_t
 {
-    Unknown = 0,
+    Unknown,
     Ru8,
     RGu8,
     RGBAu8,
@@ -18,11 +18,10 @@ enum class TextureFormat : uint32_t
 
 enum class LightType : uint32_t
 {
-    Unknown = 0,
-    Directional = 1,
-    Spot = 2,
-    Point = 3,
-    ReversePoint = 4,
+    Directional,
+    Spot,
+    Point,
+    ReversePoint,
 };
 
 #ifndef lptImpl

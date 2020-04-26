@@ -3,6 +3,7 @@
 #include "MeshUtils/MeshUtils.h"
 using mu::float2;
 using mu::float3;
+using mu::float4;
 
 void GenerateIcoSphereMesh(
     std::vector<int>& counts,

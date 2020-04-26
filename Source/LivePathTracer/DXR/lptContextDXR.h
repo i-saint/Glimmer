@@ -88,11 +88,12 @@ public:
     ID3D12ResourcePtr m_shader_table;
     uint64_t m_shader_record_size = 0;
 
-    ID3D12ResourcePtr m_buf_instances;
-    ID3D12ResourcePtr m_buf_materials;
-    ID3D12ResourcePtr m_buf_meshes;
+    ID3D12ResourcePtr m_buf_instances, m_buf_instances_staging;
+    ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
+    ID3D12ResourcePtr m_buf_meshes, m_buf_meshes_staging;
     ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
     ID3D12ResourcePtr m_buf_faces, m_buf_faces_staging;
+
     ID3D12DescriptorHeapPtr m_desc_heap;
     DescriptorHandleDXR m_srv_instances;
     DescriptorHandleDXR m_srv_materials;

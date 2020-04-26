@@ -6,31 +6,21 @@
 
 TestCase(TestMinimum)
 {
+    const int rt_width = 1024;
+    const int rt_height = 1024;
+    const lpt::TextureFormat rt_format = lpt::TextureFormat::RGBAf32;
+
     lpt::IContextPtr ctx = lptCreateContextDXR();
-
-    // scene
     lpt::IScenePtr scene = ctx->createScene();
+    lpt::ICameraPtr camera = ctx->createCamera();
+    lpt::ILightPtr light = ctx->createLight();
+    lpt::IMaterialPtr material = ctx->createMaterial();
+    lpt::IRenderTargetPtr render_target = ctx->createRenderTarget(rt_format, rt_width, rt_height);
 
-    // render target
-    {
-        const int rt_width = 1024;
-        const int rt_height = 1024;
-        const lpt::TextureFormat rt_format = lpt::TextureFormat::Rf32;
-        lpt::IRenderTargetPtr render_target = ctx->createRenderTarget(rt_format, rt_width, rt_height);
-        scene->setRenderTarget(render_target);
-    }
-
-    // camera
-    {
-        lpt::ICameraPtr camera = ctx->createCamera();
-        scene->setCamera(camera);
-    }
-
-    // light
-    {
-        lpt::ILightPtr light = ctx->createLight();
-        scene->addLight(light);
-    }
+    render_target->enableReadback(true);
+    scene->setRenderTarget(render_target);
+    scene->setCamera(camera);
+    scene->addLight(light);
 
     // create meshes
     {
@@ -49,6 +39,7 @@ TestCase(TestMinimum)
 
         // add a instance with default transform (identity matrix)
         auto instance = ctx->createMeshInstance(triangle);
+        instance->setMaterial(material);
         scene->addMesh(instance);
     }
     {
@@ -68,12 +59,16 @@ TestCase(TestMinimum)
 
         // add a instance with default transform
         auto instance = ctx->createMeshInstance(quad);
+        instance->setMaterial(material);
         scene->addMesh(instance);
     }
 
     // render!
     ctx->render();
     ctx->finish();
+
+    RawVector<float4> readback_buffer(rt_width * rt_height);
+    render_target->readback(readback_buffer.data());
 
     printf("%s\n", ctx->getTimestampLog());
 }
