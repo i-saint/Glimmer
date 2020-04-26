@@ -540,6 +540,15 @@ void ContextDXR::updateResources()
         m_device->CreateUnorderedAccessView(res, nullptr, &uav_desc, handle.hcpu);
     };
 
+    auto create_cbv = [this](DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size) {
+        if (!res)
+            return;
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
+        cbv_desc.BufferLocation = res->GetGPUVirtualAddress();
+        cbv_desc.SizeInBytes = UINT(size);
+        m_device->CreateConstantBufferView(&cbv_desc, handle.hcpu);
+    };
+
     auto update_buffer = [this](ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* buffer, size_t size) {
         bool allocated = false;
         if (GetSize(dst) < size) {
@@ -827,17 +836,13 @@ void ContextDXR::updateResources()
             });
         if (allocated) {
             lptSetName(scene.m_buf_scene, scene.m_name + " Scene Buffer");
-
-            D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
-            cbv_desc.BufferLocation = scene.m_buf_scene->GetGPUVirtualAddress();
-            cbv_desc.SizeInBytes = cb_size;
-            m_device->CreateConstantBufferView(&cbv_desc, scene.m_cbv_scene.hcpu);
+            create_cbv(scene.m_cbv_scene, scene.m_buf_scene, cb_size);
         }
 
         if (scene.isDirty(DirtyFlag::RenderTarget)) {
             if (scene.m_render_target) {
                 auto& rt = dxr_t(*scene.m_render_target);
-                create_uav(scene.m_cbv_scene, rt.m_texture);
+                create_uav(scene.m_uav_render_target, rt.m_texture);
             }
         }
     }
