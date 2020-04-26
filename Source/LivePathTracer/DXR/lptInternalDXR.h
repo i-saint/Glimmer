@@ -70,9 +70,10 @@ public:
     DescriptorHandleDXR allocate();
 
 private:
-    UINT m_stride{};
     D3D12_CPU_DESCRIPTOR_HANDLE m_hcpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE m_hgpu{};
+    UINT m_stride = 0;
+    UINT m_capacity = 0;
     UINT m_count = 0;
 };
 

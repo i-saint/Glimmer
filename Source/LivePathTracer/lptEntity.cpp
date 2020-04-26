@@ -298,6 +298,11 @@ bool MeshInstance::hasFlag(InstanceFlag v) const
 }
 
 
+void Scene::setEnabled(bool v)
+{
+    m_enabled = v;
+}
+
 void Scene::setRenderTarget(IRenderTarget* v)
 {
     m_render_target = base_t(v);

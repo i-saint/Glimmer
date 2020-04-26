@@ -64,13 +64,14 @@ TestCase(TestMinimum)
     }
 
     // render!
-    ctx->render();
-    ctx->finish();
+    for (int i = 0; i < 10;++i) {
+        ctx->render();
+        ctx->finish();
+        printf("%s\n", ctx->getTimestampLog());
+    }
 
     RawVector<float4> readback_buffer;
     readback_buffer.resize(rt_width * rt_height, mu::nan<float4>());
     render_target->readback(readback_buffer.data());
-
-    printf("%s\n", ctx->getTimestampLog());
 }
 

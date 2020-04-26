@@ -19,9 +19,11 @@ DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR(ID3D12DevicePtr device, I
 
 void DescriptorHeapAllocatorDXR::reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap)
 {
-    m_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
     m_hcpu = heap->GetCPUDescriptorHandleForHeapStart();
     m_hgpu = heap->GetGPUDescriptorHandleForHeapStart();
+    m_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
+    m_capacity = heap->GetDesc().NumDescriptors;
+    m_count = 0;
 }
 
 DescriptorHandleDXR DescriptorHeapAllocatorDXR::allocate()
@@ -32,6 +34,10 @@ DescriptorHandleDXR DescriptorHeapAllocatorDXR::allocate()
     m_hcpu.ptr += m_stride;
     m_hgpu.ptr += m_stride;
     ++m_count;
+    if (m_count >= m_capacity) {
+        // buffer depleted
+        mu::DbgBreak();
+    }
     return ret;
 }
 
@@ -232,6 +238,9 @@ void TimestampDXR::updateLog(ID3D12CommandQueuePtr cq)
         for (size_t si = 0; si < n; ++si) {
             auto s1 = time_samples[si];
             auto name1 = std::get<1>(s1);
+            if (!name1)
+                continue;
+
             auto pos1 = name1->find(" begin");
             if (pos1 != std::string::npos) {
                 auto it = std::find_if(time_samples.begin() + (si + 1), time_samples.end(),

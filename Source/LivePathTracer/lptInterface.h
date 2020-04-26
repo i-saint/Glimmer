@@ -240,6 +240,7 @@ using IMeshInstancePtr = ref_ptr<IMeshInstance>;
 class IScene : public IEntity
 {
 public:
+    virtual void setEnabled(bool v) = 0;
     virtual void setRenderTarget(IRenderTarget* v) = 0;
     virtual void setCamera(ICamera* v) = 0;
     virtual void addLight(ILight* v) = 0;

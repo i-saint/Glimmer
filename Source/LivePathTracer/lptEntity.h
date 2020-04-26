@@ -445,6 +445,7 @@ lptDeclRefPtr(MeshInstance);
 class Scene : public EntityBase<IScene>
 {
 public:
+    void setEnabled(bool v) override;
     void setRenderTarget(IRenderTarget* v) override;
     void setCamera(ICamera* v) override;
     void addLight(ILight* v) override;
@@ -454,6 +455,7 @@ public:
     void clear() override;
 
 public:
+    bool m_enabled = true;
     SceneData m_data;
     CameraPtr m_camera;
     RenderTargetPtr m_render_target;
