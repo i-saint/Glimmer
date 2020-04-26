@@ -8,7 +8,16 @@ DescriptorHandleDXR::operator bool() const
     return hcpu.ptr != 0 && hgpu.ptr != 0;
 }
 
+DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR()
+{
+}
+
 DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap)
+{
+    reset(device, heap);
+}
+
+void DescriptorHeapAllocatorDXR::reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap)
 {
     m_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
     m_hcpu = heap->GetCPUDescriptorHandleForHeapStart();

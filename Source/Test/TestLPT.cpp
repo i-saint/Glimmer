@@ -67,7 +67,8 @@ TestCase(TestMinimum)
     ctx->render();
     ctx->finish();
 
-    RawVector<float4> readback_buffer(rt_width * rt_height);
+    RawVector<float4> readback_buffer;
+    readback_buffer.resize(rt_width * rt_height, mu::nan<float4>());
     render_target->readback(readback_buffer.data());
 
     printf("%s\n", ctx->getTimestampLog());

@@ -103,7 +103,7 @@ struct CameraData
 
 struct LightData
 {
-    LightType light_type = LightType::Directional;
+    LightType type = LightType::Directional;
     float3 position = float3::zero();
     float3 direction = -float3::up();
     float range = 1.0f;
@@ -115,14 +115,14 @@ struct LightData
 
 struct MaterialData
 {
+    MaterialType type = MaterialType::Default;
     float3 diffuse = float3::one();
-    float roughness = 0.5f;
     float3 emissive = float3::zero();
+    float roughness = 0.5f;
     float opacity = 1.0f;
-
     int diffuse_tex = 0;
     int emissive_tex = 0;
-    int2 pad_tex{};
+    float pad{};
 
     DefCompare(MaterialData);
 };
@@ -348,6 +348,7 @@ class Material : public EntityBase<IMaterial>
 {
 public:
     Material();
+    void setType(MaterialType v) override;
     void setDiffuse(float3 v) override;
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;

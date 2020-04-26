@@ -63,7 +63,10 @@ struct DescriptorHandleDXR
 class DescriptorHeapAllocatorDXR
 {
 public:
+    DescriptorHeapAllocatorDXR();
     DescriptorHeapAllocatorDXR(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap);
+
+    void reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap);
     DescriptorHandleDXR allocate();
 
 private:

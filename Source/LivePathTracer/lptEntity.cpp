@@ -87,7 +87,7 @@ Light::Light()
 
 void Light::setType(LightType v)
 {
-    m_data.light_type = v;
+    m_data.type = v;
     markDirty(DirtyFlag::Light);
 }
 
@@ -155,6 +155,12 @@ void RenderTarget::enableReadback(bool v)
 
 Material::Material()
 {
+    markDirty(DirtyFlag::Material);
+}
+
+void Material::setType(MaterialType v)
+{
+    m_data.type = v;
     markDirty(DirtyFlag::Material);
 }
 

@@ -24,6 +24,11 @@ enum class LightType : uint32_t
     ReversePoint,
 };
 
+enum class MaterialType : uint32_t
+{
+    Default,
+};
+
 #ifndef lptImpl
 struct float2
 {
@@ -139,10 +144,10 @@ public:
 class IMaterial : public IEntity
 {
 public:
+    virtual void setType(MaterialType v) = 0;
     virtual void setDiffuse(float3 v) = 0;
     virtual void setRoughness(float v) = 0;
     virtual void setEmissive(float3 v) = 0;
-
     virtual void setDiffuseTexture(ITexture* v) = 0;
     virtual void setEmissiveTexture(ITexture* v) = 0;
 };

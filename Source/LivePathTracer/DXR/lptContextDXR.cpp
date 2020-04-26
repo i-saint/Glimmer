@@ -18,8 +18,6 @@ enum class RayGenType : int
 
 static const WCHAR* kRayGenShaders[]{
     L"RayGenDefault",
-    L"RayGenAdaptiveSampling",
-    L"RayGenAntialiasing",
 };
 static const WCHAR* kMissShaders[]{
     L"MissCamera",
@@ -29,13 +27,9 @@ static const WCHAR* kHitGroups[]{
     L"CameraToObj",
     L"ObjToLights" ,
 };
-static const WCHAR* kAnyHitShaders[]{
-    L"AnyHitCamera",
-    L"AnyHitLight",
-};
 static const WCHAR* kClosestHitShaders[]{
     L"ClosestHitCamera",
-    nullptr
+    L"ClosestHitLight",
 };
 
 const D3D12_HEAP_PROPERTIES kDefaultHeapProps =
@@ -150,7 +144,6 @@ void ContextDXR::render()
     updateBLAS();
     updateTLAS();
     dispatchRays();
-    resetState();
 }
 
 bool ContextDXR::checkError()
@@ -369,7 +362,7 @@ bool ContextDXR::initializeDevice()
             auto& hit_desc = hit_descs[i];
             hit_desc.HitGroupExport = kHitGroups[i];
             hit_desc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
-            hit_desc.AnyHitShaderImport = kAnyHitShaders[i];
+            //hit_desc.AnyHitShaderImport = kAnyHitShaders[i];
             hit_desc.ClosestHitShaderImport = kClosestHitShaders[i];
             add_subobject(D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &hit_desc);
         }
@@ -509,93 +502,6 @@ void ContextDXR::updateBuffers()
             pobj->clearBLAS();
     }
 
-    // setup shader table
-    if (!m_shader_table) {
-        m_shader_record_size = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-        m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, m_shader_record_size);
-
-        const int capacity = 32;
-        auto staging = createUploadBuffer(m_shader_record_size * capacity);
-        Map(staging, [this, &capacity](uint8_t* addr) {
-            ID3D12StateObjectPropertiesPtr sop;
-            m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
-
-            int shader_record_count = 0;
-            auto add_shader_record = [&](const WCHAR* name) {
-                if (shader_record_count++ == capacity) {
-                    assert(0 && "shader_record_count exceeded its capacity");
-                }
-                void* sid = sop->GetShaderIdentifier(name);
-                assert(sid && "shader id not found");
-
-                auto dst = addr;
-                memcpy(dst, sid, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-                dst += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-
-                addr += m_shader_record_size;
-            };
-
-            // ray-gen
-            for (auto name : kRayGenShaders)
-                add_shader_record(name);
-
-            // miss
-            for (auto name : kMissShaders)
-                add_shader_record(name);
-
-            // hit
-            for (auto name : kHitGroups)
-                add_shader_record(name);
-            });
-
-        m_shader_table = createBuffer(m_shader_record_size * capacity);
-        lptSetName(m_shader_table, L"Shadow Shader Table");
-        copyBuffer(m_shader_table, staging, m_shader_record_size * capacity);
-    }
-
-    // desc heap
-    {
-        D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = 32;
-        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
-        lptSetName(m_desc_heap, "Global Desc Heap");
-
-        auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, m_desc_heap);
-        m_srv_instances = handle_allocator.allocate();
-        m_srv_materials = handle_allocator.allocate();
-        m_srv_meshes = handle_allocator.allocate();
-        m_srv_vertices = handle_allocator.allocate();
-        m_srv_faces = handle_allocator.allocate();
-    }
-
-    // render targets
-    for (auto& ptex : m_render_targets) {
-        auto& tex = *ptex;
-
-        if (!tex.m_texture) {
-            auto format = GetDXGIFormat(tex.m_format);
-            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-            tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
-        }
-    }
-
-    // textures
-    for (auto& ptex : m_textures) {
-        auto& tex = *ptex;
-
-        auto format = GetDXGIFormat(tex.m_format);
-        if (!tex.m_texture) {
-            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
-        }
-        if (tex.isDirty(DirtyFlag::TextureData)) {
-            uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
-        }
-    }
-
-
     // helpers
     auto create_srv = [this](DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride) {
         uint64_t capacity = GetSize(res);
@@ -631,6 +537,91 @@ void ContextDXR::updateBuffers()
         writeBuffer(dst, staging, size, body);
         return allocated;
     };
+
+
+    // setup shader table
+    if (!m_buf_shader_table) {
+        m_shader_record_size = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+        m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, m_shader_record_size);
+        const int capacity = 32;
+
+        write_buffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * capacity, [this, capacity](void* addr_) {
+            auto* addr = (uint8_t*)addr_;
+            ID3D12StateObjectPropertiesPtr sop;
+            m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
+
+            int shader_record_count = 0;
+            auto add_shader_record = [&](const WCHAR* name) {
+                if (shader_record_count++ == capacity) {
+                    assert(0 && "shader_record_count exceeded its capacity");
+                }
+                void* sid = sop->GetShaderIdentifier(name);
+                assert(sid && "shader id not found");
+
+                auto dst = addr;
+                memcpy(dst, sid, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+                dst += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+
+                addr += m_shader_record_size;
+            };
+
+            // ray-gen
+            for (auto name : kRayGenShaders)
+                add_shader_record(name);
+
+            // miss
+            for (auto name : kMissShaders)
+                add_shader_record(name);
+
+            // hit
+            for (auto name : kHitGroups)
+                add_shader_record(name);
+
+            });
+        lptSetName(m_buf_shader_table, L"Shadow Shader Table");
+    }
+
+    // desc heap
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC desc{};
+        desc.NumDescriptors = 1024;
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
+        lptSetName(m_desc_heap, "Global Desc Heap");
+
+        m_desc_alloc.reset(m_device, m_desc_heap);
+        m_srv_instances = m_desc_alloc.allocate();
+        m_srv_materials = m_desc_alloc.allocate();
+        m_srv_meshes = m_desc_alloc.allocate();
+        m_srv_vertices = m_desc_alloc.allocate();
+        m_srv_faces = m_desc_alloc.allocate();
+    }
+
+    // render targets
+    for (auto& ptex : m_render_targets) {
+        auto& tex = *ptex;
+
+        if (!tex.m_texture) {
+            auto format = GetDXGIFormat(tex.m_format);
+            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+            tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, format);
+        }
+    }
+
+    // textures
+    for (auto& ptex : m_textures) {
+        auto& tex = *ptex;
+
+        auto format = GetDXGIFormat(tex.m_format);
+        if (!tex.m_texture) {
+            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
+        }
+        if (tex.isDirty(DirtyFlag::TextureData)) {
+            uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
+        }
+    }
 
 
     // materials
@@ -744,13 +735,22 @@ void ContextDXR::updateBuffers()
 
     // instance
     {
-        bool allocated = write_buffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.size(), [this](void* dst_) {
-            auto* dst = (InstanceData*)dst_;
-            for (auto& pinst : m_mesh_instances)
-                *dst++ = pinst->m_data;
-            });
-        if (allocated)
-            create_srv(m_srv_instances, m_buf_instances, sizeof(InstanceData));
+        bool dirty = false;
+        for (auto& pinst : m_mesh_instances) {
+            if (pinst->isDirty()) {
+                dirty = true;
+                break;
+            }
+        }
+        if (dirty) {
+            bool allocated = write_buffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.size(), [this](void* dst_) {
+                auto* dst = (InstanceData*)dst_;
+                for (auto& pinst : m_mesh_instances)
+                    *dst++ = pinst->m_data;
+                });
+            if (allocated)
+                create_srv(m_srv_instances, m_buf_instances, sizeof(InstanceData));
+        }
     }
 
     // scene
@@ -758,18 +758,10 @@ void ContextDXR::updateBuffers()
         auto& scene = dxr_t(*pscene);
 
         // desc heap
-        if (!scene.m_desc_heap) {
-            D3D12_DESCRIPTOR_HEAP_DESC desc{};
-            desc.NumDescriptors = 32;
-            desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-            desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-            m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&scene.m_desc_heap));
-            lptSetName(scene.m_desc_heap, scene.m_name + " Desc Heap");
-
-            auto handle_allocator = DescriptorHeapAllocatorDXR(m_device, scene.m_desc_heap);
-            scene.m_uav_render_target = handle_allocator.allocate();
-            scene.m_srv_tlas = handle_allocator.allocate();
-            scene.m_cbv_scene = handle_allocator.allocate();
+        if (!scene.m_uav_render_target) {
+            scene.m_uav_render_target = m_desc_alloc.allocate();
+            scene.m_srv_tlas = m_desc_alloc.allocate();
+            scene.m_cbv_scene = m_desc_alloc.allocate();
         }
 
         // scene constant buffer
@@ -1070,7 +1062,7 @@ void ContextDXR::dispatchRays()
         dr_desc.Height = (UINT)rt_desc.Height;
         dr_desc.Depth = 1;
 
-        auto addr = m_shader_table->GetGPUVirtualAddress();
+        auto addr = m_buf_shader_table->GetGPUVirtualAddress();
         // ray-gen
         dr_desc.RayGenerationShaderRecord.StartAddress = addr + (m_shader_record_size * (int)raygen_type);
         dr_desc.RayGenerationShaderRecord.SizeInBytes = m_shader_record_size;
@@ -1101,13 +1093,13 @@ void ContextDXR::dispatchRays()
         cl_rays->SetComputeRootSignature(m_rootsig);
         cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
 
-        ID3D12DescriptorHeap* desc_heaps[] = { scene.m_desc_heap };
+        ID3D12DescriptorHeap* desc_heaps[] = { m_desc_heap };
         cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
 
         auto& rt = dxr_t(*scene.m_render_target);
         do_dispatch(rt.m_texture, RayGenType::Default, [&]() {
-            cl_rays->SetComputeRootDescriptorTable(0, scene.m_desc_heap->GetGPUDescriptorHandleForHeapStart());
-            cl_rays->SetComputeRootDescriptorTable(1, m_desc_heap->GetGPUDescriptorHandleForHeapStart());
+            cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
+            cl_rays->SetComputeRootDescriptorTable(1, m_srv_instances.hgpu);
             });
     }
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
@@ -1128,8 +1120,15 @@ void ContextDXR::dispatchRays()
     m_fv_rays = submit(m_fv_tlas);
 }
 
-void ContextDXR::resetState()
+void ContextDXR::finish()
 {
+    // wait for complete
+    if (m_fv_rays != 0) {
+        m_fence->SetEventOnCompletion(m_fv_rays, m_fence_event);
+        ::WaitForSingleObject(m_fence_event, kTimeoutMS);
+        lptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
+    }
+
     // reset state
     m_clm_direct->reset();
 
@@ -1146,16 +1145,6 @@ void ContextDXR::resetState()
     clear_dirty(m_render_targets);
     clear_dirty(m_cameras);
     clear_dirty(m_lights);
-}
-
-void ContextDXR::finish()
-{
-    // wait for complete
-    if (m_fv_rays != 0) {
-        m_fence->SetEventOnCompletion(m_fv_rays, m_fence_event);
-        ::WaitForSingleObject(m_fence_event, kTimeoutMS);
-        lptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
-    }
 }
 
 void* ContextDXR::getDevice()

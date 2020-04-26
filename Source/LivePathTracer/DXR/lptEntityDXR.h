@@ -153,7 +153,6 @@ public:
 
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
-    ID3D12DescriptorHeapPtr m_desc_heap;
     DescriptorHandleDXR m_uav_render_target;
     DescriptorHandleDXR m_srv_tlas;
     DescriptorHandleDXR m_cbv_scene;

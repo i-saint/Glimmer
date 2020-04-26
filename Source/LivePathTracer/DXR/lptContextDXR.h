@@ -34,7 +34,6 @@ public:
     void updateBLAS();
     void updateTLAS();
     void dispatchRays();
-    void resetState();
 
     uint64_t incrementFenceValue();
 
@@ -85,9 +84,9 @@ public:
 
     ID3D12RootSignaturePtr m_rootsig;
     ID3D12StateObjectPtr m_pipeline_state;
-    ID3D12ResourcePtr m_shader_table;
     uint64_t m_shader_record_size = 0;
 
+    ID3D12ResourcePtr m_buf_shader_table, m_buf_shader_table_staging;
     ID3D12ResourcePtr m_buf_instances, m_buf_instances_staging;
     ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
     ID3D12ResourcePtr m_buf_meshes, m_buf_meshes_staging;
@@ -95,6 +94,7 @@ public:
     ID3D12ResourcePtr m_buf_faces, m_buf_faces_staging;
 
     ID3D12DescriptorHeapPtr m_desc_heap;
+    DescriptorHeapAllocatorDXR m_desc_alloc;
     DescriptorHandleDXR m_srv_instances;
     DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_meshes;
