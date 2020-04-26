@@ -58,9 +58,6 @@ public:
 public:
     ID3D12ResourcePtr m_texture;
     ID3D12ResourcePtr m_buf_readback;
-#ifdef lptEnableBufferValidation
-    ID3D12ResourcePtr m_buf_upload;
-#endif
 };
 lptDeclRefPtr(RenderTargetDXR);
 
@@ -76,6 +73,7 @@ public:
 public:
     ID3D12ResourcePtr m_texture;
     ID3D12ResourcePtr m_buf_upload;
+    DescriptorHandleDXR m_srv;
 };
 lptDeclRefPtr(TextureDXR);
 
@@ -156,6 +154,7 @@ public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
     DescriptorHandleDXR m_uav_render_target;
     DescriptorHandleDXR m_srv_tlas;
+    DescriptorHandleDXR m_srv_prev;
     DescriptorHandleDXR m_cbv_scene;
 
     ID3D12ResourcePtr m_tlas_instance_desc;

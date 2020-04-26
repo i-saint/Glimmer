@@ -101,6 +101,7 @@ public:
     DescriptorHandleDXR m_srv_meshes;
     DescriptorHandleDXR m_srv_vertices;
     DescriptorHandleDXR m_srv_faces;
+    DescriptorHandleDXR m_srv_textures;
 
 #ifdef lptEnableTimestamp
     TimestampDXRPtr m_timestamp;

@@ -58,6 +58,9 @@ struct DescriptorHandleDXR
     D3D12_GPU_DESCRIPTOR_HANDLE hgpu{};
 
     operator bool() const;
+    bool operator==(const DescriptorHandleDXR& v) const;
+    bool operator!=(const DescriptorHandleDXR& v) const;
+    DescriptorHandleDXR& operator+=(size_t n);
 };
 
 class DescriptorHeapAllocatorDXR
@@ -67,7 +70,8 @@ public:
     DescriptorHeapAllocatorDXR(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap);
 
     void reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap);
-    DescriptorHandleDXR allocate();
+    DescriptorHandleDXR allocate(size_t n = 1);
+    UINT getStride() const;
 
 private:
     D3D12_CPU_DESCRIPTOR_HANDLE m_hcpu{};
@@ -154,9 +158,6 @@ public:
     ID3D12GraphicsCommandList4Ptr get();
     void reset();
 
-    // command lists to pass ExecuteCommandLists()
-    const std::vector<ID3D12CommandList*>& getCommandLists() const;
-
 private:
     struct Record
     {
@@ -172,7 +173,6 @@ private:
     D3D12_COMMAND_LIST_TYPE m_type;
     ID3D12PipelineStatePtr m_state;
     std::vector<CommandPtr> m_available, m_in_use;
-    std::vector<ID3D12CommandList*> m_raw;
     std::wstring m_name;
 };
 using CommandListManagerDXRPtr = std::shared_ptr<CommandListManagerDXR>;

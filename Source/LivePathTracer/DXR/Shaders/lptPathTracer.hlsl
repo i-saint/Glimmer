@@ -106,27 +106,26 @@ struct SceneData
     uint light_count;
     float shadow_ray_offset;
     float self_shadow_threshold;
-    float3 pad;
+    float3 bg_color;
+    float pad;
 
     CameraData camera;
     LightData lights[kMaxLights];
 };
 
 
-// slot 0
-RWTexture2D<float4> g_output : register(u0);
-RaytracingAccelerationStructure g_tlas : register(t0);
-ConstantBuffer<SceneData> g_scene : register(b0);
+RWTexture2D<float4>             g_output        : register(u0, space0);
+RaytracingAccelerationStructure g_tlas          : register(t0, space0);
+Texture2D<float4>               g_prev_result   : register(t1, space0);
+ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
-// slot 1
-StructuredBuffer<InstanceData> g_instances : register(t1);
-StructuredBuffer<MaterialData> g_materials : register(t2);
-StructuredBuffer<MeshData>     g_meshes : register(t3);
-StructuredBuffer<vertex_t>     g_vertices : register(t4);
-StructuredBuffer<face_t>       g_faces: register(t5);
+StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
+StructuredBuffer<MaterialData>  g_materials     : register(t1, space1);
+StructuredBuffer<MeshData>      g_meshes        : register(t2, space1);
+StructuredBuffer<vertex_t>      g_vertices      : register(t3, space1);
+StructuredBuffer<face_t>        g_faces         : register(t4, space1);
 
-// slot 2
-Texture2D<float> g_prev_result : register(t6);
+Texture2D<float4>               g_textures[]    : register(t0, space2);
 
 
 float3 CameraPosition()     { return g_scene.camera.position.xyz; }
@@ -140,6 +139,7 @@ float CameraFarPlane()      { return g_scene.camera.far_plane; }
 uint  RenderFlags()         { return g_scene.render_flags; }
 float ShadowRayOffset()     { return g_scene.shadow_ray_offset; }
 float SelfShadowThreshold() { return g_scene.self_shadow_threshold; }
+float3 BackgroundColor()    { return g_scene.bg_color; }
 
 int LightCount() { return g_scene.light_count; }
 LightData GetLight(int i) { return g_scene.lights[i]; }
@@ -259,11 +259,10 @@ void RayGenDefault()
     g_output[screen_idx] = float4(payload.color, payload.t);
 }
 
-
 [shader("miss")]
 void MissCamera(inout Payload payload : SV_RayPayload)
 {
-    payload.color = float3(0.1f, 0.1f, 0.1f);
+    payload.color = BackgroundColor();
 }
 
 bool ShootShadowRay(uint flags, in RayDesc ray, inout Payload payload)

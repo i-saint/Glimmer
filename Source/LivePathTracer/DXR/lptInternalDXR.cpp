@@ -8,6 +8,23 @@ DescriptorHandleDXR::operator bool() const
     return hcpu.ptr != 0 && hgpu.ptr != 0;
 }
 
+bool DescriptorHandleDXR::operator==(const DescriptorHandleDXR& v) const
+{
+    return hcpu.ptr == v.hcpu.ptr && hgpu.ptr == v.hgpu.ptr;
+}
+
+bool DescriptorHandleDXR::operator!=(const DescriptorHandleDXR& v) const
+{
+    return !(*this == v);
+}
+
+DescriptorHandleDXR& DescriptorHandleDXR::operator+=(size_t n)
+{
+    hcpu.ptr += n;
+    hgpu.ptr += n;
+    return *this;
+}
+
 DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR()
 {
 }
@@ -26,19 +43,21 @@ void DescriptorHeapAllocatorDXR::reset(ID3D12DevicePtr device, ID3D12DescriptorH
     m_count = 0;
 }
 
-DescriptorHandleDXR DescriptorHeapAllocatorDXR::allocate()
+DescriptorHandleDXR DescriptorHeapAllocatorDXR::allocate(size_t n)
 {
-    DescriptorHandleDXR ret;
-    ret.hcpu = m_hcpu;
-    ret.hgpu = m_hgpu;
-    m_hcpu.ptr += m_stride;
-    m_hgpu.ptr += m_stride;
-    ++m_count;
-    if (m_count >= m_capacity) {
+    if (m_count + n >= m_capacity) {
         // buffer depleted
         mu::DbgBreak();
     }
+    DescriptorHandleDXR ret{ m_hcpu, m_hgpu };
+    ret += m_stride * m_count;
+    m_count += (UINT)n;
     return ret;
+}
+
+UINT DescriptorHeapAllocatorDXR::getStride() const
+{
+    return m_stride;
 }
 
 
@@ -98,20 +117,18 @@ ID3D12GraphicsCommandList4Ptr CommandListManagerDXR::get()
 {
     ID3D12GraphicsCommandList4Ptr ret;
     if (!m_available.empty()) {
-        auto c = m_available.back();
+        auto& c = m_available.back();
+        ret = c->list;
         m_in_use.push_back(c);
         m_available.pop_back();
-        ret = c->list;
     }
-    else
-    {
+    else {
         auto c = std::make_shared<Record>(m_device, m_type, m_state);
         c->allocator->SetName(m_name.c_str());
         c->list->SetName(m_name.c_str());
-        m_in_use.push_back(c);
         ret = c->list;
+        m_in_use.push_back(c);
     }
-    m_raw.push_back(ret);
     return ret;
 }
 
@@ -121,12 +138,6 @@ void CommandListManagerDXR::reset()
         p->reset(m_state);
     m_available.insert(m_available.end(), m_in_use.begin(), m_in_use.end());
     m_in_use.clear();
-    m_raw.clear();
-}
-
-const std::vector<ID3D12CommandList*>& CommandListManagerDXR::getCommandLists() const
-{
-    return m_raw;
 }
 
 

@@ -7,7 +7,10 @@
 
 namespace lpt {
 
-static const int lptMaxTraceRecursionLevel = 2;
+#define lptMaxTraceRecursionLevel  2
+#define lptMaxDescriptorCount 8192
+#define lptMaxTextureCount 1024
+#define lptMaxShaderRecords 64
 
 enum class RayGenType : int
 {
@@ -306,28 +309,25 @@ bool ContextDXR::initializeDevice()
     {
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
             { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 1, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
         D3D12_DESCRIPTOR_RANGE ranges2[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptMaxTextureCount, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         D3D12_ROOT_PARAMETER params[3]{};
-        params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[0].DescriptorTable.NumDescriptorRanges = _countof(ranges0);
-        params[0].DescriptorTable.pDescriptorRanges = ranges0;
-
-        params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[1].DescriptorTable.NumDescriptorRanges = _countof(ranges1);
-        params[1].DescriptorTable.pDescriptorRanges = ranges1;
-
-        params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-        params[2].DescriptorTable.NumDescriptorRanges = _countof(ranges2);
-        params[2].DescriptorTable.pDescriptorRanges = ranges2;
+        auto append = [&params](int i, auto& range) {
+            params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+            params[i].DescriptorTable.NumDescriptorRanges = _countof(range);
+            params[i].DescriptorTable.pDescriptorRanges = range;
+        };
+        append(0, ranges0);
+        append(1, ranges1);
+        append(2, ranges2);
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
         desc.NumParameters = _countof(params);
@@ -516,7 +516,7 @@ void ContextDXR::updateResources()
     }
 
     // helpers
-    auto create_srv = [this](DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride) {
+    auto create_buffer_srv = [this](DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride) {
         if (!res)
             return;
         uint64_t capacity = GetSize(res);
@@ -531,7 +531,19 @@ void ContextDXR::updateResources()
         m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
     };
 
-    auto create_uav = [this](DescriptorHandleDXR& handle, ID3D12Resource* res) {
+    auto create_texture_srv = [this](DescriptorHandleDXR& handle, ID3D12Resource* res) {
+        if (!res)
+            return;
+        auto rd = res->GetDesc();
+        D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+        desc.Format = GetFloatFormat(rd.Format);
+        desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        desc.Texture2D.MipLevels = rd.MipLevels;
+        m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
+    };
+
+    auto create_texture_uav = [this](DescriptorHandleDXR& handle, ID3D12Resource* res) {
         if (!res)
             return;
         D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
@@ -574,18 +586,16 @@ void ContextDXR::updateResources()
 
     // setup shader table
     if (!m_buf_shader_table) {
-        m_shader_record_size = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-        m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, m_shader_record_size);
-        const int capacity = 32;
+        m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
-        write_buffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * capacity, [this, capacity](void* addr_) {
+        write_buffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * lptMaxShaderRecords, [this](void* addr_) {
             auto* addr = (uint8_t*)addr_;
             ID3D12StateObjectPropertiesPtr sop;
             m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
 
             int shader_record_count = 0;
             auto add_shader_record = [&](const WCHAR* name) {
-                if (shader_record_count++ == capacity) {
+                if (shader_record_count++ == lptMaxShaderRecords) {
                     assert(0 && "shader_record_count exceeded its capacity");
                 }
                 void* sid = sop->GetShaderIdentifier(name);
@@ -617,7 +627,7 @@ void ContextDXR::updateResources()
     // desc heap
     if (!m_desc_heap) {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = 1024;
+        desc.NumDescriptors = lptMaxDescriptorCount;
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
@@ -629,6 +639,7 @@ void ContextDXR::updateResources()
         m_srv_meshes = m_desc_alloc.allocate();
         m_srv_vertices = m_desc_alloc.allocate();
         m_srv_faces = m_desc_alloc.allocate();
+        m_srv_textures = m_desc_alloc.allocate(lptMaxTextureCount);
     }
 
     // render targets
@@ -642,38 +653,35 @@ void ContextDXR::updateResources()
         if (tex.m_readback_enabled && !tex.m_buf_readback) {
             tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
             lptSetName(tex.m_buf_readback, tex.m_name + " Readback Buffer");
-
-#ifdef lptEnableBufferValidation
-            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
-            lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
-
-            if (tex.m_format == TextureFormat::Rf32 || tex.m_format == TextureFormat::RGf32 || tex.m_format == TextureFormat::RGBAf32) {
-                writeTexture(tex.m_texture, tex.m_buf_upload, tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format), [&tex](void* mapped_) {
-                    auto mapped = (float*)mapped_;
-                    size_t n = GetSize(tex.m_buf_upload) / sizeof(float);
-                    std::fill_n(mapped, n, 255.0f);
-                    });
-                addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-            }
-#endif
         }
     }
 
     // textures
-    for (auto& ptex : m_textures) {
-        auto& tex = *ptex;
+    {
+        auto srv_tex = m_srv_textures;
+        auto desc_strice = m_desc_alloc.getStride();
+        for (auto& ptex : m_textures) {
+            auto& tex = *ptex;
 
-        auto format = GetDXGIFormat(tex.m_format);
-        if (!tex.m_texture) {
-            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-            lptSetName(tex.m_texture, tex.m_name + " Texture");
+            bool allocated = false;
+            auto format = GetDXGIFormat(tex.m_format);
+            if (!tex.m_texture) {
+                tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+                tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
+                lptSetName(tex.m_texture, tex.m_name + " Texture");
+                lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
+                allocated = true;
+            }
+            if (tex.isDirty(DirtyFlag::TextureData)) {
+                uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
+                addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+            }
 
-            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
-            lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
-        }
-        if (tex.isDirty(DirtyFlag::TextureData)) {
-            uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
-            addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+            if (tex.m_srv != srv_tex || allocated) {
+                tex.m_srv = srv_tex;
+                create_texture_srv(tex.m_srv, tex.m_texture);
+            }
+            srv_tex += desc_strice;
         }
     }
 
@@ -695,7 +703,7 @@ void ContextDXR::updateResources()
                 });
             if (allocated) {
                 lptSetName(m_buf_materials, "Material Buffer");
-                create_srv(m_srv_materials, m_buf_materials, sizeof(MaterialData));
+                create_buffer_srv(m_srv_materials, m_buf_materials, sizeof(MaterialData));
             }
         }
     }
@@ -740,7 +748,7 @@ void ContextDXR::updateResources()
                 });
             if (allocated) {
                 lptSetName(m_buf_meshes, "Mesh Buffer");
-                create_srv(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
+                create_buffer_srv(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
             }
         }
 
@@ -767,7 +775,7 @@ void ContextDXR::updateResources()
                 });
             if (allocated) {
                 lptSetName(m_buf_vertices, "Vertex Buffer");
-                create_srv(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
+                create_buffer_srv(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
             }
         }
         if (dirty_faces) {
@@ -790,7 +798,7 @@ void ContextDXR::updateResources()
                 });
             if (allocated) {
                 lptSetName(m_buf_faces, "Face Buffer");
-                create_srv(m_srv_faces, m_buf_faces, sizeof(face_t));
+                create_buffer_srv(m_srv_faces, m_buf_faces, sizeof(face_t));
             }
         }
     }
@@ -812,7 +820,7 @@ void ContextDXR::updateResources()
                 });
             if (allocated) {
                 lptSetName(m_buf_instances, "Instance Buffer");
-                create_srv(m_srv_instances, m_buf_instances, sizeof(InstanceData));
+                create_buffer_srv(m_srv_instances, m_buf_instances, sizeof(InstanceData));
             }
         }
     }
@@ -825,6 +833,7 @@ void ContextDXR::updateResources()
         if (!scene.m_uav_render_target) {
             scene.m_uav_render_target = m_desc_alloc.allocate();
             scene.m_srv_tlas = m_desc_alloc.allocate();
+            scene.m_srv_prev = m_desc_alloc.allocate();
             scene.m_cbv_scene = m_desc_alloc.allocate();
         }
 
@@ -842,7 +851,7 @@ void ContextDXR::updateResources()
         if (scene.isDirty(DirtyFlag::RenderTarget)) {
             if (scene.m_render_target) {
                 auto& rt = dxr_t(*scene.m_render_target);
-                create_uav(scene.m_uav_render_target, rt.m_texture);
+                create_texture_uav(scene.m_uav_render_target, rt.m_texture);
             }
         }
     }
@@ -1164,6 +1173,7 @@ void ContextDXR::dispatchRays()
         do_dispatch(rt.m_texture, RayGenType::Default, [&]() {
             cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
             cl_rays->SetComputeRootDescriptorTable(1, m_srv_instances.hgpu);
+            cl_rays->SetComputeRootDescriptorTable(2, m_srv_textures.hgpu);
             });
     }
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
@@ -1308,9 +1318,11 @@ uint64_t ContextDXR::submit(uint64_t preceding_fv)
 
     // close command list and submit
     m_cl->Close();
+    checkError();
     ID3D12CommandList* cmd_list[]{ m_cl };
     m_cmd_queue_direct->ExecuteCommandLists(_countof(cmd_list), cmd_list);
     m_cl = nullptr;
+
 
     // insert signal
     auto fence_value = incrementFenceValue();
