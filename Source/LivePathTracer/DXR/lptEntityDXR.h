@@ -52,7 +52,7 @@ using super = DXREntity<RenderTarget>;
 friend class ContextDXR;
 public:
     RenderTargetDXR(TextureFormat format, int width, int height);
-    void readback(void* dst) override;
+    bool readback(void* dst) override;
     void* getDeviceObject() override;
 
 public:

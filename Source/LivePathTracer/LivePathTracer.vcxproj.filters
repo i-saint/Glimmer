@@ -10,6 +10,9 @@
     <Filter Include="Foundation">
       <UniqueIdentifier>{785a4734-4a3e-4ed6-85fc-ebc17133ac6e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Window">
+      <UniqueIdentifier>{365ed64a-d70a-439d-981e-07d1c1a8067c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Foundation\lptLog.cpp">
@@ -28,6 +31,9 @@
     </ClCompile>
     <ClCompile Include="DXR\lptContextDXR.cpp">
       <Filter>DXR</Filter>
+    </ClCompile>
+    <ClCompile Include="Window\lptWindow.cpp">
+      <Filter>Window</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -53,6 +59,7 @@
     <ClInclude Include="DXR\lptContextDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
+    <ClInclude Include="lptWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\lptDeform.hlsl">

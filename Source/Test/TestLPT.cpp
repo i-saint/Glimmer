@@ -2,6 +2,7 @@
 #include "Test.h"
 #include "MeshGenerator.h"
 #include "lptInterface.h"
+#include "lptWindow.h"
 
 
 TestCase(TestMinimum)
@@ -74,5 +75,10 @@ TestCase(TestMinimum)
         printf("%s\n", ctx->getTimestampLog());
     }
 
+
+    auto window = lptCreateWindow(512, 512);
+    while (!window->isClosed()) {
+        window->processMessages();
+    }
 }
 

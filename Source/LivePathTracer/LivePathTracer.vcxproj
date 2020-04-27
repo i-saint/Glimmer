@@ -20,6 +20,7 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Window\lptWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DXR\lptContextDXR.h" />
@@ -31,6 +32,7 @@
     <ClInclude Include="lptEntity.h" />
     <ClInclude Include="lptInterface.h" />
     <ClInclude Include="lptSettings.h" />
+    <ClInclude Include="lptWindow.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

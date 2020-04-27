@@ -190,7 +190,7 @@ class IRenderTarget : public IEntity
 {
 public:
     virtual void enableReadback(bool v) = 0;
-    virtual void readback(void* dst) = 0;
+    virtual bool readback(void* dst) = 0;
     virtual void* getDeviceObject() = 0;
 };
 using IRenderTargetPtr = ref_ptr<IRenderTarget>;
@@ -241,6 +241,8 @@ class IScene : public IEntity
 {
 public:
     virtual void setEnabled(bool v) = 0;
+    virtual void setBackgroundColor(float3 v) = 0;
+
     virtual void setRenderTarget(IRenderTarget* v) = 0;
     virtual void setCamera(ICamera* v) = 0;
     virtual void addLight(ILight* v) = 0;

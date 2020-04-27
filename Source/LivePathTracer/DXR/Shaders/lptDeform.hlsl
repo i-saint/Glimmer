@@ -1,6 +1,6 @@
 #define kThreadBlockSize 4
 
-enum DEFORM_FLAG
+enum DeformFlag
 {
     DF_APPLY_BLENDSHAPE = 1,
     DF_APPLY_SKINNING = 2,
@@ -30,7 +30,7 @@ struct BoneWeight
 
 struct MeshInfo
 {
-    uint deform_flags; // combination of DEFORM_FLAG
+    uint deform_flags; // combination of DeformFlag
     uint vertex_stride; // in element (e.g. 6 if position + normal)
     uint2 pad;
 };

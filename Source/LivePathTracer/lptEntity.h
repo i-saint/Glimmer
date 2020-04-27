@@ -58,14 +58,15 @@ enum class DirtyFlag : uint32_t
     Tangents    = 0x00000080,
     UV          = 0x00000100,
 
-    Camera      = 0x01000000,
-    Light       = 0x02000000,
-    RenderTarget= 0x04000000,
-    Texture     = 0x08000000,
-    TextureData = 0x10000000,
-    Material    = 0x20000000,
-    Mesh        = 0x40000000,
-    Instance    = 0x80000000,
+    Camera      = 0x00010000,
+    Light       = 0x00020000,
+    RenderTarget= 0x00040000,
+    Texture     = 0x00080000,
+    TextureData = 0x00100000,
+    Material    = 0x00200000,
+    Mesh        = 0x00400000,
+    Instance    = 0x00800000,
+    Scene       = 0x01000000,
 
     Shape = Indices | Points,
     Vertices = Points | Normals | Tangents | UV,
@@ -438,6 +439,8 @@ class Scene : public EntityBase<IScene>
 {
 public:
     void setEnabled(bool v) override;
+    void setBackgroundColor(float3 v) override;
+
     void setRenderTarget(IRenderTarget* v) override;
     void setCamera(ICamera* v) override;
     void addLight(ILight* v) override;

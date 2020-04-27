@@ -308,6 +308,13 @@ bool MeshInstance::hasFlag(InstanceFlag v) const
 void Scene::setEnabled(bool v)
 {
     m_enabled = v;
+    markDirty(DirtyFlag::Scene);
+}
+
+void Scene::setBackgroundColor(float3 v)
+{
+    m_data.bg_color = v;
+    markDirty(DirtyFlag::Scene);
 }
 
 void Scene::setRenderTarget(IRenderTarget* v)
