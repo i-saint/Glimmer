@@ -27,6 +27,22 @@ void* RenderTargetDXR::getDeviceObject()
     return m_frame_buffer;
 }
 
+void RenderTargetDXR::updateResources()
+{
+    ContextDXR* ctx = m_context;
+    if (!m_frame_buffer) {
+        m_frame_buffer = ctx->createTexture(m_width, m_height, GetDXGIFormat(m_format));
+        m_accum_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
+        lptSetName(m_frame_buffer, m_name + " Frame Buffer");
+        lptSetName(m_accum_buffer, m_name + " Accum Buffer");
+    }
+    if (m_readback_enabled && !m_buf_readback) {
+        m_buf_readback = ctx->createTextureReadbackBuffer(m_width, m_height, GetDXGIFormat(m_format));
+        lptSetName(m_buf_readback, m_name + " Readback Buffer");
+    }
+}
+
+
 TextureDXR::TextureDXR(TextureFormat format, int width, int height)
     : super(format, width, height)
 {
@@ -37,6 +53,90 @@ void* TextureDXR::getDeviceObject()
     return m_texture;
 }
 
+void TextureDXR::updateResources()
+{
+    ContextDXR* ctx = m_context;
+    if (!m_texture) {
+        auto format = GetDXGIFormat(m_format);
+        m_texture = ctx->createTexture(m_width, m_height, format);
+        m_buf_upload = ctx->createTextureUploadBuffer(m_width, m_height, format);
+        lptSetName(m_texture, m_name + " Texture");
+        lptSetName(m_buf_upload, m_name + " Upload Buffer");
+
+        m_srv = ctx->m_srv_textures + size_t(ctx->m_desc_alloc.getStride() * m_id);
+        ctx->createTextureSRV(m_srv, m_texture);
+    }
+    if (isDirty(DirtyFlag::TextureData)) {
+        ctx->uploadTexture(m_texture, m_buf_upload, m_data.cdata(), m_width, m_height, GetDXGIFormat(m_format));
+        ctx->addResourceBarrier(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+    }
+}
+
+void MeshDXR::updateResources()
+{
+    if (m_points.empty() || m_indices.empty())
+        return;
+
+    ContextDXR* ctx = m_context;
+    auto& cl_blas = ctx->m_cl;
+
+    // update index buffer
+    if (isDirty(DirtyFlag::Indices)) {
+        bool allocated = ctx->createBuffer(m_buf_indices, m_buf_indices_staging, m_indices.cdata(), m_indices.size() * sizeof(int));
+        if (allocated) {
+            lptSetName(m_buf_indices, m_name + " Index Buffer");
+        }
+    }
+
+    // update vertex buffer
+    if (isDirty(DirtyFlag::Vertices)) {
+        bool allocated = ctx->createBuffer(m_buf_vertices, m_buf_vertices_staging, m_points.size() * sizeof(vertex_t), [this](vertex_t* dst) {
+            auto* points = m_points.cdata();
+            auto* normals = m_normals.cdata();
+            auto* tangents = m_tangents.cdata();
+            auto* uv = m_uv.cdata();
+            vertex_t tmp{};
+            size_t n = m_points.size();
+            for (size_t vi = 0; vi < n; ++vi) {
+                tmp.point = *points++;
+                tmp.normal = *normals++;
+                tmp.tangent = *tangents++;
+                tmp.uv = *uv++;
+                *dst++ = tmp;
+            }
+        });
+
+        if (allocated) {
+            lptSetName(m_buf_vertices, m_name + " Vertex Buffer");
+            m_srv_vertices = ctx->m_srv_vertices + size_t(ctx->m_desc_alloc.getStride() * m_id);
+            ctx->createBufferSRV(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
+        }
+    }
+
+    // update face buffer
+    if (isDirty(DirtyFlag::Shape)) {
+        bool allocated = ctx->createBuffer(m_buf_faces, m_buf_faces_staging, m_face_normals.size() * sizeof(face_t), [this](face_t* dst) {
+            auto* indices = m_indices.cdata();
+            auto* normals = m_face_normals.cdata();
+            face_t tmp{};
+            size_t n = m_face_normals.size();
+            for (size_t fi = 0; fi < n; ++fi) {
+                for (int i = 0; i < 3; ++i)
+                    tmp.indices[i] = indices[i];
+                indices += 3;
+                tmp.normal = *normals++;
+                *dst++ = tmp;
+            }
+        });
+
+        if (allocated) {
+            lptSetName(m_buf_faces, m_name + " Face Buffer");
+            m_srv_faces = ctx->m_srv_faces + size_t(ctx->m_desc_alloc.getStride() * m_id);
+            ctx->createBufferSRV(m_srv_faces, m_buf_faces, sizeof(face_t));
+        }
+    }
+}
+
 void MeshDXR::updateBLAS()
 {
     bool needs_update_blas = m_buf_vertices && m_buf_indices && (!m_blas || isDirty(DirtyFlag::Shape));
@@ -44,7 +144,6 @@ void MeshDXR::updateBLAS()
         return;
 
     ContextDXR* ctx = m_context;
-    auto& device = ctx->m_device;
     auto& cl_blas = ctx->m_cl;
 
     // BLAS for non-deformable meshes
@@ -81,7 +180,7 @@ void MeshDXR::updateBLAS()
 
     if (!m_blas || isDirty(DirtyFlag::Indices)) {
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
-        device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+        ctx->m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
         m_blas_scratch = ctx->createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
         m_blas = ctx->createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
@@ -119,7 +218,6 @@ void MeshInstanceDXR::updateResources()
 void MeshInstanceDXR::updateBLAS()
 {
     ContextDXR* ctx = m_context;
-    auto& device = ctx->m_device;
     auto& cl_blas = ctx->m_cl;
 
     auto& mesh = dxr_t(*m_mesh);
@@ -156,7 +254,7 @@ void MeshInstanceDXR::updateBLAS()
 
             if (!m_blas_deformed) {
                 D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
-                device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+                ctx->m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
                 m_blas_scratch = ctx->createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
                 m_blas_deformed = ctx->createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
@@ -194,6 +292,41 @@ void MeshInstanceDXR::clearBLAS()
 
 
 
+void SceneDXR::updateResources()
+{
+    ContextDXR* ctx = m_context;
+
+    // desc heap
+    if (!m_uav_frame_buffer) {
+        auto& desc_alloc = ctx->m_desc_alloc;
+        m_uav_frame_buffer  = desc_alloc.allocate();
+        m_uav_accum_buffer  = desc_alloc.allocate();
+        m_srv_tlas          = desc_alloc.allocate();
+        m_srv_prev_buffer   = desc_alloc.allocate();
+        m_cbv_scene         = desc_alloc.allocate();
+        m_srv_tmp           = desc_alloc.allocate();
+    }
+
+    // scene constant buffer
+    // size of constant buffer must be multiple of 256
+    int cb_size = align_to(256, sizeof(SceneData));
+    bool allocated = ctx->createBuffer(m_buf_scene, m_buf_scene_staging, cb_size, [this](SceneData* mapped) {
+        *mapped = m_data;
+    });
+    if (allocated) {
+        lptSetName(m_buf_scene, m_name + " Scene Buffer");
+        ctx->createCBV(m_cbv_scene, m_buf_scene, cb_size);
+    }
+
+    if (isDirty(DirtyFlag::RenderTarget)) {
+        if (m_render_target) {
+            auto& rt = dxr_t(*m_render_target);
+            ctx->createTextureUAV(m_uav_frame_buffer, rt.m_frame_buffer);
+            ctx->createTextureUAV(m_uav_accum_buffer, rt.m_accum_buffer);
+        }
+    }
+}
+
 void SceneDXR::updateTLAS()
 {
     if (!m_enabled)
@@ -211,7 +344,6 @@ void SceneDXR::updateTLAS()
 
 
     ContextDXR* ctx = m_context;
-    auto& device = ctx->m_device;
     auto& cl_tlas = ctx->m_cl;
 
     UINT instance_count = (UINT)m_instances.size();
@@ -226,7 +358,7 @@ void SceneDXR::updateTLAS()
     ReuseOrExpandBuffer(m_tlas_instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, ctx](size_t size) {
         m_tlas_instance_desc = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
         lptSetName(m_tlas_instance_desc, m_name + " TLAS Instance Desk");
-        });
+    });
 
     // update instance desc
     Map(m_tlas_instance_desc, [&](D3D12_RAYTRACING_INSTANCE_DESC* instance_descs) {
@@ -244,14 +376,14 @@ void SceneDXR::updateTLAS()
             desc.AccelerationStructure = blas->GetGPUVirtualAddress();
             instance_descs[i] = desc;
         }
-        });
+    });
     inputs.NumDescs = instance_count;
     inputs.InstanceDescs = m_tlas_instance_desc->GetGPUVirtualAddress();
 
     // create TLAS
     {
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
-        device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+        ctx->m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
         // scratch buffer
         ReuseOrExpandBuffer(m_tlas_scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, ctx](size_t size) {
@@ -270,7 +402,7 @@ void SceneDXR::updateTLAS()
             srv_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
             srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srv_desc.RaytracingAccelerationStructure.Location = m_tlas->GetGPUVirtualAddress();
-            device->CreateShaderResourceView(nullptr, &srv_desc, m_srv_tlas.hcpu);
+            ctx->m_device->CreateShaderResourceView(nullptr, &srv_desc, m_srv_tlas.hcpu);
         }
 
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};

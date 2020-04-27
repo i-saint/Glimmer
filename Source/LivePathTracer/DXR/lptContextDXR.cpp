@@ -297,15 +297,20 @@ bool ContextDXR::initializeDevice()
 
     // root signature
     {
-        // scene data
+        // frame buffer
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+        };
+
+        // scene data
+        D3D12_DESCRIPTOR_RANGE ranges1[] = {
+            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         // global data
-        D3D12_DESCRIPTOR_RANGE ranges1[] = {
+        D3D12_DESCRIPTOR_RANGE ranges2[] = {
             // instance / mesh / material info
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // vertex buffers
@@ -316,7 +321,7 @@ bool ContextDXR::initializeDevice()
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxTextureCount, 0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
-        D3D12_ROOT_PARAMETER params[2]{};
+        D3D12_ROOT_PARAMETER params[3]{};
         auto append = [&params](const int i, auto& range) {
             params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[i].DescriptorTable.NumDescriptorRanges = _countof(range);
@@ -325,6 +330,7 @@ bool ContextDXR::initializeDevice()
 #define Append(I) static_assert(I < _countof(params), "param size exceeded"); append(I, ranges##I)
         Append(0);
         Append(1);
+        Append(2);
 #undef Append
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
@@ -444,7 +450,7 @@ void ContextDXR::updateEntities()
             mesh.updateFaceNormals();
             mesh.padVertexBuffers();
         }
-        });
+    });
 
     each_ref(m_scenes, [](auto& scene) {
         if (scene.m_camera)
@@ -454,7 +460,7 @@ void ContextDXR::updateEntities()
         scene.m_data.light_count = nlights;
         for (uint32_t li = 0; li < nlights; ++li)
             scene.m_data.lights[li] = scene.m_lights[li]->m_data;
-        });
+    });
 }
 
 void ContextDXR::updateResources()
@@ -529,35 +535,13 @@ void ContextDXR::updateResources()
 
     // render targets
     each_ref(m_render_targets, [&](auto& rt) {
-        if (!rt.m_frame_buffer) {
-            rt.m_frame_buffer = createTexture(rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
-            rt.m_accum_buffer = createTexture(rt.m_width, rt.m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
-            lptSetName(rt.m_frame_buffer, rt.m_name + " Frame Buffer");
-            lptSetName(rt.m_accum_buffer, rt.m_name + " Accum Buffer");
-        }
-        if (rt.m_readback_enabled && !rt.m_buf_readback) {
-            rt.m_buf_readback = createTextureReadbackBuffer(rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
-            lptSetName(rt.m_buf_readback, rt.m_name + " Readback Buffer");
-        }
-        });
+        rt.updateResources();
+    });
 
     // textures
     each_ref(m_textures, [&](auto& tex) {
-        if (!tex.m_texture) {
-            auto format = GetDXGIFormat(tex.m_format);
-            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
-            lptSetName(tex.m_texture, tex.m_name + " Texture");
-            lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
-
-            tex.m_srv = m_srv_textures + size_t(m_desc_alloc.getStride() * tex.m_id);
-            createTextureSRV(tex.m_srv, tex.m_texture);
-        }
-        if (tex.isDirty(DirtyFlag::TextureData)) {
-            uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
-            addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-        }
-        });
+        tex.updateResources();
+    });
 
 
     // materials
@@ -585,77 +569,12 @@ void ContextDXR::updateResources()
     // mesh
     {
         bool dirty_meshes = false;
-
-        for (auto& pmesh : m_meshes) {
-            auto& mesh = *pmesh;
-            if (mesh.m_points.empty() || mesh.m_indices.empty())
-                continue;
-
+        each_ref(m_meshes, [&](auto& mesh) {
+            mesh.updateResources();
             if (mesh.isDirty())
                 dirty_meshes = true;
+        });
 
-            bool ib_allocated = false;
-            bool vb_allocated = false;
-            bool fb_allocated = false;
-
-            // update index buffer
-            if (mesh.isDirty(DirtyFlag::Indices)) {
-                ib_allocated = createBuffer(mesh.m_buf_indices, mesh.m_buf_indices_staging, mesh.m_indices.cdata(), mesh.m_indices.size() * sizeof(int));
-                if (ib_allocated) {
-                    lptSetName(mesh.m_buf_indices, mesh.m_name + " Index Buffer");
-                }
-            }
-
-            // update vertex buffer
-            if (mesh.isDirty(DirtyFlag::Vertices)) {
-                vb_allocated = createBuffer(mesh.m_buf_vertices, mesh.m_buf_vertices_staging, mesh.m_points.size() * sizeof(vertex_t), [&mesh](vertex_t* dst) {
-                    auto* points = mesh.m_points.cdata();
-                    auto* normals = mesh.m_normals.cdata();
-                    auto* tangents = mesh.m_tangents.cdata();
-                    auto* uv = mesh.m_uv.cdata();
-                    vertex_t tmp{};
-                    size_t n = mesh.m_points.size();
-                    for (size_t vi = 0; vi < n; ++vi) {
-                        tmp.point = *points++;
-                        tmp.normal = *normals++;
-                        tmp.tangent = *tangents++;
-                        tmp.uv = *uv++;
-                        *dst++ = tmp;
-                    }
-                });
-
-                if (vb_allocated) {
-                    lptSetName(mesh.m_buf_vertices, mesh.m_name + " Vertex Buffer");
-                    mesh.m_srv_vertices = m_srv_vertices + size_t(m_desc_alloc.getStride() * mesh.m_id);
-                    createBufferSRV(mesh.m_srv_vertices, mesh.m_buf_vertices, sizeof(vertex_t));
-                }
-            }
-
-            // update face buffer
-            if (mesh.isDirty(DirtyFlag::Shape)) {
-                fb_allocated = createBuffer(mesh.m_buf_faces, mesh.m_buf_faces_staging, mesh.m_face_normals.size() * sizeof(face_t), [&mesh](face_t* dst) {
-                    auto* indices = mesh.m_indices.cdata();
-                    auto* normals = mesh.m_face_normals.cdata();
-                    face_t tmp{};
-                    size_t n = mesh.m_face_normals.size();
-                    for (size_t fi = 0; fi < n; ++fi) {
-                        for (int i = 0; i < 3; ++i)
-                            tmp.indices[i] = indices[i];
-                        indices += 3;
-                        tmp.normal = *normals++;
-                        *dst++ = tmp;
-                    }
-                });
-
-                if (fb_allocated) {
-                    lptSetName(mesh.m_buf_faces, mesh.m_name + " Face Buffer");
-                    mesh.m_srv_faces = m_srv_faces + size_t(m_desc_alloc.getStride() * mesh.m_id);
-                    createBufferSRV(mesh.m_srv_faces, mesh.m_buf_faces, sizeof(face_t));
-                }
-            }
-        }
-
-        // create mesh data buffer
         if (dirty_meshes) {
             bool allocated = createBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
                 for (auto& pmesh : m_meshes)
@@ -670,14 +589,14 @@ void ContextDXR::updateResources()
 
     // instance
     {
-        bool dirty = false;
-        for (auto& pinst : m_mesh_instances) {
-            if (pinst->isDirty()) {
-                dirty = true;
-                break;
-            }
-        }
-        if (dirty) {
+        bool dirty_instances = false;
+        each_ref(m_mesh_instances, [&](auto& inst) {
+            inst.updateResources();
+            if (inst.isDirty())
+                dirty_instances = true;
+        });
+
+        if (dirty_instances) {
             bool allocated = createBuffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](InstanceData* dst) {
                 for (auto& pinst : m_mesh_instances)
                     dst[pinst->m_id] = pinst->m_data;
@@ -691,35 +610,8 @@ void ContextDXR::updateResources()
 
     // scene
     each_ref(m_scenes, [&](auto& scene) {
-        // desc heap
-        if (!scene.m_uav_frame_buffer) {
-            scene.m_uav_frame_buffer = m_desc_alloc.allocate();
-            scene.m_uav_accum_buffer = m_desc_alloc.allocate();
-            scene.m_srv_tlas         = m_desc_alloc.allocate();
-            scene.m_srv_prev_buffer  = m_desc_alloc.allocate();
-            scene.m_cbv_scene        = m_desc_alloc.allocate();
-            scene.m_srv_tmp          = m_desc_alloc.allocate();
-        }
-
-        // scene constant buffer
-        // size of constant buffer must be multiple of 256
-        int cb_size = align_to(256, sizeof(SceneData));
-        bool allocated = createBuffer(scene.m_buf_scene, scene.m_buf_scene_staging, cb_size, [&scene](SceneData* mapped) {
-            *mapped = scene.m_data;
-        });
-        if (allocated) {
-            lptSetName(scene.m_buf_scene, scene.m_name + " Scene Buffer");
-            createCBV(scene.m_cbv_scene, scene.m_buf_scene, cb_size);
-        }
-
-        if (scene.isDirty(DirtyFlag::RenderTarget)) {
-            if (scene.m_render_target) {
-                auto& rt = dxr_t(*scene.m_render_target);
-                createTextureUAV(scene.m_uav_frame_buffer, rt.m_frame_buffer);
-                createTextureUAV(scene.m_uav_accum_buffer, rt.m_accum_buffer);
-            }
-        }
-        });
+        scene.updateResources();
+    });
 
     m_fv_upload = submit();
 }
@@ -785,7 +677,7 @@ void ContextDXR::dispatchRays()
     cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
 
     // global descriptors
-    cl_rays->SetComputeRootDescriptorTable(1, m_srv_instances.hgpu);
+    cl_rays->SetComputeRootDescriptorTable(2, m_srv_instances.hgpu);
 
     auto do_dispatch = [&](ID3D12Resource* rt, RayGenType raygen_type) {
         addResourceBarrier(rt, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -826,8 +718,9 @@ void ContextDXR::dispatchRays()
 
         auto& rt = dxr_t(*scene.m_render_target);
         cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_frame_buffer.hgpu);
+        cl_rays->SetComputeRootDescriptorTable(1, scene.m_uav_accum_buffer.hgpu);
         do_dispatch(rt.m_frame_buffer, RayGenType::Default);
-        });
+    });
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
 
 
@@ -836,7 +729,7 @@ void ContextDXR::dispatchRays()
     each_ref(m_render_targets, [&](auto& rt) {
         if (rt.m_readback_enabled)
             copyTexture(rt.m_buf_readback, rt.m_frame_buffer, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
-        });
+    });
     lptTimestampQuery(m_timestamp, cl_rays, "Readback end");
 
     lptTimestampResolve(m_timestamp, cl_rays);

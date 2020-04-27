@@ -55,6 +55,8 @@ public:
     bool readback(void* dst) override;
     void* getDeviceObject() override;
 
+    void updateResources();
+
 public:
     ID3D12ResourcePtr m_frame_buffer;
     ID3D12ResourcePtr m_accum_buffer;
@@ -70,6 +72,8 @@ friend class ContextDXR;
 public:
     TextureDXR(TextureFormat format, int width, int height);
     void* getDeviceObject() override;
+
+    void updateResources();
 
 public:
     ID3D12ResourcePtr m_texture;
@@ -95,6 +99,7 @@ class MeshDXR : public DXREntity<Mesh>
 using super = DXREntity<Mesh>;
 friend class ContextDXR;
 public:
+    void updateResources();
     void updateBLAS();
     void clearBLAS();
 
@@ -155,6 +160,7 @@ class SceneDXR : public DXREntity<Scene>
 using super = DXREntity<Scene>;
 friend class ContextDXR;
 public:
+    void updateResources();
     void updateTLAS();
 
 public:
