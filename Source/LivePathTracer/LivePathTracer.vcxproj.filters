@@ -60,6 +60,12 @@
       <Filter>DXR</Filter>
     </ClInclude>
     <ClInclude Include="lptWindow.h" />
+    <ClInclude Include="DXR\Shaders\lptCommon.h">
+      <Filter>DXR\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="DXR\Shaders\lptRandom.h">
+      <Filter>DXR\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\lptDeform.hlsl">

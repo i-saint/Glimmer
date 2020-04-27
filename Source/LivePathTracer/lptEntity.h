@@ -152,7 +152,7 @@ struct InstanceData
 struct SceneData
 {
     uint32_t render_flags = 0; // combination of RenderFlag
-    uint32_t sample_count = 32;
+    uint32_t sample_count = 16;
     uint32_t light_count = 0;
     uint32_t pad1{};
     float3 bg_color = {0.1f, 0.1f, 0.1f};
