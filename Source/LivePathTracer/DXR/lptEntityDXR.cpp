@@ -19,7 +19,7 @@ void RenderTargetDXR::readback(void* dst)
 
 void* RenderTargetDXR::getDeviceObject()
 {
-    return m_texture;
+    return m_frame_buffer;
 }
 
 TextureDXR::TextureDXR(TextureFormat format, int width, int height)

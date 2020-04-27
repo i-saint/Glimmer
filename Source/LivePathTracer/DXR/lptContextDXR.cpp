@@ -300,7 +300,7 @@ bool ContextDXR::initializeDevice()
     {
         // scene data
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
@@ -598,55 +598,49 @@ void ContextDXR::updateResources()
     }
 
     // render targets
-    for (auto& ptex : m_render_targets) {
-        auto& tex = *ptex;
-
-        if (!tex.m_texture) {
-            tex.m_texture = createTexture(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
-            lptSetName(tex.m_texture, tex.m_name + " Render Target");
+    each_ref(m_render_targets, [&](auto& rt) {
+        if (!rt.m_frame_buffer) {
+            rt.m_frame_buffer = createTexture(rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
+            rt.m_accum_buffer = createTexture(rt.m_width, rt.m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
+            lptSetName(rt.m_frame_buffer, rt.m_name + " Frame Buffer");
+            lptSetName(rt.m_accum_buffer, rt.m_name + " Accum Buffer");
         }
-        if (tex.m_readback_enabled && !tex.m_buf_readback) {
-            tex.m_buf_readback = createTextureReadbackBuffer(tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
-            lptSetName(tex.m_buf_readback, tex.m_name + " Readback Buffer");
+        if (rt.m_readback_enabled && !rt.m_buf_readback) {
+            rt.m_buf_readback = createTextureReadbackBuffer(rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
+            lptSetName(rt.m_buf_readback, rt.m_name + " Readback Buffer");
         }
-    }
+        });
 
     // textures
-    {
-        auto srv_tex = m_srv_textures;
-        auto desc_strice = m_desc_alloc.getStride();
-        for (auto& ptex : m_textures) {
-            auto& tex = *ptex;
-
-            bool allocated = false;
+    each_ref(m_textures, [&](auto& tex) {
+        if (!tex.m_texture) {
             auto format = GetDXGIFormat(tex.m_format);
-            if (!tex.m_texture) {
-                tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
-                tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
-                lptSetName(tex.m_texture, tex.m_name + " Texture");
-                lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
+            tex.m_texture = createTexture(tex.m_width, tex.m_height, format);
+            tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
+            lptSetName(tex.m_texture, tex.m_name + " Texture");
+            lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
 
-                tex.m_srv = srv_tex + size_t(desc_strice * tex.m_id);
-                create_texture_srv(tex.m_srv, tex.m_texture);
-            }
-            if (tex.isDirty(DirtyFlag::TextureData)) {
-                uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
-                addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
-            }
+            tex.m_srv = m_srv_textures + size_t(m_desc_alloc.getStride() * tex.m_id);
+            create_texture_srv(tex.m_srv, tex.m_texture);
         }
-    }
+        if (tex.isDirty(DirtyFlag::TextureData)) {
+            uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, GetDXGIFormat(tex.m_format));
+            addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
+        }
+        });
 
 
     // materials
     {
-        bool dirty = false;
+        bool dirty_materials = false;
         for (auto& pmat : m_materials) {
             if (pmat->isDirty()) {
-                dirty = true;
+                dirty_materials = true;
                 break;
             }
         }
-        if (dirty) {
+
+        if (dirty_materials) {
             bool allocated = write_buffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.capacity(), [this](void* dst_) {
                 auto* dst = (MaterialData*)dst_;
                 for (auto& pmat : m_materials)
@@ -662,9 +656,6 @@ void ContextDXR::updateResources()
     // mesh
     {
         bool dirty_meshes = false;
-        auto srv_vertices = m_srv_vertices;
-        auto srv_faces = m_srv_faces ;
-        auto desc_strice = m_desc_alloc.getStride();
 
         for (auto& pmesh : m_meshes) {
             auto& mesh = *pmesh;
@@ -706,7 +697,7 @@ void ContextDXR::updateResources()
                     });
                 if (vb_allocated) {
                     lptSetName(mesh.m_buf_vertices, mesh.m_name + " Vertex Buffer");
-                    mesh.m_srv_vertices = srv_vertices + size_t(desc_strice * mesh.m_id);
+                    mesh.m_srv_vertices = m_srv_vertices + size_t(m_desc_alloc.getStride() * mesh.m_id);
                     create_buffer_srv(mesh.m_srv_vertices, mesh.m_buf_vertices, sizeof(vertex_t));
                 }
             }
@@ -730,7 +721,7 @@ void ContextDXR::updateResources()
 
                 if (fb_allocated) {
                     lptSetName(mesh.m_buf_faces, mesh.m_name + " Face Buffer");
-                    mesh.m_srv_faces = srv_faces + size_t(desc_strice * mesh.m_id);
+                    mesh.m_srv_faces = m_srv_faces + size_t(m_desc_alloc.getStride() * mesh.m_id);
                     create_buffer_srv(mesh.m_srv_faces, mesh.m_buf_faces, sizeof(face_t));
                 }
             }
@@ -775,11 +766,13 @@ void ContextDXR::updateResources()
     // scene
     each_ref(m_scenes, [&](auto& scene) {
         // desc heap
-        if (!scene.m_uav_render_target) {
-            scene.m_uav_render_target = m_desc_alloc.allocate();
-            scene.m_srv_tlas = m_desc_alloc.allocate();
-            scene.m_srv_prev = m_desc_alloc.allocate();
-            scene.m_cbv_scene = m_desc_alloc.allocate();
+        if (!scene.m_uav_frame_buffer) {
+            scene.m_uav_frame_buffer = m_desc_alloc.allocate();
+            scene.m_uav_accum_buffer = m_desc_alloc.allocate();
+            scene.m_srv_tlas         = m_desc_alloc.allocate();
+            scene.m_srv_prev_buffer  = m_desc_alloc.allocate();
+            scene.m_cbv_scene        = m_desc_alloc.allocate();
+            scene.m_srv_tmp          = m_desc_alloc.allocate();
         }
 
         // scene constant buffer
@@ -796,7 +789,8 @@ void ContextDXR::updateResources()
         if (scene.isDirty(DirtyFlag::RenderTarget)) {
             if (scene.m_render_target) {
                 auto& rt = dxr_t(*scene.m_render_target);
-                create_texture_uav(scene.m_uav_render_target, rt.m_texture);
+                create_texture_uav(scene.m_uav_frame_buffer, rt.m_frame_buffer);
+                create_texture_uav(scene.m_uav_accum_buffer, rt.m_accum_buffer);
             }
         }
         });
@@ -1113,8 +1107,8 @@ void ContextDXR::dispatchRays()
             return;
 
         auto& rt = dxr_t(*scene.m_render_target);
-        cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
-        do_dispatch(rt.m_texture, RayGenType::Default);
+        cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_frame_buffer.hgpu);
+        do_dispatch(rt.m_frame_buffer, RayGenType::Default);
         });
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
 
@@ -1123,7 +1117,7 @@ void ContextDXR::dispatchRays()
     lptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
     each_ref(m_render_targets, [&](auto& rt) {
         if (rt.m_readback_enabled)
-            copyTexture(rt.m_buf_readback, rt.m_texture, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
+            copyTexture(rt.m_buf_readback, rt.m_frame_buffer, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
         });
     lptTimestampQuery(m_timestamp, cl_rays, "Readback end");
 
@@ -1146,18 +1140,14 @@ void ContextDXR::finish()
     m_clm_direct->reset();
 
     // clear dirty flags
-    auto clear_dirty = [](auto& container) {
-        for (auto& obj : container)
-            obj->clearDirty();
-    };
-    clear_dirty(m_scenes);
-    clear_dirty(m_mesh_instances);
-    clear_dirty(m_meshes);
-    clear_dirty(m_materials);
-    clear_dirty(m_textures);
-    clear_dirty(m_render_targets);
-    clear_dirty(m_cameras);
-    clear_dirty(m_lights);
+    m_scenes.clearDirty();
+    m_mesh_instances.clearDirty();
+    m_meshes.clearDirty();
+    m_materials.clearDirty();
+    m_textures.clearDirty();
+    m_render_targets.clearDirty();
+    m_cameras.clearDirty();
+    m_lights.clearDirty();
 }
 
 void* ContextDXR::getDevice()

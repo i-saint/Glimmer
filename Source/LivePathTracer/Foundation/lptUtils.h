@@ -162,6 +162,12 @@ public:
             });
     }
 
+    void clearDirty()
+    {
+        for (auto p : m_active)
+            p->clearDirty();
+    }
+
 private:
     std::vector<pointer> m_entities;
     std::vector<T*> m_active;

@@ -1,6 +1,6 @@
 #define kMaxLights 32
 
-enum LIGHT_TYPE
+enum LightType
 {
     LT_DIRECTIONAL,
     LT_SPOT,
@@ -8,12 +8,18 @@ enum LIGHT_TYPE
     LT_REVERSE_POINT,
 };
 
-enum MATERIAL_TYPE
+enum MaterialType
 {
     MT_DEFAULT,
 };
 
-enum RENDER_FLAG
+enum RayType
+{
+    RT_RADIANCE,
+    RT_OCCLUSION,
+};
+
+enum RenderFlag
 {
     RF_CULL_BACK_FACES      = 0x00000001,
     RF_FLIP_CASTER_FACES    = 0x00000002,
@@ -21,27 +27,11 @@ enum RENDER_FLAG
     RF_KEEP_SELF_DROP_SHADOW= 0x00000008,
 };
 
-enum INSTANCE_FLAG
+enum InstanceFlag
 {
     IF_RECEIVE_SHADOWS  = 0x01,
     IF_SHADOWS_ONLY     = 0x02,
     IF_CAST_SHADOWS     = 0x04,
-};
-
-struct vertex_t
-{
-    float3 point_;
-    float3 normal;
-    float3 tangent;
-    float2 uv;
-    float pad;
-};
-
-struct face_t
-{
-    int3 indices;
-    float3 normal;
-    float2 pad;
 };
 
 struct CameraData
@@ -58,7 +48,7 @@ struct CameraData
 
 struct LightData
 {
-    uint type; // LIGHT_TYPE
+    uint type; // LightType
     float3 position;
     float3 direction;
     float range;
@@ -68,7 +58,7 @@ struct LightData
 
 struct MaterialData
 {
-    uint type; // MATERIAL_TYPE
+    uint type; // MaterialType
     float3 diffuse;
     float3 emissive;
     float roughness;
@@ -109,10 +99,27 @@ struct SceneData
     LightData lights[kMaxLights];
 };
 
+struct vertex_t
+{
+    float3 point_;
+    float3 normal;
+    float3 tangent;
+    float2 uv;
+    float pad;
+};
 
-RWTexture2D<float4>             g_output        : register(u0, space0);
+struct face_t
+{
+    int3 indices;
+    float3 normal;
+    float2 pad;
+};
+
+
+RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
+RWTexture2D<float4>             g_accum_buffer  : register(u1, space0);
 RaytracingAccelerationStructure g_tlas          : register(t0, space0);
-Texture2D<float4>               g_prev_result   : register(t1, space0);
+Texture2D<float4>               g_prev_buffer   : register(t1, space0);
 ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
@@ -210,39 +217,39 @@ Payload ShootRadianceRay(float2 offset = 0.0f)
     if (render_flags & RF_CULL_BACK_FACES)
         ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
-    TraceRay(g_tlas, ray_flags, 0xff, 0, 0, 0, ray, payload);
+    TraceRay(g_tlas, ray_flags, 0xff, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
     return payload;
 }
 
 float SampleDifferentialF(int2 idx, out float center, out float diff)
 {
     int2 dim;
-    g_prev_result.GetDimensions(dim.x, dim.y);
+    g_prev_buffer.GetDimensions(dim.x, dim.y);
 
-    center = g_prev_result[idx].x;
+    center = g_prev_buffer[idx].x;
     diff = 0;
 
     // 4 samples for now. an option for more samples may be needed. it can make an unignorable difference (both quality and speed).
-    diff += abs(g_prev_result[clamp(idx + int2(-1, 0), int2(0, 0), dim - 1)].x - center);
-    diff += abs(g_prev_result[clamp(idx + int2( 1, 0), int2(0, 0), dim - 1)].x - center);
-    diff += abs(g_prev_result[clamp(idx + int2( 0,-1), int2(0, 0), dim - 1)].x - center);
-    diff += abs(g_prev_result[clamp(idx + int2( 0, 1), int2(0, 0), dim - 1)].x - center);
+    diff += abs(g_prev_buffer[clamp(idx + int2(-1, 0), int2(0, 0), dim - 1)].x - center);
+    diff += abs(g_prev_buffer[clamp(idx + int2( 1, 0), int2(0, 0), dim - 1)].x - center);
+    diff += abs(g_prev_buffer[clamp(idx + int2( 0,-1), int2(0, 0), dim - 1)].x - center);
+    diff += abs(g_prev_buffer[clamp(idx + int2( 0, 1), int2(0, 0), dim - 1)].x - center);
     return diff;
 }
 
 uint SampleDifferentialI(int2 idx, out uint center, out uint diff)
 {
     int2 dim;
-    g_prev_result.GetDimensions(dim.x, dim.y);
+    g_prev_buffer.GetDimensions(dim.x, dim.y);
 
-    center = asuint(g_prev_result[idx].x);
+    center = asuint(g_prev_buffer[idx].x);
     diff = 0;
 
     // 4 samples for now. an option for more samples may be needed. it can make an unignorable difference (both quality and speed).
-    diff += abs(asuint(g_prev_result[clamp(idx + int2(-1, 0), int2(0, 0), dim - 1)].x) - center);
-    diff += abs(asuint(g_prev_result[clamp(idx + int2( 1, 0), int2(0, 0), dim - 1)].x) - center);
-    diff += abs(asuint(g_prev_result[clamp(idx + int2( 0,-1), int2(0, 0), dim - 1)].x) - center);
-    diff += abs(asuint(g_prev_result[clamp(idx + int2( 0, 1), int2(0, 0), dim - 1)].x) - center);
+    diff += abs(asuint(g_prev_buffer[clamp(idx + int2(-1, 0), int2(0, 0), dim - 1)].x) - center);
+    diff += abs(asuint(g_prev_buffer[clamp(idx + int2( 1, 0), int2(0, 0), dim - 1)].x) - center);
+    diff += abs(asuint(g_prev_buffer[clamp(idx + int2( 0,-1), int2(0, 0), dim - 1)].x) - center);
+    diff += abs(asuint(g_prev_buffer[clamp(idx + int2( 0, 1), int2(0, 0), dim - 1)].x) - center);
     return diff;
 }
 
@@ -251,7 +258,7 @@ void RayGenDefault()
 {
     uint2 screen_idx = DispatchRaysIndex().xy;
     Payload payload = ShootRadianceRay();
-    g_output[screen_idx] = float4(payload.color, payload.t);
+    g_frame_buffer[screen_idx] = float4(payload.color, payload.t);
 }
 
 [shader("miss")]
@@ -262,7 +269,7 @@ void MissRadiance(inout Payload payload : SV_RayPayload)
 
 bool ShootOcclusionRay(uint flags, in RayDesc ray, inout Payload payload)
 {
-    TraceRay(g_tlas, flags, 0xff, 1, 0, 1, ray, payload);
+    TraceRay(g_tlas, flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     return payload.t >= 0.0f;
 }
 

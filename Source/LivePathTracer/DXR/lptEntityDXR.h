@@ -56,7 +56,8 @@ public:
     void* getDeviceObject() override;
 
 public:
-    ID3D12ResourcePtr m_texture;
+    ID3D12ResourcePtr m_frame_buffer;
+    ID3D12ResourcePtr m_accum_buffer;
     ID3D12ResourcePtr m_buf_readback;
 };
 lptDeclRefPtr(RenderTargetDXR);
@@ -155,10 +156,12 @@ public:
 
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
-    DescriptorHandleDXR m_uav_render_target;
+    DescriptorHandleDXR m_uav_frame_buffer;
+    DescriptorHandleDXR m_uav_accum_buffer;
     DescriptorHandleDXR m_srv_tlas;
-    DescriptorHandleDXR m_srv_prev;
+    DescriptorHandleDXR m_srv_prev_buffer;
     DescriptorHandleDXR m_cbv_scene;
+    DescriptorHandleDXR m_srv_tmp;
 
     ID3D12ResourcePtr m_tlas_instance_desc;
     ID3D12ResourcePtr m_tlas_scratch;
