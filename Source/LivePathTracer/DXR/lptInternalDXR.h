@@ -60,6 +60,7 @@ struct DescriptorHandleDXR
     operator bool() const;
     bool operator==(const DescriptorHandleDXR& v) const;
     bool operator!=(const DescriptorHandleDXR& v) const;
+    DescriptorHandleDXR operator+(size_t n) const;
     DescriptorHandleDXR& operator+=(size_t n);
 };
 

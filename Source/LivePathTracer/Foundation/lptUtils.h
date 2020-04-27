@@ -1,4 +1,5 @@
 #pragma once
+#include "lptSettings.h"
 #include "lptInterface.h"
 
 namespace lpt {
@@ -35,6 +36,13 @@ inline void each(Container& dst, const Body& body)
 {
     for (auto& v : dst)
         body(v);
+}
+
+template<class Container, class Body>
+inline void each_ref(Container& dst, const Body& body)
+{
+    for (auto& v : dst)
+        body(*v);
 }
 
 template<class Container, class Body>
@@ -90,5 +98,66 @@ const ref_ptr<T>& cast(const ref_ptr<U>& v)
 {
     return (const ref_ptr<T>&)v;
 }
+
+
+template<class T, class R> int GetID(ref_ptr<T, R>& p) { return p ? p->m_id : -1; }
+template<class T> int GetID(T* p) { return p ? p->m_id : -1; }
+
+template<class T>
+class EntityList
+{
+public:
+    using pointer = ref_ptr<T>;
+
+    size_t size() const { return m_active.size(); }
+    size_t capacity() const { return m_entities.size(); }
+    T* operator[](size_t i) { return m_active[i]; }
+    auto begin() { return m_active.begin(); }
+    auto end() { return m_active.end(); }
+
+    void clear()
+    {
+        m_entities.clear();
+        m_active.clear();
+        m_vacants.clear();
+    }
+
+    int insert(T* p)
+    {
+        int id;
+        if (!m_vacants.empty()) {
+            id = m_vacants.back();
+            m_vacants.pop_back();
+            m_entities[id] = p;
+        }
+        else {
+            id = (int)m_entities.size();
+            m_entities.push_back(p);
+        }
+        p->m_id = id;
+        m_active.push_back(p);
+        return id;
+    }
+
+    void eraseUnreferenced()
+    {
+        auto is_zero_ref = [](T* p) {
+            return p->getRef() <= 0 && p->getRefInternal() <= 1;
+        };
+        erase_if(m_active, is_zero_ref);
+
+        each_with_index(m_entities, [&](auto& p, int i) {
+            if (is_zero_ref(p)) {
+                p = nullptr;
+                m_vacants.push_back((int)i);
+            }
+            });
+    }
+
+private:
+    std::vector<pointer> m_entities;
+    std::vector<T*> m_active;
+    std::vector<int> m_vacants;
+};
 
 } // namespace lpt

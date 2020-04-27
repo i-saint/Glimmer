@@ -18,6 +18,13 @@ bool DescriptorHandleDXR::operator!=(const DescriptorHandleDXR& v) const
     return !(*this == v);
 }
 
+DescriptorHandleDXR DescriptorHandleDXR::operator+(size_t n) const
+{
+    auto ret = *this;
+    ret += n;
+    return ret;
+}
+
 DescriptorHandleDXR& DescriptorHandleDXR::operator+=(size_t n)
 {
     hcpu.ptr += n;

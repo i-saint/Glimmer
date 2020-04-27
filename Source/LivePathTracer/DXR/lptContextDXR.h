@@ -1,6 +1,7 @@
 #pragma once
 #ifdef _WIN32
 #include "lptEntityDXR.h"
+#include "Foundation/lptUtils.h"
 
 namespace lpt {
 
@@ -9,6 +10,7 @@ namespace lpt {
 #define lptDXRMaxMeshCount 2048
 #define lptDXRMaxTextureCount 2048
 #define lptDXRMaxShaderRecords 64
+
 
 class ContextDXR : public DXREntity<Context>
 {
@@ -66,14 +68,14 @@ public:
     void readbackTexture(void* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
 
 public:
-    std::vector<CameraDXRPtr> m_cameras;
-    std::vector<LightDXRPtr> m_lights;
-    std::vector<RenderTargetDXRPtr> m_render_targets;
-    std::vector<TextureDXRPtr> m_textures;
-    std::vector<MaterialDXRPtr> m_materials;
-    std::vector<MeshDXRPtr> m_meshes;
-    std::vector<MeshInstanceDXRPtr> m_mesh_instances;
-    std::vector<SceneDXRPtr> m_scenes;
+    EntityList<CameraDXR>       m_cameras;
+    EntityList<LightDXR>        m_lights;
+    EntityList<RenderTargetDXR> m_render_targets;
+    EntityList<TextureDXR>      m_textures;
+    EntityList<MaterialDXR>     m_materials;
+    EntityList<MeshDXR>         m_meshes;
+    EntityList<MeshInstanceDXR> m_mesh_instances;
+    EntityList<SceneDXR>        m_scenes;
 
 
     ID3D12Device5Ptr m_device;

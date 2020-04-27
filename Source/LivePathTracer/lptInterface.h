@@ -143,10 +143,10 @@ class IEntity
 {
 public:
     virtual ~IEntity() {}
+    virtual int getID()const = 0;
     virtual int addRef() = 0;
     virtual int release() = 0;
     virtual int getRef() const = 0;
-
     virtual void setName(const char* name) = 0;
     virtual const char* getName() const = 0;
 };

@@ -185,12 +185,14 @@ void Material::setEmissive(float3 v)
 void Material::setDiffuseTexture(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
+    m_data.diffuse_tex = GetID(m_tex_diffuse);
     markDirty(DirtyFlag::Material);
 }
 
 void Material::setEmissiveTexture(ITexture* v)
 {
     m_tex_emissive = base_t(v);
+    m_data.emissive_tex = GetID(m_tex_emissive);
     markDirty(DirtyFlag::Material);
 }
 
@@ -198,12 +200,15 @@ void Material::setEmissiveTexture(ITexture* v)
 void Mesh::setIndices(const int* v, size_t n)
 {
     m_indices.assign(v, v + n);
+    m_data.face_count = (uint32_t)m_indices.size() / 3;
+    m_data.index_count = (uint32_t)m_indices.size();
     markDirty(DirtyFlag::Indices);
 }
 
 void Mesh::setPoints(const float3* v, size_t n)
 {
     m_points.assign(v, v + n);
+    m_data.vertex_count = (uint32_t)m_points.size();
     markDirty(DirtyFlag::Points);
 }
 
@@ -268,12 +273,14 @@ void Mesh::updateFaceNormals()
 MeshInstance::MeshInstance(IMesh* v)
 {
     m_mesh = base_t(v);
+    m_data.mesh_index = GetID(m_mesh);
     markDirty(DirtyFlag::Mesh);
 }
 
 void MeshInstance::setMaterial(IMaterial* v)
 {
-    m_material = dynamic_cast<Material*>(v);
+    m_material = base_t(v);
+    m_data.material_index = GetID(m_material);
     markDirty(DirtyFlag::Material);
 }
 

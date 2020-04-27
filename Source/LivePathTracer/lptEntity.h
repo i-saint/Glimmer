@@ -1,7 +1,6 @@
 #pragma once
 #include "MeshUtils/MeshUtils.h"
-#include "lptSettings.h"
-#include "lptInterface.h"
+#include "Foundation/lptUtils.h"
 
 #define lptDeclRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
 #define lptMaxLights 32
@@ -122,8 +121,8 @@ struct MaterialData
     float3 emissive = float3::zero();
     float roughness = 0.5f;
     float opacity = 1.0f;
-    int diffuse_tex = 0;
-    int emissive_tex = 0;
+    int diffuse_tex = -1;
+    int emissive_tex = -1;
     float pad{};
 
     DefCompare(MaterialData);
@@ -141,8 +140,8 @@ struct InstanceData
 {
     float4x4 local_to_world = float4x4::identity();
     float4x4 world_to_local = float4x4::identity();
-    uint32_t mesh_index = 0;
-    uint32_t material_index = 0;
+    uint32_t mesh_index = -1;
+    uint32_t material_index = -1;
     uint32_t instance_flags = 0; // combination of InstanceFlags
     uint32_t layer_mask = 0;
 
@@ -197,6 +196,11 @@ template<class T>
 class RefCount : public T
 {
 public:
+    int getID() const override
+    {
+        return m_id;
+    }
+
     int addRef() override
     {
         return ++m_ref_external;
@@ -215,7 +219,7 @@ public:
 
     virtual void onRefCountZero()
     {
-        // deleting entities is responsible for Context.
+        // not delete by default. deleting entities is responsible for Context.
         // (ContextDXR::frameBegin() etc.)
     }
 
@@ -245,12 +249,11 @@ public:
         return m_name.c_str();
     }
 
-
 public:
     std::atomic_int m_ref_external{ 0 };
     std::atomic_int m_ref_internal{ 0 };
+    int m_id = 0;
     std::string m_name;
-    uint32_t m_dirty_flags = 0;
 };
 
 template<class T>
@@ -327,7 +330,6 @@ public:
     void upload(const void* src) override;
 
 public:
-    int m_index = 0;
     TextureFormat m_format = TextureFormat::Unknown;
     int m_width = 0;
     int m_height = 0;
@@ -363,7 +365,6 @@ public:
     void setEmissiveTexture(ITexture* v) override;
 
 public:
-    int m_index = 0;
     MaterialData m_data;
     TexturePtr m_tex_diffuse;
     TexturePtr m_tex_emissive;
@@ -400,7 +401,6 @@ public:
     void updateFaceNormals();
 
 public:
-    int m_index = 0;
     MeshData m_data;
     RawVector<int>    m_indices;
     RawVector<float3> m_face_normals;

@@ -80,7 +80,7 @@ ICameraPtr ContextDXR::createCamera()
 {
     auto r = new CameraDXR();
     r->m_context = this;
-    m_cameras.push_back(r);
+    m_cameras.insert(r);
     return r;
 }
 
@@ -88,7 +88,7 @@ ILightPtr ContextDXR::createLight()
 {
     auto r = new LightDXR();
     r->m_context = this;
-    m_lights.push_back(r);
+    m_lights.insert(r);
     return r;
 }
 
@@ -96,7 +96,7 @@ IRenderTargetPtr ContextDXR::createRenderTarget(TextureFormat format, int width,
 {
     auto r = new RenderTargetDXR(format, width, height);
     r->m_context = this;
-    m_render_targets.push_back(r);
+    m_render_targets.insert(r);
     return r;
 }
 
@@ -104,8 +104,7 @@ ITexturePtr ContextDXR::createTexture(TextureFormat format, int width, int heigh
 {
     auto r = new TextureDXR(format, width, height);
     r->m_context = this;
-    r->m_index = (int)m_textures.size();
-    m_textures.push_back(r);
+    m_textures.insert(r);
     return r;
 }
 
@@ -113,8 +112,7 @@ IMaterialPtr ContextDXR::createMaterial()
 {
     auto r = new MaterialDXR();
     r->m_context = this;
-    r->m_index = (int)m_materials.size();
-    m_materials.push_back(r);
+    m_materials.insert(r);
     return r;
 }
 
@@ -122,7 +120,7 @@ IMeshPtr ContextDXR::createMesh()
 {
     auto r = new MeshDXR();
     r->m_context = this;
-    m_meshes.push_back(r);
+    m_meshes.insert(r);
     return r;
 }
 
@@ -130,7 +128,7 @@ IMeshInstancePtr ContextDXR::createMeshInstance(IMesh* v)
 {
     auto r = new MeshInstanceDXR(v);
     r->m_context = this;
-    m_mesh_instances.push_back(r);
+    m_mesh_instances.insert(r);
     return r;
 }
 
@@ -138,7 +136,7 @@ IScenePtr ContextDXR::createScene()
 {
     auto r = new SceneDXR();
     r->m_context = this;
-    m_scenes.push_back(r);
+    m_scenes.insert(r);
     return r;
 }
 
@@ -420,22 +418,15 @@ bool ContextDXR::initializeDevice()
 
 void ContextDXR::updateEntities()
 {
-    // erase unreferenced entities
-    auto erase_unreferenced = [](auto& container) {
-        return erase_if(container, [](auto& obj) {
-            return obj->getRef() <= 0 && obj->getRefInternal() <= 1;
-            });
-    };
+    m_scenes.eraseUnreferenced();
+    m_mesh_instances.eraseUnreferenced();
+    m_meshes.eraseUnreferenced();
 
-    erase_unreferenced(m_scenes);
-    erase_unreferenced(m_mesh_instances);
-    erase_unreferenced(m_meshes);
-
-    erase_unreferenced(m_materials);
-    erase_unreferenced(m_textures);
-    erase_unreferenced(m_render_targets);
-    erase_unreferenced(m_cameras);
-    erase_unreferenced(m_lights);
+    m_materials.eraseUnreferenced();
+    m_textures.eraseUnreferenced();
+    m_render_targets.eraseUnreferenced();
+    m_cameras.eraseUnreferenced();
+    m_lights.eraseUnreferenced();
 
     // clear states
     for (auto& pmesh : m_meshes) {
@@ -447,49 +438,23 @@ void ContextDXR::updateEntities()
     m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
 
 
-    // update entity indices
-    each_with_index(m_textures, [](TextureDXRPtr& pobj, int index) {
-        pobj->m_index = index;
+    // update entities
+
+    each_ref(m_meshes, [&](auto& mesh) {
+        if (mesh.isDirty(DirtyFlag::Shape)) {
+            mesh.updateFaceNormals();
+            mesh.padVertexBuffers();
+        }
         });
 
-    each_with_index(m_materials, [](MaterialDXRPtr& pobj, int index) {
-        auto& obj = *pobj;
-        obj.m_index = index;
-        obj.m_data.diffuse_tex = obj.m_tex_diffuse ? obj.m_tex_diffuse->m_index : 0;
-        obj.m_data.emissive_tex = obj.m_tex_emissive ? obj.m_tex_emissive->m_index : 0;
-        });
+    each_ref(m_scenes, [](auto& scene) {
+        if (scene.m_camera)
+            scene.m_data.camera = scene.m_camera->m_data;
 
-    {
-        each_with_index(m_meshes, [&](MeshDXRPtr& pobj, int index) {
-            auto& obj = *pobj;
-            obj.m_index = index;
-
-            obj.m_data.face_count = (uint32_t)obj.m_indices.size() / 3;
-            obj.m_data.index_count = (uint32_t)obj.m_indices.size();
-            obj.m_data.vertex_count = (uint32_t)obj.m_points.size();
-
-            if (obj.isDirty(DirtyFlag::Shape)) {
-                obj.updateFaceNormals();
-                obj.padVertexBuffers();
-            }
-            });
-    }
-
-    each(m_mesh_instances, [](MeshInstanceDXRPtr& pobj) {
-        auto& obj = *pobj;
-        obj.m_data.mesh_index = obj.m_mesh->m_index;
-        obj.m_data.material_index = obj.m_material ? obj.m_material->m_index : 0;
-        });
-
-    each(m_scenes, [](SceneDXRPtr& pobj) {
-        auto& obj = *pobj;
-        if (obj.m_camera)
-            obj.m_data.camera = obj.m_camera->m_data;
-
-        uint32_t nlights = std::min((uint32_t)obj.m_lights.size(), (uint32_t)lptMaxLights);
-        obj.m_data.light_count = nlights;
+        uint32_t nlights = std::min((uint32_t)scene.m_lights.size(), (uint32_t)lptMaxLights);
+        scene.m_data.light_count = nlights;
         for (uint32_t li = 0; li < nlights; ++li)
-            obj.m_data.lights[li] = obj.m_lights[li]->m_data;
+            scene.m_data.lights[li] = scene.m_lights[li]->m_data;
         });
 }
 
@@ -660,18 +625,14 @@ void ContextDXR::updateResources()
                 tex.m_buf_upload = createTextureUploadBuffer(tex.m_width, tex.m_height, format);
                 lptSetName(tex.m_texture, tex.m_name + " Texture");
                 lptSetName(tex.m_buf_upload, tex.m_name + " Upload Buffer");
-                allocated = true;
+
+                tex.m_srv = srv_tex + size_t(desc_strice * tex.m_id);
+                create_texture_srv(tex.m_srv, tex.m_texture);
             }
             if (tex.isDirty(DirtyFlag::TextureData)) {
                 uploadTexture(tex.m_texture, tex.m_buf_upload, tex.m_data.cdata(), tex.m_width, tex.m_height, format);
                 addResourceBarrier(tex.m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
             }
-
-            if (tex.m_srv != srv_tex || allocated) {
-                tex.m_srv = srv_tex;
-                create_texture_srv(tex.m_srv, tex.m_texture);
-            }
-            srv_tex += desc_strice;
         }
     }
 
@@ -686,10 +647,10 @@ void ContextDXR::updateResources()
             }
         }
         if (dirty) {
-            bool allocated = write_buffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.size(), [this](void* dst_) {
+            bool allocated = write_buffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.capacity(), [this](void* dst_) {
                 auto* dst = (MaterialData*)dst_;
                 for (auto& pmat : m_materials)
-                    *dst++ = pmat->m_data;
+                    dst[pmat->m_id] = pmat->m_data;
                 });
             if (allocated) {
                 lptSetName(m_buf_materials, "Material Buffer");
@@ -745,6 +706,8 @@ void ContextDXR::updateResources()
                     });
                 if (vb_allocated) {
                     lptSetName(mesh.m_buf_vertices, mesh.m_name + " Vertex Buffer");
+                    mesh.m_srv_vertices = srv_vertices + size_t(desc_strice * mesh.m_id);
+                    create_buffer_srv(mesh.m_srv_vertices, mesh.m_buf_vertices, sizeof(vertex_t));
                 }
             }
 
@@ -764,31 +727,21 @@ void ContextDXR::updateResources()
                         *dst++ = tmp;
                     }
                     });
+
                 if (fb_allocated) {
                     lptSetName(mesh.m_buf_faces, mesh.m_name + " Face Buffer");
+                    mesh.m_srv_faces = srv_faces + size_t(desc_strice * mesh.m_id);
+                    create_buffer_srv(mesh.m_srv_faces, mesh.m_buf_faces, sizeof(face_t));
                 }
             }
-
-            // update SRV
-            if (vb_allocated || mesh.m_srv_vertices != srv_vertices) {
-                mesh.m_srv_vertices = srv_vertices;
-                create_buffer_srv(mesh.m_srv_vertices, mesh.m_buf_vertices, sizeof(vertex_t));
-            }
-            if (fb_allocated || mesh.m_srv_faces != srv_faces) {
-                mesh.m_srv_faces = srv_faces;
-                create_buffer_srv(mesh.m_srv_faces, mesh.m_buf_faces, sizeof(face_t));
-            }
-
-            srv_vertices += desc_strice;
-            srv_faces += desc_strice;
         }
 
         // create mesh data buffer
         if (dirty_meshes) {
-            bool allocated = write_buffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.size(), [this](void* dst_) {
+            bool allocated = write_buffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](void* dst_) {
                 auto* dst = (MeshData*)dst_;
                 for (auto& pmesh : m_meshes)
-                    *dst++ = pmesh->m_data;
+                    dst[pmesh->m_id] = pmesh->m_data;
                 });
             if (allocated) {
                 lptSetName(m_buf_meshes, "Mesh Buffer");
@@ -807,10 +760,10 @@ void ContextDXR::updateResources()
             }
         }
         if (dirty) {
-            bool allocated = write_buffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.size(), [this](void* dst_) {
+            bool allocated = write_buffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](void* dst_) {
                 auto* dst = (InstanceData*)dst_;
                 for (auto& pinst : m_mesh_instances)
-                    *dst++ = pinst->m_data;
+                    dst[pinst->m_id] = pinst->m_data;
                 });
             if (allocated) {
                 lptSetName(m_buf_instances, "Instance Buffer");
@@ -820,9 +773,7 @@ void ContextDXR::updateResources()
     }
 
     // scene
-    for (auto& pscene : m_scenes) {
-        auto& scene = dxr_t(*pscene);
-
+    each_ref(m_scenes, [&](auto& scene) {
         // desc heap
         if (!scene.m_uav_render_target) {
             scene.m_uav_render_target = m_desc_alloc.allocate();
@@ -848,7 +799,7 @@ void ContextDXR::updateResources()
                 create_texture_uav(scene.m_uav_render_target, rt.m_texture);
             }
         }
-    }
+        });
 
     m_fv_upload = submit();
 }
@@ -878,8 +829,7 @@ void ContextDXR::updateBLAS()
 
     // build BLAS
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS begin");
-    for (auto& pmesh : m_meshes) {
-        auto& mesh = *pmesh;
+    each_ref(m_meshes, [&](auto& mesh) {
         bool update_blas = mesh.m_buf_vertices && mesh.m_buf_indices && (!mesh.m_blas || mesh.isDirty(DirtyFlag::Shape));
         if (update_blas) {
             // BLAS for non-deformable meshes
@@ -934,9 +884,9 @@ void ContextDXR::updateBLAS()
             cl_blas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
             mesh.m_blas_updated = true;
         }
-    }
-    for (auto& pinst : m_mesh_instances) {
-        auto& inst = *pinst;
+        });
+
+    each_ref(m_mesh_instances, [&](auto& inst) {
         auto& mesh = dxr_t(*inst.m_mesh);
 
         if (inst.m_buf_points_deformed) {
@@ -999,7 +949,7 @@ void ContextDXR::updateBLAS()
                 inst.m_blas_updated = true;
             }
         }
-    }
+        });
     lptTimestampQuery(m_timestamp, cl_blas, "Building BLAS end");
 
     m_fv_blas = submit(m_fv_deform);
@@ -1028,26 +978,24 @@ void ContextDXR::updateTLAS()
             });
 
         // update instance desc
-        {
-            Map(scene.m_tlas_instance_desc, [&](D3D12_RAYTRACING_INSTANCE_DESC* instance_descs) {
-                D3D12_RAYTRACING_INSTANCE_DESC desc{};
-                UINT n = (UINT)scene.m_instances.size();
-                for (UINT i = 0; i < n; ++i) {
-                    auto& inst = dxr_t(*scene.m_instances[i]);
-                    auto& mesh = dxr_t(*inst.m_mesh);
-                    auto& blas = inst.m_blas_deformed ? inst.m_blas_deformed : mesh.m_blas;
+        Map(scene.m_tlas_instance_desc, [&](D3D12_RAYTRACING_INSTANCE_DESC* instance_descs) {
+            D3D12_RAYTRACING_INSTANCE_DESC desc{};
+            UINT n = (UINT)scene.m_instances.size();
+            for (UINT i = 0; i < n; ++i) {
+                auto& inst = dxr_t(*scene.m_instances[i]);
+                auto& mesh = dxr_t(*inst.m_mesh);
+                auto& blas = inst.m_blas_deformed ? inst.m_blas_deformed : mesh.m_blas;
 
-                    (float3x4&)desc.Transform = to_mat3x4(inst.m_data.local_to_world);
-                    desc.InstanceID = i;
-                    desc.InstanceMask = ~0;
-                    desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-                    desc.AccelerationStructure = blas->GetGPUVirtualAddress();
-                    instance_descs[i] = desc;
-                }
-                });
-            inputs.NumDescs = instance_count;
-            inputs.InstanceDescs = scene.m_tlas_instance_desc->GetGPUVirtualAddress();
-        }
+                (float3x4&)desc.Transform = to_mat3x4(inst.m_data.local_to_world);
+                desc.InstanceID = inst.m_id;
+                desc.InstanceMask = ~0;
+                desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+                desc.AccelerationStructure = blas->GetGPUVirtualAddress();
+                instance_descs[i] = desc;
+            }
+            });
+        inputs.NumDescs = instance_count;
+        inputs.InstanceDescs = scene.m_tlas_instance_desc->GetGPUVirtualAddress();
 
         // create TLAS
         {
@@ -1093,21 +1041,20 @@ void ContextDXR::updateTLAS()
     };
 
     lptTimestampQuery(m_timestamp, cl_tlas, "Building TLAS begin");
-    for (auto& pscene : m_scenes) {
-        auto& scene = *pscene;
+    each_ref(m_scenes, [&](auto& scene) {
+        if (!scene.m_enabled || !scene.m_render_target)
+            return;
 
         bool needs_update_tlas = false;
         for (auto& pinst : scene.m_instances) {
-            auto& inst = dxr_t(*pinst);
-            if (inst.m_blas_updated) {
+            if (dxr_t(*pinst).m_blas_updated) {
                 needs_update_tlas = true;
                 break;
             }
         }
-
         if (needs_update_tlas)
             do_update_tlas(scene);
-    }
+        });
     lptTimestampQuery(m_timestamp, cl_tlas, "Building TLAS end");
 
     m_fv_tlas = submit(m_fv_blas);
@@ -1161,25 +1108,23 @@ void ContextDXR::dispatchRays()
     };
 
     // dispatch for each enabled scene
-    for (auto& pscene : m_scenes) {
-        auto& scene = dxr_t(*pscene);
+    each_ref(m_scenes, [&](auto& scene) {
         if (!scene.m_enabled || !scene.m_render_target)
-            continue;
+            return;
 
         auto& rt = dxr_t(*scene.m_render_target);
         cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_render_target.hgpu);
         do_dispatch(rt.m_texture, RayGenType::Default);
-    }
+        });
     lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
 
 
     // handle render target readback
     lptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
-    for (auto& prt : m_render_targets) {
-        auto& rt = dxr_t(*prt);
+    each_ref(m_render_targets, [&](auto& rt) {
         if (rt.m_readback_enabled)
             copyTexture(rt.m_buf_readback, rt.m_texture, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
-    }
+        });
     lptTimestampQuery(m_timestamp, cl_rays, "Readback end");
 
     lptTimestampResolve(m_timestamp, cl_rays);
