@@ -104,10 +104,18 @@ template<class T, class R> int GetID(ref_ptr<T, R>& p) { return p ? p->m_id : -1
 template<class T> int GetID(T* p) { return p ? p->m_id : -1; }
 
 template<class T>
+class InternalReleaser
+{
+public:
+    static void addRef(T* v) { v->addRefInternal(); }
+    static void release(T* v) { v->releaseInternal(); }
+};
+
+template<class T>
 class EntityList
 {
 public:
-    using pointer = ref_ptr<T>;
+    using pointer = ref_ptr<T, InternalReleaser<T>>;
 
     size_t size() const { return m_active.size(); }
     size_t capacity() const { return m_entities.size(); }

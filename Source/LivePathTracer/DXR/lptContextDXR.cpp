@@ -1414,7 +1414,7 @@ void ContextDXR::readbackTexture(void* dst_, ID3D12Resource* staging, UINT width
 
 } // namespace lpt
 
-lptAPI lpt::IContext* lptCreateContextDXR()
+lptAPI lpt::IContext* lptCreateContextDXR_()
 {
     return new lpt::ContextDXR();
 }

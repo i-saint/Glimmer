@@ -280,5 +280,6 @@ using IContextPtr = ref_ptr<IContext>;
 #else
     #define lptAPI extern "C" __attribute__((visibility("default")))
 #endif
-lptAPI lpt::IContext* lptCreateContextDXR();
+lptAPI lpt::IContext* lptCreateContextDXR_();
 
+inline lpt::IContextPtr lptCreateContextDXR() { return lpt::IContextPtr(lptCreateContextDXR_()); }

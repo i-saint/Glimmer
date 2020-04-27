@@ -256,14 +256,6 @@ public:
     std::string m_name;
 };
 
-template<class T>
-class InternalReleaser
-{
-public:
-    static void addRef(T* v) { v->addRefInternal(); }
-    static void release(T* v) { v->releaseInternal(); }
-};
-
 
 template<class T>
 class EntityBase : public RefCount<T>
