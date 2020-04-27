@@ -283,6 +283,55 @@ public:
 
 
 
+class Texture : public EntityBase<ITexture>
+{
+public:
+    Texture(TextureFormat format, int width, int height);
+    void upload(const void* src) override;
+
+public:
+    TextureFormat m_format = TextureFormat::RGBAu8;
+    int m_width = 0;
+    int m_height = 0;
+    RawVector<char> m_data;
+};
+lptDeclRefPtr(Texture);
+
+
+class RenderTarget : public EntityBase<IRenderTarget>
+{
+public:
+    RenderTarget(TextureFormat format, int width, int height);
+    void enableReadback(bool v) override;
+
+public:
+    TextureFormat m_format = TextureFormat::RGBAu8;
+    int m_width = 0;
+    int m_height = 0;
+    bool m_readback_enabled = false;
+};
+lptDeclRefPtr(RenderTarget);
+
+
+class Material : public EntityBase<IMaterial>
+{
+public:
+    Material();
+    void setType(MaterialType v) override;
+    void setDiffuse(float3 v) override;
+    void setRoughness(float v) override;
+    void setEmissive(float3 v) override;
+    void setDiffuseTexture(ITexture* v) override;
+    void setEmissiveTexture(ITexture* v) override;
+
+public:
+    MaterialData m_data;
+    TexturePtr m_tex_diffuse;
+    TexturePtr m_tex_emissive;
+};
+lptDeclRefPtr(Material);
+
+
 class Camera : public EntityBase<ICamera>
 {
 public:
@@ -314,55 +363,6 @@ public:
     LightData m_data;
 };
 lptDeclRefPtr(Light);
-
-
-class Texture : public EntityBase<ITexture>
-{
-public:
-    Texture(TextureFormat format, int width, int height);
-    void upload(const void* src) override;
-
-public:
-    TextureFormat m_format = TextureFormat::Unknown;
-    int m_width = 0;
-    int m_height = 0;
-    RawVector<char> m_data;
-};
-lptDeclRefPtr(Texture);
-
-
-class RenderTarget : public EntityBase<IRenderTarget>
-{
-public:
-    RenderTarget(TextureFormat format, int width, int height);
-    void enableReadback(bool v) override;
-
-public:
-    TextureFormat m_format = TextureFormat::Unknown;
-    int m_width = 0;
-    int m_height = 0;
-    bool m_readback_enabled = false;
-};
-lptDeclRefPtr(RenderTarget);
-
-
-class Material : public EntityBase<IMaterial>
-{
-public:
-    Material();
-    void setType(MaterialType v) override;
-    void setDiffuse(float3 v) override;
-    void setRoughness(float v) override;
-    void setEmissive(float3 v) override;
-    void setDiffuseTexture(ITexture* v) override;
-    void setEmissiveTexture(ITexture* v) override;
-
-public:
-    MaterialData m_data;
-    TexturePtr m_tex_diffuse;
-    TexturePtr m_tex_emissive;
-};
-lptDeclRefPtr(Material);
 
 
 struct BlendshapeData

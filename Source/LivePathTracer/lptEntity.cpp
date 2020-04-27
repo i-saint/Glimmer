@@ -7,14 +7,8 @@ namespace lpt {
 int GetTexelSize(TextureFormat v)
 {
     switch (v) {
-    case TextureFormat::Ru8: return 1;
-    case TextureFormat::RGu8: return 2;
     case TextureFormat::RGBAu8: return 4;
-    case TextureFormat::Rf16: return 2;
-    case TextureFormat::RGf16: return 4;
     case TextureFormat::RGBAf16: return 8;
-    case TextureFormat::Rf32: return 4;
-    case TextureFormat::RGf32: return 8;
     case TextureFormat::RGBAf32: return 16;
     default: return 0;
     }
@@ -44,81 +38,6 @@ GlobalSettings& GetGlobals()
 {
     static GlobalSettings s_globals;
     return s_globals;
-}
-
-
-Camera::Camera()
-{
-    markDirty(DirtyFlag::Camera);
-}
-
-void Camera::setPosition(float3 v)
-{
-    m_data.position = v;
-    markDirty(DirtyFlag::Camera);
-}
-void Camera::setDirection(float3 v, float3 up)
-{
-    m_data.rotation = mu::look_quat(v, up);
-    markDirty(DirtyFlag::Camera);
-}
-void Camera::setFOV(float v)
-{
-    m_data.fov = v;
-    markDirty(DirtyFlag::Camera);
-}
-void Camera::setNear(float v)
-{
-    m_data.near_plane = v;
-    markDirty(DirtyFlag::Camera);
-}
-
-void Camera::setFar(float v)
-{
-    m_data.far_plane = v;
-    markDirty(DirtyFlag::Camera);
-}
-
-
-Light::Light()
-{
-    markDirty(DirtyFlag::Light);
-}
-
-void Light::setType(LightType v)
-{
-    m_data.type = v;
-    markDirty(DirtyFlag::Light);
-}
-
-void Light::setPosition(float3 v)
-{
-    m_data.position = v;
-    markDirty(DirtyFlag::Light);
-}
-
-void Light::setDirection(float3 v)
-{
-    m_data.direction = v;
-    markDirty(DirtyFlag::Light);
-}
-
-void Light::setRange(float v)
-{
-    m_data.range = v;
-    markDirty(DirtyFlag::Light);
-}
-
-void Light::setSpotAngle(float v)
-{
-    m_data.spot_angle = v;
-    markDirty(DirtyFlag::Light);
-}
-
-void Light::setColor(float3 v)
-{
-    m_data.color = v;
-    markDirty(DirtyFlag::Light);
 }
 
 
@@ -194,6 +113,81 @@ void Material::setEmissiveTexture(ITexture* v)
     m_tex_emissive = base_t(v);
     m_data.emissive_tex = GetID(m_tex_emissive);
     markDirty(DirtyFlag::Material);
+}
+
+
+Camera::Camera()
+{
+    markDirty(DirtyFlag::Camera);
+}
+
+void Camera::setPosition(float3 v)
+{
+    m_data.position = v;
+    markDirty(DirtyFlag::Camera);
+}
+void Camera::setDirection(float3 v, float3 up)
+{
+    m_data.rotation = mu::look_quat(v, up);
+    markDirty(DirtyFlag::Camera);
+}
+void Camera::setFOV(float v)
+{
+    m_data.fov = v;
+    markDirty(DirtyFlag::Camera);
+}
+void Camera::setNear(float v)
+{
+    m_data.near_plane = v;
+    markDirty(DirtyFlag::Camera);
+}
+
+void Camera::setFar(float v)
+{
+    m_data.far_plane = v;
+    markDirty(DirtyFlag::Camera);
+}
+
+
+Light::Light()
+{
+    markDirty(DirtyFlag::Light);
+}
+
+void Light::setType(LightType v)
+{
+    m_data.type = v;
+    markDirty(DirtyFlag::Light);
+}
+
+void Light::setPosition(float3 v)
+{
+    m_data.position = v;
+    markDirty(DirtyFlag::Light);
+}
+
+void Light::setDirection(float3 v)
+{
+    m_data.direction = v;
+    markDirty(DirtyFlag::Light);
+}
+
+void Light::setRange(float v)
+{
+    m_data.range = v;
+    markDirty(DirtyFlag::Light);
+}
+
+void Light::setSpotAngle(float v)
+{
+    m_data.spot_angle = v;
+    markDirty(DirtyFlag::Light);
+}
+
+void Light::setColor(float3 v)
+{
+    m_data.color = v;
+    markDirty(DirtyFlag::Light);
 }
 
 

@@ -83,38 +83,6 @@ Payload ShootRadianceRay(float2 offset = 0.0f)
     return payload;
 }
 
-float SampleDifferentialF(int2 idx, out float center, out float diff)
-{
-    int2 dim;
-    g_prev_buffer.GetDimensions(dim.x, dim.y);
-
-    center = g_prev_buffer[idx].x;
-    diff = 0;
-
-    // 4 samples for now. an option for more samples may be needed. it can make an unignorable difference (both quality and speed).
-    diff += abs(g_prev_buffer[clamp(idx + int2(-1, 0), int2(0, 0), dim - 1)].x - center);
-    diff += abs(g_prev_buffer[clamp(idx + int2( 1, 0), int2(0, 0), dim - 1)].x - center);
-    diff += abs(g_prev_buffer[clamp(idx + int2( 0,-1), int2(0, 0), dim - 1)].x - center);
-    diff += abs(g_prev_buffer[clamp(idx + int2( 0, 1), int2(0, 0), dim - 1)].x - center);
-    return diff;
-}
-
-uint SampleDifferentialI(int2 idx, out uint center, out uint diff)
-{
-    int2 dim;
-    g_prev_buffer.GetDimensions(dim.x, dim.y);
-
-    center = asuint(g_prev_buffer[idx].x);
-    diff = 0;
-
-    // 4 samples for now. an option for more samples may be needed. it can make an unignorable difference (both quality and speed).
-    diff += abs(asuint(g_prev_buffer[clamp(idx + int2(-1, 0), int2(0, 0), dim - 1)].x) - center);
-    diff += abs(asuint(g_prev_buffer[clamp(idx + int2( 1, 0), int2(0, 0), dim - 1)].x) - center);
-    diff += abs(asuint(g_prev_buffer[clamp(idx + int2( 0,-1), int2(0, 0), dim - 1)].x) - center);
-    diff += abs(asuint(g_prev_buffer[clamp(idx + int2( 0, 1), int2(0, 0), dim - 1)].x) - center);
-    return diff;
-}
-
 [shader("raygeneration")]
 void RayGenRadiance()
 {
@@ -152,7 +120,7 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
     // shoot shadow ray (hit position -> light)
 
     uint render_flags = RenderFlags();
-    uint ray_flags = 0;
+    uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     if (render_flags & RF_CULL_BACK_FACES)
         ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
@@ -169,22 +137,6 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
             ray.TMin = 0.0f;
             ray.TMax = CameraFarPlane();
             hit = ShootOcclusionRay(ray_flags, ray, payload);
-        }
-        else if (light.type == LT_SPOT) {
-            // spot light
-            float3 pos = HitPosition();
-            float3 dir = normalize(light.position - pos);
-            float distance = length(light.position - pos);
-            if (distance <= light.range && angle_between(-dir, light.direction) * 2.0f <= light.spot_angle) {
-                RayDesc ray;
-                ray.Origin = pos;
-                ray.Direction = dir;
-                ray.TMin = 0.0f;
-                ray.TMax = distance;
-                hit = ShootOcclusionRay(ray_flags, ray, payload);
-            }
-            else
-                continue;
         }
         else if (light.type == LT_POINT) {
             // point light
@@ -203,18 +155,17 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
             else
                 continue;
         }
-        else if (light.type == LT_REVERSE_POINT) {
-            // reverse point light
+        else if (light.type == LT_SPOT) {
+            // spot light
             float3 pos = HitPosition();
             float3 dir = normalize(light.position - pos);
             float distance = length(light.position - pos);
-
-            if (distance <= light.range) {
+            if (distance <= light.range && angle_between(-dir, light.direction) * 2.0f <= light.spot_angle) {
                 RayDesc ray;
                 ray.Origin = pos;
-                ray.Direction = -dir;
+                ray.Direction = dir;
                 ray.TMin = 0.0f;
-                ray.TMax = light.range - distance;
+                ray.TMax = distance;
                 hit = ShootOcclusionRay(ray_flags, ray, payload);
             }
             else

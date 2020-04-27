@@ -72,6 +72,7 @@ void TextureDXR::updateResources()
     }
 }
 
+
 void MeshDXR::updateResources()
 {
     if (m_points.empty() || m_indices.empty())
@@ -289,7 +290,6 @@ void MeshInstanceDXR::clearBLAS()
     m_blas_scratch = nullptr;
     m_blas_deformed = nullptr;
 }
-
 
 
 void SceneDXR::updateResources()

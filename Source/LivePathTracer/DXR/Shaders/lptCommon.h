@@ -3,9 +3,8 @@
 enum LightType
 {
     LT_DIRECTIONAL,
-    LT_SPOT,
     LT_POINT,
-    LT_REVERSE_POINT,
+    LT_SPOT,
 };
 
 enum MaterialType

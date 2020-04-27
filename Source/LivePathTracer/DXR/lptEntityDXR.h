@@ -24,28 +24,6 @@ public:
 };
 
 
-class CameraDXR : public DXREntity<Camera>
-{
-using super = DXREntity<Camera>;
-friend class ContextDXR;
-public:
-
-public:
-};
-lptDeclRefPtr(CameraDXR);
-
-
-class LightDXR : public DXREntity<Light>
-{
-using super = DXREntity<Light>;
-friend class ContextDXR;
-public:
-
-public:
-};
-lptDeclRefPtr(LightDXR);
-
-
 class RenderTargetDXR : public DXREntity<RenderTarget>
 {
 using super = DXREntity<RenderTarget>;
@@ -92,6 +70,28 @@ public:
 public:
 };
 lptDeclRefPtr(MaterialDXR);
+
+
+class CameraDXR : public DXREntity<Camera>
+{
+using super = DXREntity<Camera>;
+friend class ContextDXR;
+public:
+
+public:
+};
+lptDeclRefPtr(CameraDXR);
+
+
+class LightDXR : public DXREntity<Light>
+{
+using super = DXREntity<Light>;
+friend class ContextDXR;
+public:
+
+public:
+};
+lptDeclRefPtr(LightDXR);
 
 
 class MeshDXR : public DXREntity<Mesh>

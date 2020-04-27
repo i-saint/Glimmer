@@ -4,24 +4,16 @@ namespace lpt {
 
 enum class TextureFormat : uint32_t
 {
-    Unknown,
-    Ru8,
-    RGu8,
     RGBAu8,
-    Rf16,
-    RGf16,
     RGBAf16,
-    Rf32,
-    RGf32,
     RGBAf32,
 };
 
 enum class LightType : uint32_t
 {
     Directional,
-    Spot,
     Point,
-    ReversePoint,
+    Spot,
 };
 
 enum class MaterialType : uint32_t
@@ -152,31 +144,6 @@ public:
 };
 
 
-class ICamera : public IEntity
-{
-public:
-    virtual void setPosition(float3 v) = 0;
-    virtual void setDirection(float3 v, float3 up = float3::up()) = 0;
-    virtual void setFOV(float v) = 0;
-    virtual void setNear(float v) = 0;
-    virtual void setFar(float v) = 0;
-};
-using ICameraPtr = ref_ptr<ICamera>;
-
-
-class ILight : public IEntity
-{
-public:
-    virtual void setType(LightType v) = 0;
-    virtual void setPosition(float3 v) = 0;
-    virtual void setDirection(float3 v) = 0;
-    virtual void setRange(float v) = 0;
-    virtual void setSpotAngle(float v) = 0;
-    virtual void setColor(float3 v) = 0;
-};
-using ILightPtr = ref_ptr<ILight>;
-
-
 class ITexture : public IEntity
 {
 public:
@@ -207,6 +174,31 @@ public:
     virtual void setEmissiveTexture(ITexture* v) = 0;
 };
 using IMaterialPtr = ref_ptr<IMaterial>;
+
+
+class ILight : public IEntity
+{
+public:
+    virtual void setType(LightType v) = 0;
+    virtual void setPosition(float3 v) = 0;
+    virtual void setDirection(float3 v) = 0;
+    virtual void setRange(float v) = 0;
+    virtual void setSpotAngle(float v) = 0;
+    virtual void setColor(float3 v) = 0;
+};
+using ILightPtr = ref_ptr<ILight>;
+
+
+class ICamera : public IEntity
+{
+public:
+    virtual void setPosition(float3 v) = 0;
+    virtual void setDirection(float3 v, float3 up = float3::up()) = 0;
+    virtual void setFOV(float v) = 0;
+    virtual void setNear(float v) = 0;
+    virtual void setFar(float v) = 0;
+};
+using ICameraPtr = ref_ptr<ICamera>;
 
 
 class IMesh : public IEntity
