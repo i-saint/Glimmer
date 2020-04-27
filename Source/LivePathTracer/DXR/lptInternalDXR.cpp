@@ -1,5 +1,8 @@
 #include "pch.h"
 #include "lptInternalDXR.h"
+#include "lptEntityDXR.h"
+#include "lptContextDXR.h"
+#include "Foundation/lptLog.h"
 
 namespace lpt {
 
@@ -300,8 +303,6 @@ std::string TimestampDXR::getLog()
     return m_log;
 }
 
-
-
 void SetNameImpl(ID3D12Object* obj, LPCSTR name)
 {
     if (obj && name) {
@@ -328,6 +329,29 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name)
         obj->SetName(name.c_str());
     }
 }
+
+
+IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue)
+{
+    DXGI_SWAP_CHAIN_DESC1 desc = {};
+    desc.BufferCount = lptSwapChainBuffers;
+    desc.Width = width;
+    desc.Height = height;
+    desc.Format = format;
+    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    desc.SampleDesc.Count = 1;
+
+    IDXGISwapChain1Ptr swapchain;
+    if (FAILED(factory->CreateSwapChainForHwnd(cmd_queue, hwnd, &desc, nullptr, nullptr, &swapchain))) {
+        return nullptr;
+    }
+
+    IDXGISwapChain3Ptr ret;
+    swapchain->QueryInterface(IID_PPV_ARGS(&ret));
+    return ret;
+}
+
 
 UINT GetTexelSize(DXGI_FORMAT rtf)
 {

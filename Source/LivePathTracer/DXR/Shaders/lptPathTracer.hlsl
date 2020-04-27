@@ -89,11 +89,11 @@ struct InstanceData
 struct SceneData
 {
     uint render_flags;
+    uint sample_count;
     uint light_count;
-    float shadow_ray_offset;
-    float self_shadow_threshold;
+    uint pad1;
     float3 bg_color;
-    float pad;
+    float pad2;
 
     CameraData camera;
     LightData lights[kMaxLights];
@@ -139,14 +139,13 @@ float CameraNearPlane()     { return g_scene.camera.near_plane; }
 float CameraFarPlane()      { return g_scene.camera.far_plane; }
 
 uint  RenderFlags()         { return g_scene.render_flags; }
-float ShadowRayOffset()     { return g_scene.shadow_ray_offset; }
-float SelfShadowThreshold() { return g_scene.self_shadow_threshold; }
+uint  SampleCount()         { return g_scene.sample_count; }
 float3 BackgroundColor()    { return g_scene.bg_color; }
 
 int LightCount() { return g_scene.light_count; }
 LightData GetLight(int i) { return g_scene.lights[i]; }
 
-float3 HitPosition() { return WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - ShadowRayOffset()); }
+float3 HitPosition() { return WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.01f); }
 
 uint InstanceFlags() { return g_instances[InstanceID()].instance_flags; }
 uint InstanceLayerMask() { return g_instances[InstanceID()].layer_mask; }

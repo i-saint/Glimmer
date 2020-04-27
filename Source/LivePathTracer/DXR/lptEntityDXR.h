@@ -95,6 +95,7 @@ class MeshDXR : public DXREntity<Mesh>
 using super = DXREntity<Mesh>;
 friend class ContextDXR;
 public:
+    void updateBLAS();
     void clearBLAS();
 
 public:
@@ -129,6 +130,8 @@ using super = DXREntity<MeshInstance>;
 friend class ContextDXR;
 public:
     MeshInstanceDXR(IMesh* v = nullptr);
+    void updateResources();
+    void updateBLAS();
     void clearBLAS();
 
 public:
@@ -152,7 +155,7 @@ class SceneDXR : public DXREntity<Scene>
 using super = DXREntity<Scene>;
 friend class ContextDXR;
 public:
-    bool hasFlag(RenderFlag f) const;
+    void updateTLAS();
 
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;

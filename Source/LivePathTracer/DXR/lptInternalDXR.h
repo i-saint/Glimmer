@@ -5,6 +5,7 @@
 namespace lpt {
 
 #define DefPtr(_a) _COM_SMARTPTR_TYPEDEF(_a, __uuidof(_a))
+DefPtr(IDXGISwapChain1);
 DefPtr(IDXGISwapChain3);
 DefPtr(IDXGIFactory4);
 DefPtr(IDXGIAdapter1);
@@ -96,6 +97,33 @@ private:
     HANDLE m_handle = nullptr;
 };
 
+class CommandListManagerDXR
+{
+public:
+    CommandListManagerDXR(ID3D12DevicePtr device, D3D12_COMMAND_LIST_TYPE type, const wchar_t* name);
+    CommandListManagerDXR(ID3D12DevicePtr device, D3D12_COMMAND_LIST_TYPE type, ID3D12PipelineStatePtr state, const wchar_t* name);
+    ID3D12GraphicsCommandList4Ptr get();
+    void reset();
+
+private:
+    struct Record
+    {
+        Record(ID3D12DevicePtr device, D3D12_COMMAND_LIST_TYPE type, ID3D12PipelineStatePtr state);
+        void reset(ID3D12PipelineStatePtr state);
+
+        ID3D12CommandAllocatorPtr allocator;
+        ID3D12GraphicsCommandList4Ptr list;
+    };
+    using CommandPtr = std::shared_ptr<Record>;
+
+    ID3D12DevicePtr m_device;
+    D3D12_COMMAND_LIST_TYPE m_type;
+    ID3D12PipelineStatePtr m_state;
+    std::vector<CommandPtr> m_available, m_in_use;
+    std::wstring m_name;
+};
+using CommandListManagerDXRPtr = std::shared_ptr<CommandListManagerDXR>;
+
 
 class TimestampDXR
 {
@@ -151,32 +179,8 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name);
 #define lptSetName(...)
 #endif
 
-class CommandListManagerDXR
-{
-public:
-    CommandListManagerDXR(ID3D12DevicePtr device, D3D12_COMMAND_LIST_TYPE type, const wchar_t* name);
-    CommandListManagerDXR(ID3D12DevicePtr device, D3D12_COMMAND_LIST_TYPE type, ID3D12PipelineStatePtr state, const wchar_t* name);
-    ID3D12GraphicsCommandList4Ptr get();
-    void reset();
 
-private:
-    struct Record
-    {
-        Record(ID3D12DevicePtr device, D3D12_COMMAND_LIST_TYPE type, ID3D12PipelineStatePtr state);
-        void reset(ID3D12PipelineStatePtr state);
-
-        ID3D12CommandAllocatorPtr allocator;
-        ID3D12GraphicsCommandList4Ptr list;
-    };
-    using CommandPtr = std::shared_ptr<Record>;
-
-    ID3D12DevicePtr m_device;
-    D3D12_COMMAND_LIST_TYPE m_type;
-    ID3D12PipelineStatePtr m_state;
-    std::vector<CommandPtr> m_available, m_in_use;
-    std::wstring m_name;
-};
-using CommandListManagerDXRPtr = std::shared_ptr<CommandListManagerDXR>;
+IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue);
 
 
 

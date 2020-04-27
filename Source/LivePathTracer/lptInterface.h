@@ -274,6 +274,19 @@ public:
 };
 using IContextPtr = ref_ptr<IContext>;
 
+
+class IWindow : public IEntity
+{
+public:
+    virtual bool open(int width, int height) = 0;
+    virtual void close() = 0;
+    virtual void processMessages() = 0;
+
+    virtual bool isClosed() = 0;
+    virtual void* getHandle() = 0;
+};
+using IWindowPtr = ref_ptr<IWindow>;
+
 } // namespace lpt
 
 
@@ -283,5 +296,14 @@ using IContextPtr = ref_ptr<IContext>;
     #define lptAPI extern "C" __attribute__((visibility("default")))
 #endif
 lptAPI lpt::IContext* lptCreateContextDXR_();
+lptAPI lpt::IWindow* lptCreateWindow_(int width, int height);
 
-inline lpt::IContextPtr lptCreateContextDXR() { return lpt::IContextPtr(lptCreateContextDXR_()); }
+inline lpt::IContextPtr lptCreateContextDXR()
+{
+    return lpt::IContextPtr(lptCreateContextDXR_());
+}
+
+inline lpt::IWindowPtr lptCreateWindow(int width, int height)
+{
+    return lpt::IWindowPtr(lptCreateWindow_(width, height));
+}

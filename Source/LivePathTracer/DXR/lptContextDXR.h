@@ -10,6 +10,7 @@ namespace lpt {
 #define lptDXRMaxMeshCount 2048
 #define lptDXRMaxTextureCount 2048
 #define lptDXRMaxShaderRecords 64
+#define lptSwapChainBuffers 2
 
 
 class ContextDXR : public DXREntity<Context>
@@ -57,15 +58,27 @@ public:
     uint64_t submit(uint64_t preceding_fv = 0);
     void addResourceBarrier(ID3D12ResourcePtr resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after);
 
-    void writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging, UINT64 size, const std::function<void(void*)>& src);
+    template<class Body>
+    void writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging, UINT64 size, const Body& src);
     void uploadBuffer(ID3D12Resource* dst, ID3D12Resource* staging, const void* src, UINT64 size);
     void copyBuffer(ID3D12Resource* dst, ID3D12Resource* src, UINT64 size);
     void readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size);
 
-    void writeTexture(ID3D12Resource* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format, const std::function<void(void*)>& src);
+    template<class Body>
+    bool createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body);
+    bool createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* src, size_t size);
+
+    template<class Body>
+    void writeTexture(ID3D12Resource* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format, const Body& src);
     void uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, const void* src, UINT width, UINT height, DXGI_FORMAT format);
+    void uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
     void copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format);
     void readbackTexture(void* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
+
+    void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride);
+    void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res);
+    void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res);
+    void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size);
 
 public:
     EntityList<CameraDXR>       m_cameras;
@@ -78,6 +91,7 @@ public:
     EntityList<SceneDXR>        m_scenes;
 
 
+    IDXGIFactory4Ptr m_dxgi_factory;
     ID3D12Device5Ptr m_device;
     ID3D12CommandQueuePtr m_cmd_queue_direct;
     CommandListManagerDXRPtr m_clm_direct;
@@ -114,9 +128,38 @@ public:
 #endif // lptEnableTimestamp
 };
 lptDeclRefPtr(ContextDXR);
-
 lptDefDXRT(ContextDXR, IContext)
 
+
+
+template<class Body>
+inline void ContextDXR::writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging, UINT64 size, const Body& src)
+{
+    if (Map(staging, src)) {
+        copyBuffer(dst, staging, size);
+    }
+}
+
+template<class Body>
+inline bool ContextDXR::createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body)
+{
+    bool allocated = false;
+    if (GetSize(dst) < size) {
+        dst = createBuffer(size);
+        staging = createUploadBuffer(size);
+        allocated = true;
+    }
+    writeBuffer(dst, staging, size, body);
+    return allocated;
+}
+
+template<class Body>
+inline void ContextDXR::writeTexture(ID3D12Resource* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format, const Body& src)
+{
+    if (Map(staging, src)) {
+        uploadTexture(dst, staging, width, height, format);
+    }
+}
 
 } // namespace lpt
 #endif // _WIN32

@@ -16,44 +16,6 @@ static IWindow* FindWindow(void* handle)
         return nullptr;
 }
 
-#ifdef _WIN32
-
-class Window : public RefCount<IWindow>
-{
-public:
-    Window(int width, int height);
-    ~Window();
-
-    bool open(int width, int height) override;
-    void close() override;
-    void processMessages() override;
-
-    bool isClosed() override;
-    void* getHandle() override;
-
-    void onRefCountZero() override;
-
-    static LRESULT CALLBACK MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-private:
-    HWND m_hwnd = nullptr;
-};
-
-
-LRESULT CALLBACK Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    switch (msg)
-    {
-    case WM_CLOSE:
-        if (auto *w = FindWindow(hwnd)) {
-            w->close();
-        }
-        return 0;
-
-    default:
-        return ::DefWindowProc(hwnd, msg, wParam, lParam);
-    }
-}
 
 Window::Window(int width, int height)
 {
@@ -67,6 +29,22 @@ Window::~Window()
     g_windows.erase(std::find(g_windows.begin(), g_windows.end(), this));
 }
 
+#ifdef _WIN32
+
+static LRESULT CALLBACK lptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_CLOSE:
+        if (auto* w = FindWindow(hwnd))
+            w->close();
+        return 0;
+
+    default:
+        return ::DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+}
+
 bool Window::open(int width, int height)
 {
     if (m_hwnd)
@@ -77,12 +55,12 @@ bool Window::open(int width, int height)
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
     WNDCLASS wc{};
-    wc.lpfnWndProc = &Window::MsgProc;
+    wc.lpfnWndProc = &lptMsgProc;
     wc.hInstance = ::GetModuleHandle(nullptr);
     wc.lpszClassName = class_name;
     //wc.hIcon = (HICON)::LoadImageA(nullptr, "lpt.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE | LR_SHARED);
 
-    if (RegisterClass(&wc) != 0) {
+    if (::RegisterClass(&wc) != 0) {
         RECT r{ 0, 0, (LONG)width, (LONG)height };
         ::AdjustWindowRect(&r, style, false);
 
@@ -123,12 +101,13 @@ void* Window::getHandle()
     return m_hwnd;
 }
 
+#endif // _WIN32
+
 void Window::onRefCountZero()
 {
     delete this;
 }
 
-#endif // _WIN32
 
 } // namespace lpt
 

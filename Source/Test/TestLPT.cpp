@@ -2,7 +2,6 @@
 #include "Test.h"
 #include "MeshGenerator.h"
 #include "lptInterface.h"
-#include "lptWindow.h"
 
 
 TestCase(TestMinimum)

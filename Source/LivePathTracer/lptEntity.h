@@ -152,11 +152,11 @@ struct InstanceData
 struct SceneData
 {
     uint32_t render_flags = 0; // combination of RenderFlag
+    uint32_t sample_count = 32;
     uint32_t light_count = 0;
-    float shadow_ray_offset = 0.0f;
-    float self_shadow_threshold = 0.0f;
+    uint32_t pad1{};
     float3 bg_color = {0.1f, 0.1f, 0.1f};
-    float pad{};
+    float pad2{};
 
     CameraData camera;
     LightData lights[lptMaxLights];
