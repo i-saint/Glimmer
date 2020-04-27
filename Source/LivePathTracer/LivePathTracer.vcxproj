@@ -28,6 +28,7 @@
     <ClInclude Include="DXR\lptEntityDXR.h" />
     <ClInclude Include="DXR\lptInternalDXR.h" />
     <ClInclude Include="DXR\Shaders\lptCommon.h" />
+    <ClInclude Include="DXR\Shaders\lptMath.h" />
     <ClInclude Include="DXR\Shaders\lptRandom.h" />
     <ClInclude Include="Foundation\lptLog.h" />
     <ClInclude Include="Foundation\lptUtils.h" />

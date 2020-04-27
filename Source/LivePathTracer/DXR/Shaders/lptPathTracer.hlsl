@@ -1,5 +1,5 @@
+#include "lptMath.h"
 #include "lptCommon.h"
-#include "lptRandom.h"
 
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
 RWTexture2D<float4>             g_accum_buffer  : register(u1, space0);
@@ -116,13 +116,22 @@ uint SampleDifferentialI(int2 idx, out uint center, out uint diff)
 }
 
 [shader("raygeneration")]
-void RayGenDefault()
+void RayGenRadiance()
 {
     uint2 screen_idx = DispatchRaysIndex().xy;
     uint2 screen_dim = DispatchRaysDimensions().xy;
 
     Payload payload = ShootRadianceRay();
     g_frame_buffer[screen_idx] = float4(payload.color, payload.t);
+
+    //int subframe_index = 0;
+    //uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, subframe_index);
+    //g_frame_buffer[screen_idx] = float4(
+    //    rnd(seed) - 0.5f,
+    //    rnd(seed) - 0.5f,
+    //    rnd(seed) - 0.5f,
+    //    rnd(seed) - 0.5f
+    //);
 }
 
 [shader("miss")]

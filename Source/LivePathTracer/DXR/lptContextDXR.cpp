@@ -13,7 +13,7 @@ enum class RayGenType : int
 };
 
 static const WCHAR* kRayGenShaders[]{
-    L"RayGenDefault",
+    L"RayGenRadiance",
 };
 static const WCHAR* kMissShaders[]{
     L"MissRadiance",

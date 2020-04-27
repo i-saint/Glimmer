@@ -66,6 +66,9 @@
     <ClInclude Include="DXR\Shaders\lptRandom.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="DXR\Shaders\lptMath.h">
+      <Filter>DXR\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\lptDeform.hlsl">
