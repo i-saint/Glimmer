@@ -461,7 +461,7 @@ void Scene::addLight(ILight* v)
 
 void Scene::removeLight(ILight* v)
 {
-    if (erase_if(m_lights, [v](LightPtr& l) { return l == v; }))
+    if (erase(m_lights, v))
         markDirty(DirtyFlag::Light);
 }
 
@@ -473,7 +473,7 @@ void Scene::addMesh(IMeshInstance* v)
 
 void Scene::removeMesh(IMeshInstance* v)
 {
-    if (erase_if(m_instances, [v](MeshInstancePtr& l) { return l == v; }))
+    if (erase(m_instances, v))
         markDirty(DirtyFlag::Instance);
 }
 

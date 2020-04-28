@@ -125,6 +125,8 @@ public:
     operator bool() const { return m_ptr; }
     bool operator==(const ref_ptr<T>& v) const { return m_ptr == v.m_ptr; }
     bool operator!=(const ref_ptr<T>& v) const { return m_ptr != v.m_ptr; }
+    template<class U> bool operator==(const U* v) const { return m_ptr == v; }
+    template<class U> bool operator!=(const U* v) const { return m_ptr != v; }
 
 private:
     T* m_ptr = nullptr;
@@ -279,12 +281,30 @@ public:
 using IContextPtr = ref_ptr<IContext>;
 
 
+
+class IWindowCallback
+{
+public:
+    virtual ~IWindowCallback() {}
+    virtual void onResize(int w, int h) {}
+    virtual void onMinimize() {}
+    virtual void onMaximize() {}
+    virtual void onKeyDown(int key) {}
+    virtual void onKeyUp(int key) {}
+    virtual void onMouseMove(int x, int y) {}
+    virtual void onMouseDown(int button) {}
+    virtual void onMouseUp(int button) {}
+};
+
 class IWindow : public IEntity
 {
 public:
     virtual bool open(int width, int height) = 0;
     virtual void close() = 0;
     virtual void processMessages() = 0;
+
+    virtual void addCallback(IWindowCallback* cb) = 0;
+    virtual void removeCallback(IWindowCallback* cb) = 0;
 
     virtual bool isClosed() = 0;
     virtual void* getHandle() = 0;

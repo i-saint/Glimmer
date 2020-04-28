@@ -1,6 +1,7 @@
 #pragma once
 #include "lptSettings.h"
 #include "lptEntity.h"
+#include "lptWindow.h"
 
 namespace lpt {
 
@@ -182,6 +183,23 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name);
 
 IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue);
 
+class SwapchainDXR
+{
+public:
+    struct FrameBufferData
+    {
+        ID3D12ResourcePtr m_buffer;
+        DescriptorHandleDXR m_srv;
+        DescriptorHandleDXR m_uav;
+    };
+
+    SwapchainDXR(IWindow *window, ID3D12CommandQueuePtr& cq);
+
+public:
+    IWindowPtr m_window;
+    IDXGISwapChain3Ptr m_swapchain;
+    std::vector<FrameBufferData> m_buffers;
+};
 
 
 extern const D3D12_HEAP_PROPERTIES kDefaultHeapProps;

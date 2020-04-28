@@ -76,6 +76,20 @@ inline void erase_if(std::map<K, V>& dst, const Condition& cond)
     return !keys_to_erase.empty();
 }
 
+template<class Container, class T>
+inline bool erase(Container& dst, T v)
+{
+    auto it = std::find_if(dst.begin(), dst.end(), [&](const auto& e) { return e == v; });
+    if (it != dst.end()) {
+        dst.erase(it);
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+
 template<class Container, class Condition>
 inline bool find_any(const Container& src, const Condition& cond)
 {

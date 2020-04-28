@@ -13,15 +13,39 @@ public:
     void close() override;
     void processMessages() override;
 
+    void addCallback(IWindowCallback* cb) override;
+    void removeCallback(IWindowCallback* cb) override;
+
     bool isClosed() override;
     void* getHandle() override;
-
     void onRefCountZero() override;
 
+    void onResize(int w, int h);
+    void onMinimize();
+    void onMaximize();
+    void onKeyDown(int key);
+    void onKeyUp(int key);
+    void onMouseMove(int x, int y);
+    void onMouseDown(int button);
+    void onMouseUp(int button);
+
+
+    template<class Body>
+    void eachCallback(const Body& body)
+    {
+        for (auto* cb : m_callbacks)
+            body(cb);
+    }
+
 public:
+    int m_width = 0;
+    int m_height = 0;
+    std::vector<IWindowCallback*> m_callbacks;
+
 #ifdef _WIN32
     HWND m_hwnd = nullptr;
 #endif
 };
+lptDeclRefPtr(Window);
 
 } // namespace lpt
