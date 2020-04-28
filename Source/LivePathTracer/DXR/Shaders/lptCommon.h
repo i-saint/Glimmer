@@ -21,9 +21,6 @@ enum RayType
 enum RenderFlag
 {
     RF_CULL_BACK_FACES = 0x00000001,
-    RF_FLIP_CASTER_FACES = 0x00000002,
-    RF_IGNORE_SELF_SHADOW = 0x00000004,
-    RF_KEEP_SELF_DROP_SHADOW = 0x00000008,
 };
 
 enum InstanceFlag

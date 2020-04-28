@@ -17,27 +17,19 @@ enum class GlobalFlag : uint32_t
 
 enum class RenderFlag : uint32_t
 {
-    CullBackFaces           = 0x00000001,
-    FlipCasterFaces         = 0x00000002,
-    IgnoreSelfShadow        = 0x00000004,
-    KeepSelfDropShadow      = 0x00000008,
-    AlphaTest               = 0x00000010,
-    Transparent             = 0x00000020,
-    AdaptiveSampling        = 0x00000100,
-    Antialiasing            = 0x00000200,
-    GPUSkinning             = 0x00010000,
-    ClampBlendShapeWights   = 0x00020000,
+    CullBackFaces       = 0x00000001,
+    AdaptiveSampling    = 0x00000002,
 };
 
 enum class InstanceFlag : uint32_t
 {
-    ReceiveShadows  = 0x01,
-    ShadowsOnly     = 0x02,
-    CastShadows     = 0x04,
-    CullFront       = 0x10,
-    CullBack        = 0x20,
-    CullFrontShadow = 0x40,
-    CullBackShadow  = 0x80,
+    ReceiveShadows  = 0x00000001,
+    ShadowsOnly     = 0x00000002,
+    CastShadows     = 0x00000004,
+    CullFront       = 0x00000010,
+    CullBack        = 0x00000020,
+    CullFrontShadow = 0x00000040,
+    CullBackShadow  = 0x00000080,
 
     Default = ReceiveShadows | CastShadows | CullBack,
 };
@@ -412,8 +404,11 @@ public:
 
     void markDynamic() override;
 
-    void padVertexBuffers();
+    size_t getVertexCount() const;
+    size_t getFaceCount() const;
     void updateFaceNormals();
+    void exportVertices(vertex_t* dst);
+    void exportFaces(face_t* dst);
 
 public:
     MeshData m_data;
@@ -470,6 +465,8 @@ public:
     void addMesh(IMeshInstance* v) override;
     void removeMesh(IMeshInstance* v) override;
     void clear() override;
+
+    void update();
 
 public:
     bool m_enabled = true;

@@ -307,23 +307,73 @@ void Mesh::markDynamic()
     m_dynamic = true;
 }
 
-void Mesh::padVertexBuffers()
-{
-    size_t npoints = m_points.size();
-    if (m_normals.size() != npoints)
-        m_normals.resize_zeroclear(npoints);
-    if (m_tangents.size() != npoints)
-        m_tangents.resize_zeroclear(npoints);
-    if (m_uv.size() != npoints)
-        m_uv.resize_zeroclear(npoints);
-}
-
 void Mesh::updateFaceNormals()
 {
     if (isDirty(DirtyFlag::Shape)) {
         mu::GenerateTriangleFaceNormals(m_face_normals, m_points, m_indices, false);
     }
 }
+
+size_t Mesh::getVertexCount() const
+{
+    return m_points.size();
+}
+
+size_t Mesh::getFaceCount() const
+{
+    return m_indices.size() / 3;
+}
+
+
+static RawVector<char> GetDummyBuffer_()
+{
+    static RawVector<char> s_buffer;
+    return s_buffer;
+}
+template<class T> T* GetDummyBuffer(size_t n)
+{
+    auto& buf = GetDummyBuffer_();
+    size_t size = sizeof(T) * n;
+    if (buf.size() < size)
+        buf.resize_zeroclear(size);
+    return (T*)buf.data();
+}
+
+void Mesh::exportVertices(vertex_t* dst)
+{
+    size_t vc = getVertexCount();
+    auto* points    = m_points.cdata();
+    auto* normals   = m_normals.empty() ? GetDummyBuffer<float3>(vc) : m_normals.cdata();
+    auto* tangents  = m_normals.empty() ? GetDummyBuffer<float3>(vc) : m_tangents.cdata();
+    auto* uv        = m_uv.empty() ? GetDummyBuffer<float2>(vc) : m_uv.cdata();
+
+    vertex_t tmp{};
+    for (size_t vi = 0; vi < vc; ++vi) {
+        tmp.point = *points++;
+        tmp.normal = *normals++;
+        tmp.tangent = *tangents++;
+        tmp.uv = *uv++;
+        *dst++ = tmp;
+    }
+}
+
+void Mesh::exportFaces(face_t* dst)
+{
+    updateFaceNormals();
+
+    size_t fc = getFaceCount();
+    auto* indices = m_indices.cdata();
+    auto* normals = m_face_normals.cdata();
+    face_t tmp{};
+    for (size_t fi = 0; fi < fc; ++fi) {
+        for (int i = 0; i < 3; ++i)
+            tmp.indices[i] = indices[i];
+        indices += 3;
+        tmp.normal = *normals++;
+        *dst++ = tmp;
+    }
+}
+
 
 
 MeshInstance::MeshInstance(IMesh* v)
@@ -416,6 +466,19 @@ void Scene::clear()
     m_lights.clear();
     m_instances.clear();
     markDirty(DirtyFlag::SceneEntities);
+}
+
+void Scene::update()
+{
+    m_data.frame++;
+
+    if (m_camera)
+        m_data.camera = m_camera->m_data;
+
+    uint32_t nlights = std::min((uint32_t)m_lights.size(), (uint32_t)lptMaxLights);
+    m_data.light_count = nlights;
+    for (uint32_t li = 0; li < nlights; ++li)
+        m_data.lights[li] = m_lights[li]->m_data;
 }
 
 } // namespace lpt 

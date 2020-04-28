@@ -91,20 +91,8 @@ void MeshDXR::updateResources()
 
     // update vertex buffer
     if (isDirty(DirtyFlag::Vertices)) {
-        bool allocated = ctx->updateBuffer(m_buf_vertices, m_buf_vertices_staging, m_points.size() * sizeof(vertex_t), [this](vertex_t* dst) {
-            auto* points = m_points.cdata();
-            auto* normals = m_normals.cdata();
-            auto* tangents = m_tangents.cdata();
-            auto* uv = m_uv.cdata();
-            vertex_t tmp{};
-            size_t n = m_points.size();
-            for (size_t vi = 0; vi < n; ++vi) {
-                tmp.point = *points++;
-                tmp.normal = *normals++;
-                tmp.tangent = *tangents++;
-                tmp.uv = *uv++;
-                *dst++ = tmp;
-            }
+        bool allocated = ctx->updateBuffer(m_buf_vertices, m_buf_vertices_staging, getVertexCount() * sizeof(vertex_t), [this](vertex_t* dst) {
+            exportVertices(dst);
         });
 
         if (allocated) {
@@ -116,18 +104,8 @@ void MeshDXR::updateResources()
 
     // update face buffer
     if (isDirty(DirtyFlag::Shape)) {
-        bool allocated = ctx->updateBuffer(m_buf_faces, m_buf_faces_staging, m_face_normals.size() * sizeof(face_t), [this](face_t* dst) {
-            auto* indices = m_indices.cdata();
-            auto* normals = m_face_normals.cdata();
-            face_t tmp{};
-            size_t n = m_face_normals.size();
-            for (size_t fi = 0; fi < n; ++fi) {
-                for (int i = 0; i < 3; ++i)
-                    tmp.indices[i] = indices[i];
-                indices += 3;
-                tmp.normal = *normals++;
-                *dst++ = tmp;
-            }
+        bool allocated = ctx->updateBuffer(m_buf_faces, m_buf_faces_staging, getFaceCount() * sizeof(face_t), [this](face_t* dst) {
+            exportFaces(dst);
         });
 
         if (allocated) {
@@ -294,6 +272,10 @@ void MeshInstanceDXR::clearBLAS()
 
 void SceneDXR::updateResources()
 {
+    if (!m_enabled)
+        return;
+    update();
+
     ContextDXR* ctx = m_context;
 
     // desc heap

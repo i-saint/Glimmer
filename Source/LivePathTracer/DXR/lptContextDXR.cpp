@@ -145,7 +145,7 @@ void ContextDXR::render()
     lptTimestampReset(m_timestamp);
     lptTimestampSetEnable(m_timestamp, Globals::getInstance().isTimestampEnabled());
 
-    updateEntities();
+    prepare();
     updateResources();
     deform();
     updateBLAS();
@@ -421,7 +421,7 @@ bool ContextDXR::initializeDevice()
     return true;
 }
 
-void ContextDXR::updateEntities()
+void ContextDXR::prepare()
 {
     m_scenes.eraseUnreferenced();
     m_mesh_instances.eraseUnreferenced();
@@ -441,28 +441,6 @@ void ContextDXR::updateEntities()
         pinst->m_blas_updated = false;
     }
     m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
-
-
-    // update entities
-
-    each_ref(m_meshes, [&](auto& mesh) {
-        if (mesh.isDirty(DirtyFlag::Shape)) {
-            mesh.updateFaceNormals();
-            mesh.padVertexBuffers();
-        }
-    });
-
-    each_ref(m_scenes, [](auto& scene) {
-        scene.m_data.frame++;
-
-        if (scene.m_camera)
-            scene.m_data.camera = scene.m_camera->m_data;
-
-        uint32_t nlights = std::min((uint32_t)scene.m_lights.size(), (uint32_t)lptMaxLights);
-        scene.m_data.light_count = nlights;
-        for (uint32_t li = 0; li < nlights; ++li)
-            scene.m_data.lights[li] = scene.m_lights[li]->m_data;
-    });
 }
 
 void ContextDXR::updateResources()

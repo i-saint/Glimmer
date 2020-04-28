@@ -37,7 +37,7 @@ public:
     void clear();
     bool checkError();
     bool initializeDevice();
-    void updateEntities();
+    void prepare();
     void updateResources();
     void deform();
     void updateBLAS();
