@@ -72,7 +72,6 @@ class MaterialDXR : public DXREntity<Material>
 using super = DXREntity<Material>;
 friend class ContextDXR;
 public:
-
 public:
 };
 lptDefRefPtr(MaterialDXR);
@@ -84,7 +83,6 @@ class CameraDXR : public DXREntity<Camera>
 using super = DXREntity<Camera>;
 friend class ContextDXR;
 public:
-
 public:
 };
 lptDefRefPtr(CameraDXR);
@@ -133,7 +131,6 @@ public:
     ID3D12ResourcePtr m_blas;
     ID3D12ResourcePtr m_blas_scratch;
     bool m_blas_updated = false;
-
 };
 lptDefRefPtr(MeshDXR);
 lptDefDXRT(MeshDXR, IMesh)
@@ -145,20 +142,22 @@ using super = DXREntity<MeshInstance>;
 friend class ContextDXR;
 public:
     MeshInstanceDXR(IMesh* v = nullptr);
+    ~MeshInstanceDXR();
     void updateResources();
     void updateBLAS();
     void clearBLAS();
 
 public:
-    ID3D12DescriptorHeapPtr m_desc_heap;
-
     // deformation
+    int m_deform_index = -1;
     ID3D12ResourcePtr m_buf_bs_weights;
     ID3D12ResourcePtr m_buf_joint_matrices;
-    ID3D12ResourcePtr m_buf_points_deformed;
+    ID3D12ResourcePtr m_buf_vertices;
+    DescriptorHandleDXR m_srv_vertices;
+    DescriptorHandleDXR m_uav_vertices;
 
     // acceleration structure
-    ID3D12ResourcePtr m_blas_deformed;
+    ID3D12ResourcePtr m_blas;
     ID3D12ResourcePtr m_blas_scratch;
     bool m_blas_updated = false;
 };

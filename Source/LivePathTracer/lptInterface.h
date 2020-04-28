@@ -141,6 +141,8 @@ public:
     virtual void enablePowerStableState(bool v) = 0; // must be called before create context
     virtual void enableTimestamp(bool v) = 0;
     virtual void enableForceUpdateAS(bool v) = 0;
+    virtual void setSamplesPerFrame(int v) = 0;
+    virtual void setMaxTraceDepth(int v) = 0;
 };
 
 
@@ -226,7 +228,7 @@ public:
 
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
     virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
-    virtual void setJointCounts(const uint8_t* v, size_t n) = 0;
+    virtual void setJointCounts(const int* v, size_t n) = 0;
 
     virtual void markDynamic() = 0;
 };

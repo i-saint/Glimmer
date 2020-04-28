@@ -122,6 +122,7 @@ public:
     DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_vertices;
     DescriptorHandleDXR m_srv_faces;
+    DescriptorHandleDXR m_srv_vertices_deformed;
     DescriptorHandleDXR m_srv_textures;
 
 #ifdef lptEnableTimestamp

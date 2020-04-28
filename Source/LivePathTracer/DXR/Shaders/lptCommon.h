@@ -94,11 +94,11 @@ struct InstanceData
 struct SceneData
 {
     int frame;
-    int sample_count;
+    int samples_per_frame;
+    int max_trace_depth;
     int render_flags;
     int light_count;
     float3 bg_color;
-    float pad2;
 
     CameraData camera;
     LightData lights[kMaxLights];
@@ -133,15 +133,15 @@ struct BlendshapeInfo
     int frame_offset;
 };
 
-struct BoneCount
+struct JointCount
 {
     int weight_count;
     int weight_offset;
 };
-struct BoneWeight
+struct JointWeight
 {
     float weight;
-    int bone_index;
+    int joint_index;
 };
 
 

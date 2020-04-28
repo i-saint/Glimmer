@@ -2,21 +2,21 @@
 
 #define kThreadBlockSize 4
 
-RWStructuredBuffer<vertex_t>        g_dst_vertices : register(u0);
-StructuredBuffer<vertex_t>          g_src_vertices : register(t0);
+RWStructuredBuffer<vertex_t>        g_dst_vertices  : register(u0);
+StructuredBuffer<vertex_t>          g_src_vertices  : register(t0);
 
 // blendshape data
-StructuredBuffer<float4>            g_bs_delta : register(t1);
-StructuredBuffer<BlendshapeFrame>   g_bs_frames : register(t2);
-StructuredBuffer<BlendshapeInfo>    g_bs_info : register(t3);
-StructuredBuffer<float>             g_bs_weights : register(t4);
+StructuredBuffer<float4>            g_bs_delta      : register(t1);
+StructuredBuffer<BlendshapeFrame>   g_bs_frames     : register(t2);
+StructuredBuffer<BlendshapeInfo>    g_bs_info       : register(t3);
+StructuredBuffer<float>             g_bs_weights    : register(t4);
 
 // skinning data
-StructuredBuffer<BoneCount>   g_bone_counts : register(t5);
-StructuredBuffer<BoneWeight>  g_bone_weights : register(t6);
-StructuredBuffer<float4x4>    g_bone_matrices : register(t7);
+StructuredBuffer<JointCount>        g_joint_counts   : register(t5);
+StructuredBuffer<JointWeight>       g_joint_weights  : register(t6);
+StructuredBuffer<float4x4>          g_joint_matrices : register(t7);
 
-ConstantBuffer<MeshData>      g_mesh : register(b0);
+ConstantBuffer<MeshData>            g_mesh : register(b0);
 
 
 uint VertexCount()
@@ -62,20 +62,20 @@ float3 GetBlendshapeDelta(uint bsi, uint fi, uint vi)
 }
 
 
-uint GetVertexBoneCount(uint vi)
+uint GetVertexJointCount(uint vi)
 {
-    return g_bone_counts[vi].weight_count;
+    return g_joint_counts[vi].weight_count;
 }
 
-float GetVertexBoneWeight(uint vi, uint bi)
+float GetVertexJointWeight(uint vi, uint bi)
 {
-    return g_bone_weights[g_bone_counts[vi].weight_offset + bi].weight;
+    return g_joint_weights[g_joint_counts[vi].weight_offset + bi].weight;
 }
 
-float4x4 GetVertexBoneMatrix(uint vi, uint bi)
+float4x4 GetVertexJointMatrix(uint vi, uint bi)
 {
-    uint i = g_bone_weights[g_bone_counts[vi].weight_offset + bi].bone_index;
-    return g_bone_matrices[i];
+    uint i = g_joint_weights[g_joint_counts[vi].weight_offset + bi].joint_index;
+    return g_joint_matrices[i];
 }
 
 
@@ -137,10 +137,10 @@ void ApplySkinning(uint vi, inout vertex_t v)
     float4 pos_base = float4(v.position, 1.0f);
     float3 pos_deformedeformed = 0.0f;
 
-    uint bone_count = GetVertexBoneCount(vi);
-    for (uint bi = 0; bi < bone_count; ++bi) {
-        float w = GetVertexBoneWeight(vi, bi);
-        float4x4 m = GetVertexBoneMatrix(vi, bi);
+    uint joint_count = GetVertexJointCount(vi);
+    for (uint bi = 0; bi < joint_count; ++bi) {
+        float w = GetVertexJointWeight(vi, bi);
+        float4x4 m = GetVertexJointMatrix(vi, bi);
         pos_deformedeformed += mul(m, pos_base).xyz * w;
     }
     v.position = pos_deformedeformed;

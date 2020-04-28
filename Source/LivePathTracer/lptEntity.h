@@ -120,10 +120,10 @@ struct MaterialData
 
 struct MeshData
 {
-    uint32_t face_count = 0;
-    uint32_t index_count = 0;
-    uint32_t vertex_count = 0;
-    uint32_t mesh_flags = 0;
+    int face_count = 0;
+    int index_count = 0;
+    int vertex_count = 0;
+    int mesh_flags = 0;
 };
 
 struct InstanceData
@@ -141,12 +141,12 @@ struct InstanceData
 
 struct SceneData
 {
-    uint32_t frame = 0;
-    uint32_t sample_count = 16;
-    uint32_t render_flags = 0; // combination of RenderFlag
-    uint32_t light_count = 0;
+    int frame = 0;
+    int samples_per_frame = 16;
+    int max_trace_depth = 8;
+    int render_flags = 0; // combination of RenderFlag
+    int light_count = 0;
     float3 bg_color = {0.1f, 0.1f, 0.1f};
-    float pad2{};
 
     CameraData camera;
     LightData lights[lptMaxLights];
@@ -155,7 +155,7 @@ struct SceneData
     template<class Body>
     void eachLight(const Body& body)
     {
-        for (uint32_t li = 0; li < light_count; ++li)
+        for (int li = 0; li < light_count; ++li)
             body(lights[li]);
     }
 };
@@ -282,11 +282,15 @@ public:
     void enablePowerStableState(bool v) override;
     void enableTimestamp(bool v) override;
     void enableForceUpdateAS(bool v) override;
+    void setSamplesPerFrame(int v) override;
+    void setMaxTraceDepth(int v) override;
 
     bool isStrictUpdateCheckEnabled() const;
     bool isPowerStableStateEnabled() const;
     bool isTimestampEnabled() const;
     bool isForceUpdateASEnabled() const;
+    int getSamplesPerFrame() const;
+    int getMaxTraceDepth() const;
 
 private:
     Globals();
@@ -295,6 +299,8 @@ private:
     bool getFlag(GlobalFlag f) const;
 
     uint32_t m_flags = 0;
+    int m_samples_per_frame = 16;
+    int m_max_trace_depth = 8;
 };
 
 
@@ -412,12 +418,14 @@ public:
 
     void setJointBindposes(const float4x4* v, size_t n) override;
     void setJointWeights(const JointWeight* v, size_t n) override;
-    void setJointCounts(const uint8_t* v, size_t n) override;
+    void setJointCounts(const int* v, size_t n) override;
 
     void markDynamic() override;
 
-    size_t getVertexCount() const;
+    bool isSkinned() const;
     size_t getFaceCount() const;
+    size_t getIndexCount() const;
+    size_t getVertexCount() const;
     void updateFaceData();
     void exportVertices(vertex_t* dst);
     void exportFaces(face_t* dst);
@@ -433,7 +441,7 @@ public:
     RawVector<int>    m_material_ids; // 
 
     RawVector<float4x4>    m_joint_bindposes;
-    RawVector<uint8_t>     m_joint_counts;
+    RawVector<int>         m_joint_counts;
     RawVector<JointWeight> m_joint_weights;
 
     std::vector<BlendshapeData> blendshapes;

@@ -24,7 +24,8 @@ float CameraNearPlane()     { return g_scene.camera.near_plane; }
 float CameraFarPlane()      { return g_scene.camera.far_plane; }
 
 uint  FrameCount()          { return g_scene.frame; }
-uint  SampleCount()         { return g_scene.sample_count; }
+uint  SamplesPerFrame()     { return g_scene.samples_per_frame; }
+uint  MaxTraceDepth()       { return g_scene.max_trace_depth; }
 uint  RenderFlags()         { return g_scene.render_flags; }
 float3 BackgroundColor()    { return g_scene.bg_color; }
 

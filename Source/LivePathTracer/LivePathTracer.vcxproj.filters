@@ -35,6 +35,9 @@
     <ClCompile Include="Window\lptWindow.cpp">
       <Filter>Window</Filter>
     </ClCompile>
+    <ClCompile Include="Foundation\lptUtils.cpp">
+      <Filter>Foundation</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Foundation\lptLog.h">

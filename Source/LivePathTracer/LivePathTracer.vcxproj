@@ -16,6 +16,7 @@
     <ClCompile Include="DXR\lptEntityDXR.cpp" />
     <ClCompile Include="DXR\lptInternalDXR.cpp" />
     <ClCompile Include="Foundation\lptLog.cpp" />
+    <ClCompile Include="Foundation\lptUtils.cpp" />
     <ClCompile Include="lptEntity.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

@@ -59,6 +59,14 @@ void Globals::enableForceUpdateAS(bool v)
 {
     setFlag(GlobalFlag::ForceUpdateAS, v);
 }
+void Globals::setSamplesPerFrame(int v)
+{
+    m_samples_per_frame = v;
+}
+void Globals::setMaxTraceDepth(int v)
+{
+    m_max_trace_depth = v;
+}
 
 bool Globals::isStrictUpdateCheckEnabled() const
 {
@@ -75,6 +83,14 @@ bool Globals::isTimestampEnabled() const
 bool Globals::isForceUpdateASEnabled() const
 {
     return getFlag(GlobalFlag::ForceUpdateAS);
+}
+int Globals::getSamplesPerFrame() const
+{
+    return m_samples_per_frame;
+}
+int Globals::getMaxTraceDepth() const
+{
+    return m_max_trace_depth;
 }
 
 Texture::Texture(TextureFormat format, int width, int height)
@@ -302,7 +318,7 @@ void Mesh::setJointWeights(const JointWeight* v, size_t n)
     markDirty(DirtyFlag::Joints);
 }
 
-void Mesh::setJointCounts(const uint8_t* v, size_t n)
+void Mesh::setJointCounts(const int* v, size_t n)
 {
     if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_counts == MakeIArray(v, n))
         return;
@@ -323,14 +339,24 @@ void Mesh::updateFaceData()
     }
 }
 
-size_t Mesh::getVertexCount() const
+bool Mesh::isSkinned() const
 {
-    return m_points.size();
+    return m_joint_counts.size() == getVertexCount() && !m_joint_bindposes.empty() && !m_joint_weights.empty();
 }
 
 size_t Mesh::getFaceCount() const
 {
     return m_indices.size() / 3;
+}
+
+size_t Mesh::getIndexCount() const
+{
+    return m_indices.size();
+}
+
+size_t Mesh::getVertexCount() const
+{
+    return m_points.size();
 }
 
 
@@ -489,13 +515,15 @@ void Scene::clear()
 void Scene::updateData()
 {
     m_data.frame++;
+    m_data.samples_per_frame = Globals::getInstance().getSamplesPerFrame();
+    m_data.max_trace_depth = Globals::getInstance().getMaxTraceDepth();
 
     if (m_camera)
         m_data.camera = m_camera->m_data;
 
-    uint32_t nlights = std::min((uint32_t)m_lights.size(), (uint32_t)lptMaxLights);
+    int nlights = std::min((int)m_lights.size(), lptMaxLights);
     m_data.light_count = nlights;
-    for (uint32_t li = 0; li < nlights; ++li)
+    for (int li = 0; li < nlights; ++li)
         m_data.lights[li] = m_lights[li]->m_data;
 }
 

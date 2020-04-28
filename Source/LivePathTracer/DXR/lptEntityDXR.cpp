@@ -135,11 +135,11 @@ void MeshDXR::updateBLAS()
 
     geom_desc.Triangles.VertexBuffer.StartAddress = m_buf_vertices->GetGPUVirtualAddress();
     geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(vertex_t);
-    geom_desc.Triangles.VertexCount = (UINT)m_points.size();
+    geom_desc.Triangles.VertexCount = (UINT)getVertexCount();
     geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 
     geom_desc.Triangles.IndexBuffer = m_buf_indices->GetGPUVirtualAddress();
-    geom_desc.Triangles.IndexCount = (UINT)m_indices.size();
+    geom_desc.Triangles.IndexCount = (UINT)getIndexCount();
     geom_desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
@@ -185,78 +185,94 @@ void MeshDXR::clearBLAS()
 }
 
 
+static IndexAllocator s_deform_index_alloc;
+
 MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
     : super(v)
 {
 }
 
+MeshInstanceDXR::~MeshInstanceDXR()
+{
+    s_deform_index_alloc.free(m_deform_index);
+}
+
 void MeshInstanceDXR::updateResources()
 {
+    ContextDXR* ctx = m_context;
+    auto& mesh = dxr_t(*m_mesh);
+    if (mesh.isSkinned() && mesh.isDirty(DirtyFlag::Vertices)) {
+        if (m_deform_index == -1)
+            m_deform_index = s_deform_index_alloc.allocate();
+
+        // vertex buffer for deformation
+        m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t));
+        lptSetName(m_buf_vertices, m_name + " Vertex Buffer (Deformed)");
+
+        // todo: SRV & UAV
+    }
 }
 
 void MeshInstanceDXR::updateBLAS()
 {
     ContextDXR* ctx = m_context;
     auto& cl_blas = ctx->m_cl;
-
     auto& mesh = dxr_t(*m_mesh);
 
-    if (m_buf_points_deformed) {
-        if (!m_blas_deformed || isDirty(DirtyFlag::Deform)) {
-            // BLAS for deformable meshes
+    if (m_buf_vertices && (!m_blas || isDirty(DirtyFlag::Deform))) {
+        // BLAS for deformable meshes
 
-            bool perform_update = m_blas_deformed != nullptr;
+        bool perform_update = m_blas != nullptr;
 
-            D3D12_RAYTRACING_GEOMETRY_DESC geom_desc{};
-            geom_desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-            geom_desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+        D3D12_RAYTRACING_GEOMETRY_DESC geom_desc{};
+        geom_desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+        geom_desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
-            geom_desc.Triangles.VertexBuffer.StartAddress = m_buf_points_deformed->GetGPUVirtualAddress();
-            geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(float3);
-            geom_desc.Triangles.VertexCount = (UINT)mesh.m_points.size();
-            geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+        geom_desc.Triangles.VertexBuffer.StartAddress = m_buf_vertices->GetGPUVirtualAddress();
+        geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(float3);
+        geom_desc.Triangles.VertexCount = (UINT)mesh.getVertexCount();
+        geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 
-            geom_desc.Triangles.IndexBuffer = mesh.m_buf_indices->GetGPUVirtualAddress();
-            geom_desc.Triangles.IndexCount = (UINT)mesh.m_indices.size();
-            geom_desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+        geom_desc.Triangles.IndexBuffer = mesh.m_buf_indices->GetGPUVirtualAddress();
+        geom_desc.Triangles.IndexCount = (UINT)mesh.getIndexCount();
+        geom_desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
-            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-            inputs.Flags =
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            if (perform_update)
-                inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
-            inputs.NumDescs = 1;
-            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            inputs.pGeometryDescs = &geom_desc;
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
+        inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+        inputs.Flags =
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+        if (perform_update)
+            inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+        inputs.NumDescs = 1;
+        inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+        inputs.pGeometryDescs = &geom_desc;
 
-            if (!m_blas_deformed) {
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
-                ctx->m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
+        if (!m_blas) {
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info{};
+            ctx->m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
-                m_blas_scratch = ctx->createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
-                m_blas_deformed = ctx->createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
-                lptSetName(m_blas_scratch, m_name + " BLAS Scratch");
-                lptSetName(m_blas_deformed, m_name + " BLAS");
-            }
-
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
-            as_desc.DestAccelerationStructureData = m_blas_deformed->GetGPUVirtualAddress();
-            as_desc.Inputs = inputs;
-            if (perform_update)
-                as_desc.SourceAccelerationStructureData = m_blas_deformed->GetGPUVirtualAddress();
-            as_desc.ScratchAccelerationStructureData = m_blas_scratch->GetGPUVirtualAddress();
-
-            ctx->addResourceBarrier(m_buf_points_deformed, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-            cl_blas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
-            ctx->addResourceBarrier(m_buf_points_deformed, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-            m_blas_updated = true;
+            m_blas_scratch = ctx->createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
+            m_blas = ctx->createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
+            lptSetName(m_blas_scratch, m_name + " BLAS Scratch");
+            lptSetName(m_blas, m_name + " BLAS");
         }
+
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
+        as_desc.DestAccelerationStructureData = m_blas->GetGPUVirtualAddress();
+        as_desc.Inputs = inputs;
+        if (perform_update)
+            as_desc.SourceAccelerationStructureData = m_blas->GetGPUVirtualAddress();
+        as_desc.ScratchAccelerationStructureData = m_blas_scratch->GetGPUVirtualAddress();
+
+        ctx->addResourceBarrier(m_buf_vertices, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        cl_blas->BuildRaytracingAccelerationStructure(&as_desc, 0, nullptr);
+        ctx->addResourceBarrier(m_buf_vertices, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        m_blas_updated = true;
     }
 
     if (!m_blas_updated) {
-        if (isDirty(DirtyFlag::Transform | DirtyFlag::Deform) || mesh.m_blas_updated) {
+        if (isDirty(DirtyFlag::Transform) || mesh.m_blas_updated) {
             // transform or mesh are updated. TLAS needs to be updated.
             m_blas_updated = true;
         }
@@ -266,7 +282,7 @@ void MeshInstanceDXR::updateBLAS()
 void MeshInstanceDXR::clearBLAS()
 {
     m_blas_scratch = nullptr;
-    m_blas_deformed = nullptr;
+    m_blas = nullptr;
 }
 
 
@@ -349,7 +365,7 @@ void SceneDXR::updateTLAS()
         for (UINT i = 0; i < n; ++i) {
             auto& inst = dxr_t(*m_instances[i]);
             auto& mesh = dxr_t(*inst.m_mesh);
-            auto& blas = inst.m_blas_deformed ? inst.m_blas_deformed : mesh.m_blas;
+            auto& blas = inst.m_blas ? inst.m_blas : mesh.m_blas;
 
             (float3x4&)desc.Transform = to_mat3x4(inst.m_data.local_to_world);
             desc.InstanceID = inst.m_id;

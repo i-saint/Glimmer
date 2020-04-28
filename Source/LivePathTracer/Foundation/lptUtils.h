@@ -188,4 +188,15 @@ private:
     std::vector<int> m_vacants;
 };
 
+class IndexAllocator
+{
+public:
+    int allocate();
+    void free(int v);
+
+private:
+    std::vector<int> m_vacants;
+    int m_capacity = 0;
+};
+
 } // namespace lpt
