@@ -85,13 +85,13 @@ public:
     using const_iterator = indexed_iterator<const T*, const I*>;
 
     IntrusiveIndexedArray() {}
-    IntrusiveIndexedArray(const I *i, const T *d, size_t s) : m_index(const_cast<I*>(i)), m_data(const_cast<T*>(d)), m_size(s) {}
-    IntrusiveIndexedArray(const IntrusiveIndexedArray& v) : m_index(const_cast<I*>(v.m_index)), m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
+    IntrusiveIndexedArray(const I *i, const T *d, size_t s) : m_indices(const_cast<I*>(i)), m_data(const_cast<T*>(d)), m_size(s) {}
+    IntrusiveIndexedArray(const IntrusiveIndexedArray& v) : m_indices(const_cast<I*>(v.m_indices)), m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
     template<class IContainer, class VContainer>
-    IntrusiveIndexedArray(const IContainer& i, const VContainer& v) : m_index(const_cast<I*>(i.data())), m_data(const_cast<T*>(v.data())), m_size(i.size()) {}
+    IntrusiveIndexedArray(const IContainer& i, const VContainer& v) : m_indices(const_cast<I*>(i.data())), m_data(const_cast<T*>(v.data())), m_size(i.size()) {}
     IntrusiveIndexedArray& operator=(const IntrusiveIndexedArray& v)
     {
-        m_index = const_cast<I*>(v.m_index);
+        m_indices = const_cast<I*>(v.m_indices);
         m_data = const_cast<T*>(v.m_data);
         m_size = v.m_size;
         return *this;
@@ -99,7 +99,7 @@ public:
 
     void reset(const I *i, const T *d, size_t s)
     {
-        m_index = const_cast<I*>(i);
+        m_indices = const_cast<I*>(i);
         m_data = const_cast<I*>(d);
         m_size = s;
     }
@@ -107,25 +107,49 @@ public:
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
 
-    I* index() { return m_index; }
-    const I* index() const { return m_index; }
+    I* index() { return m_indices; }
+    const I* index() const { return m_indices; }
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
 
-    T& operator[](size_t i) { return m_data[m_index[i]]; }
-    const T& operator[](size_t i) const { return m_data[m_index[i]]; }
+    T& operator[](size_t i) { return m_data[m_indices[i]]; }
+    const T& operator[](size_t i) const { return m_data[m_indices[i]]; }
 
-    iterator begin() { return { m_data, m_index }; }
-    const_iterator begin() const { return { m_data, m_index }; }
-    iterator end() { return { m_data, m_index + m_size }; }
-    const_iterator end() const { return { m_data, m_index + m_size }; }
+    iterator begin() { return { m_data, m_indices }; }
+    const_iterator begin() const { return { m_data, m_indices }; }
+    iterator end() { return { m_data, m_indices + m_size }; }
+    const_iterator end() const { return { m_data, m_indices + m_size }; }
 
 private:
-    I *m_index = nullptr;
+    I *m_indices = nullptr;
     T *m_data = nullptr;
     size_t m_size = 0;
 };
 
 template<class T> using IArray = IntrusiveArray<T>;
 template<class I, class T> using IIArray = IntrusiveIndexedArray<I, T>;
+
+template<class T>
+inline IArray<T> MakeIArray(const T* v, size_t s)
+{
+    return IArray<T>(v, s);
+}
+
+template<class Data>
+inline IArray<typename Data::value_type> MakeIArray(const Data& v)
+{
+    return IArray<typename Data::value_type>(v.data(), s.size());
+}
+
+template<class I, class T>
+inline IIArray<I, T> MakeIIArray(const I* i, const T* v, size_t s)
+{
+    return IIArray<I, T>(i, v, s);
+}
+
+template<class Indices, class Data>
+inline IIArray<typename Indices::value_type, typename Data::value_type> MakeIIArray(const Indices& i, const Data& v)
+{
+    return IArray<typename Indices::value_type, typename Data::value_type>(i.data(), v.data(), i.size());
+}

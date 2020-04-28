@@ -6,6 +6,9 @@
 
 TestCase(TestMinimum)
 {
+    lptGetGlobals()->enableTimestamp(true);
+    lptGetGlobals()->enableStrictUpdateCheck(true);
+
     const int rt_width = 1024;
     const int rt_height = 1024;
     const lpt::TextureFormat rt_format = lpt::TextureFormat::RGBAf32;

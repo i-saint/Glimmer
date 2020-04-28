@@ -143,7 +143,7 @@ IScenePtr ContextDXR::createScene()
 void ContextDXR::render()
 {
     lptTimestampReset(m_timestamp);
-    //lptTimestampSetEnable(m_timestamp, GetGlobals().hasDebugFlag(DebugFlag::Timestamp));
+    lptTimestampSetEnable(m_timestamp, Globals::getInstance().isTimestampEnabled());
 
     updateEntities();
     updateResources();
@@ -264,7 +264,7 @@ bool ContextDXR::initializeDevice()
 #ifdef lptEnableD3D12StablePowerState
     // try to set power stable state. this requires Windows to be developer mode.
     // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-setstablepowerstate
-    if (GetGlobals().hasDebugFlag(DebugFlag::PowerStableState)) {
+    if (Globals::getInstance().isPowerStableStateEnabled()) {
         if (!mu::IsDeveloperMode()) {
             SetErrorLog(
                 "Enabling power stable state requires Windows to be developer mode. "
@@ -453,6 +453,8 @@ void ContextDXR::updateEntities()
     });
 
     each_ref(m_scenes, [](auto& scene) {
+        scene.m_data.frame++;
+
         if (scene.m_camera)
             scene.m_data.camera = scene.m_camera->m_data;
 
@@ -467,7 +469,7 @@ void ContextDXR::updateResources()
 {
     m_cl = m_clm_direct->get();
 
-    if (GetGlobals().hasDebugFlag(DebugFlag::ForceUpdateAS)) {
+    if (Globals::getInstance().isForceUpdateASEnabled()) {
         // clear BLAS (for debug & measure time)
         for (auto& pobj : m_meshes)
             pobj->clearBLAS();
@@ -480,7 +482,7 @@ void ContextDXR::updateResources()
     if (!m_buf_shader_table) {
         m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
-        createBuffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * lptDXRMaxShaderRecords, [this](char* addr) {
+        updateBuffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * lptDXRMaxShaderRecords, [this](char* addr) {
             ID3D12StateObjectPropertiesPtr sop;
             m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
 
@@ -555,10 +557,10 @@ void ContextDXR::updateResources()
         }
 
         if (dirty_materials) {
-            bool allocated = createBuffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.capacity(), [this](MaterialData* dst) {
+            bool allocated = updateBuffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.capacity(), [this](MaterialData* dst) {
                 for (auto& pmat : m_materials)
                     dst[pmat->m_id] = pmat->m_data;
-                });
+            });
             if (allocated) {
                 lptSetName(m_buf_materials, "Material Buffer");
                 createBufferSRV(m_srv_materials, m_buf_materials, sizeof(MaterialData));
@@ -576,7 +578,7 @@ void ContextDXR::updateResources()
         });
 
         if (dirty_meshes) {
-            bool allocated = createBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
+            bool allocated = updateBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
                 for (auto& pmesh : m_meshes)
                     dst[pmesh->m_id] = pmesh->m_data;
             });
@@ -597,7 +599,7 @@ void ContextDXR::updateResources()
         });
 
         if (dirty_instances) {
-            bool allocated = createBuffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](InstanceData* dst) {
+            bool allocated = updateBuffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](InstanceData* dst) {
                 for (auto& pinst : m_mesh_instances)
                     dst[pinst->m_id] = pinst->m_data;
             });
@@ -909,11 +911,11 @@ void ContextDXR::readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size)
     });
 }
 
-bool ContextDXR::createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* src, size_t size)
+bool ContextDXR::updateBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* src, size_t size)
 {
-    return createBuffer(dst, staging, size, [&](void* mapped) {
+    return updateBuffer(dst, staging, size, [&](void* mapped) {
         memcpy(mapped, src, size);
-        });
+    });
 }
 
 
@@ -1000,7 +1002,7 @@ void ContextDXR::readbackTexture(void* dst_, ID3D12Resource* staging, UINT width
             dst += width * texel_size;
             mapped += width_a * texel_size;
         }
-        });
+    });
 }
 
 

@@ -14,32 +14,68 @@ int GetTexelSize(TextureFormat v)
     }
 }
 
-void GlobalSettings::enableDebugFlag(DebugFlag v)
+Globals& Globals::getInstance()
 {
-    debug_flags = debug_flags | (uint32_t)v;
+    static Globals s_inst;
+    return s_inst;
 }
 
-void GlobalSettings::disableDebugFlag(DebugFlag v)
+Globals::Globals()
 {
-    debug_flags = debug_flags & (~(uint32_t)v);
+
 }
 
-bool GlobalSettings::hasDebugFlag(DebugFlag v) const
+Globals::~Globals()
 {
-    return (debug_flags & (uint32_t)v) != 0;
+
 }
 
-bool GlobalSettings::hasFlag(GlobalFlag v) const
+void Globals::setFlag(GlobalFlag f, bool v)
 {
-    return (flags & (uint32_t)v) != 0;
+    if (v)
+        m_flags |= (uint32_t)f;
+    else
+        m_flags &= ~(uint32_t)v;
 }
 
-GlobalSettings& GetGlobals()
+bool Globals::getFlag(GlobalFlag f) const
 {
-    static GlobalSettings s_globals;
-    return s_globals;
+    return (m_flags & (uint32_t)f) != 0;
 }
 
+void Globals::enableStrictUpdateCheck(bool v)
+{
+    setFlag(GlobalFlag::StrictUpdateCheck, v);
+}
+void Globals::enablePowerStableState(bool v)
+{
+    setFlag(GlobalFlag::PowerStableState, v);
+}
+void Globals::enableTimestamp(bool v)
+{
+    setFlag(GlobalFlag::Timestamp, v);
+}
+void Globals::enableForceUpdateAS(bool v)
+{
+    setFlag(GlobalFlag::ForceUpdateAS, v);
+}
+
+bool Globals::isStrictUpdateEnabled() const
+{
+    return getFlag(GlobalFlag::StrictUpdateCheck);
+}
+bool Globals::isPowerStableStateEnabled() const
+{
+    return getFlag(GlobalFlag::PowerStableState);
+}
+bool Globals::isTimestampEnabled() const
+{
+    return getFlag(GlobalFlag::Timestamp);
+}
+bool Globals::isForceUpdateASEnabled() const
+{
+    return getFlag(GlobalFlag::ForceUpdateAS);
+}
 
 Texture::Texture(TextureFormat format, int width, int height)
 {
@@ -193,6 +229,9 @@ void Light::setColor(float3 v)
 
 void Mesh::setIndices(const int* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_indices == MakeIArray(v, n))
+        return;
+
     m_indices.assign(v, v + n);
     m_data.face_count = (uint32_t)m_indices.size() / 3;
     m_data.index_count = (uint32_t)m_indices.size();
@@ -201,6 +240,9 @@ void Mesh::setIndices(const int* v, size_t n)
 
 void Mesh::setPoints(const float3* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_points == MakeIArray(v, n))
+        return;
+
     m_points.assign(v, v + n);
     m_data.vertex_count = (uint32_t)m_points.size();
     markDirty(DirtyFlag::Points);
@@ -208,36 +250,54 @@ void Mesh::setPoints(const float3* v, size_t n)
 
 void Mesh::setNormals(const float3* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_normals == MakeIArray(v, n))
+        return;
+
     m_normals.assign(v, v + n);
     markDirty(DirtyFlag::Normals);
 }
 
 void Mesh::setTangents(const float3* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_tangents == MakeIArray(v, n))
+        return;
+
     m_tangents.assign(v, v + n);
     markDirty(DirtyFlag::Tangents);
 }
 
 void Mesh::setUV(const float2* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_uv == MakeIArray(v, n))
+        return;
+
     m_uv.assign(v, v + n);
     markDirty(DirtyFlag::UV);
 }
 
 void Mesh::setJointBindposes(const float4x4* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_joint_bindposes == MakeIArray(v, n))
+        return;
+
     m_joint_bindposes.assign(v, v + n);
     markDirty(DirtyFlag::Joints);
 }
 
 void Mesh::setJointWeights(const JointWeight* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_joint_weights == MakeIArray(v, n))
+        return;
+
     m_joint_weights.assign(v, v + n);
     markDirty(DirtyFlag::Joints);
 }
 
 void Mesh::setJointCounts(const uint8_t* v, size_t n)
 {
+    if (Globals::getInstance().isStrictUpdateEnabled() && m_joint_counts == MakeIArray(v, n))
+        return;
+
     m_joint_counts.assign(v, v + n);
     markDirty(DirtyFlag::Joints);
 }
@@ -260,7 +320,9 @@ void Mesh::padVertexBuffers()
 
 void Mesh::updateFaceNormals()
 {
-    mu::GenerateTriangleFaceNormals(m_face_normals, m_points, m_indices, false);
+    if (isDirty(DirtyFlag::Shape)) {
+        mu::GenerateTriangleFaceNormals(m_face_normals, m_points, m_indices, false);
+    }
 }
 
 
@@ -357,3 +419,8 @@ void Scene::clear()
 }
 
 } // namespace lpt 
+
+lptAPI lpt::IGlobals* lptGetGlobals()
+{
+    return &lpt::Globals::getInstance();
+}

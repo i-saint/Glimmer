@@ -65,8 +65,8 @@ public:
     void readbackBuffer(void* dst, ID3D12Resource* staging, UINT64 size);
 
     template<class Body>
-    bool createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body);
-    bool createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* src, size_t size);
+    bool updateBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body);
+    bool updateBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, const void* src, size_t size);
 
     template<class Body>
     void writeTexture(ID3D12Resource* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format, const Body& src);
@@ -141,7 +141,7 @@ inline void ContextDXR::writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging
 }
 
 template<class Body>
-inline bool ContextDXR::createBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body)
+inline bool ContextDXR::updateBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body)
 {
     bool allocated = false;
     if (GetSize(dst) < size) {

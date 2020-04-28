@@ -83,7 +83,7 @@ void MeshDXR::updateResources()
 
     // update index buffer
     if (isDirty(DirtyFlag::Indices)) {
-        bool allocated = ctx->createBuffer(m_buf_indices, m_buf_indices_staging, m_indices.cdata(), m_indices.size() * sizeof(int));
+        bool allocated = ctx->updateBuffer(m_buf_indices, m_buf_indices_staging, m_indices.cdata(), m_indices.size() * sizeof(int));
         if (allocated) {
             lptSetName(m_buf_indices, m_name + " Index Buffer");
         }
@@ -91,7 +91,7 @@ void MeshDXR::updateResources()
 
     // update vertex buffer
     if (isDirty(DirtyFlag::Vertices)) {
-        bool allocated = ctx->createBuffer(m_buf_vertices, m_buf_vertices_staging, m_points.size() * sizeof(vertex_t), [this](vertex_t* dst) {
+        bool allocated = ctx->updateBuffer(m_buf_vertices, m_buf_vertices_staging, m_points.size() * sizeof(vertex_t), [this](vertex_t* dst) {
             auto* points = m_points.cdata();
             auto* normals = m_normals.cdata();
             auto* tangents = m_tangents.cdata();
@@ -116,7 +116,7 @@ void MeshDXR::updateResources()
 
     // update face buffer
     if (isDirty(DirtyFlag::Shape)) {
-        bool allocated = ctx->createBuffer(m_buf_faces, m_buf_faces_staging, m_face_normals.size() * sizeof(face_t), [this](face_t* dst) {
+        bool allocated = ctx->updateBuffer(m_buf_faces, m_buf_faces_staging, m_face_normals.size() * sizeof(face_t), [this](face_t* dst) {
             auto* indices = m_indices.cdata();
             auto* normals = m_face_normals.cdata();
             face_t tmp{};
@@ -310,7 +310,7 @@ void SceneDXR::updateResources()
     // scene constant buffer
     // size of constant buffer must be multiple of 256
     int cb_size = align_to(256, sizeof(SceneData));
-    bool allocated = ctx->createBuffer(m_buf_scene, m_buf_scene_staging, cb_size, [this](SceneData* mapped) {
+    bool allocated = ctx->updateBuffer(m_buf_scene, m_buf_scene_staging, cb_size, [this](SceneData* mapped) {
         *mapped = m_data;
     });
     if (allocated) {

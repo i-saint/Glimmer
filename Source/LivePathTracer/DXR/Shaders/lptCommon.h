@@ -94,10 +94,10 @@ struct InstanceData
 
 struct SceneData
 {
-    uint render_flags;
+    uint frame;
     uint sample_count;
+    uint render_flags;
     uint light_count;
-    uint pad1;
     float3 bg_color;
     float pad2;
 
@@ -117,8 +117,9 @@ struct vertex_t
 struct face_t
 {
     int3 indices;
+    int material_index;
     float3 normal;
-    float2 pad;
+    float pad;
 };
 
 

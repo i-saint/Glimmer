@@ -131,6 +131,17 @@ private:
 };
 
 
+class IGlobals
+{
+public:
+    virtual ~IGlobals() {}
+    virtual void enableStrictUpdateCheck(bool v) = 0;
+    virtual void enablePowerStableState(bool v) = 0; // must be called before create context
+    virtual void enableTimestamp(bool v) = 0;
+    virtual void enableForceUpdateAS(bool v) = 0;
+};
+
+
 class IEntity
 {
 public:
@@ -279,6 +290,7 @@ public:
 };
 using IWindowPtr = ref_ptr<IWindow>;
 
+
 } // namespace lpt
 
 
@@ -287,6 +299,7 @@ using IWindowPtr = ref_ptr<IWindow>;
 #else
     #define lptAPI extern "C" __attribute__((visibility("default")))
 #endif
+lptAPI lpt::IGlobals* lptGetGlobals();
 lptAPI lpt::IContext* lptCreateContextDXR_();
 lptAPI lpt::IWindow* lptCreateWindow_(int width, int height);
 

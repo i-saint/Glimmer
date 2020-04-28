@@ -7,15 +7,12 @@
 
 namespace lpt {
 
-enum class DebugFlag : uint32_t
-{
-    Timestamp       = 0x01,
-    ForceUpdateAS   = 0x02,
-    PowerStableState= 0x04,
-};
-
 enum class GlobalFlag : uint32_t
 {
+    StrictUpdateCheck   = 0x00000001,
+    PowerStableState    = 0x00000002,
+    Timestamp           = 0x00000004,
+    ForceUpdateAS       = 0x00000008,
 };
 
 enum class RenderFlag : uint32_t
@@ -151,10 +148,10 @@ struct InstanceData
 
 struct SceneData
 {
-    uint32_t render_flags = 0; // combination of RenderFlag
+    uint32_t frame = 0;
     uint32_t sample_count = 16;
+    uint32_t render_flags = 0; // combination of RenderFlag
     uint32_t light_count = 0;
-    uint32_t pad1{};
     float3 bg_color = {0.1f, 0.1f, 0.1f};
     float pad2{};
 
@@ -184,8 +181,9 @@ struct vertex_t
 struct face_t
 {
     int3 indices;
+    int material_index;
     float3 normal;
-    float2 pad;
+    float pad;
 
     DefCompare(face_t);
 };
@@ -281,6 +279,30 @@ public:
     uint32_t m_dirty_flags = 0;
 };
 
+
+class Globals : public IGlobals
+{
+public:
+    static Globals& getInstance();
+
+    void enableStrictUpdateCheck(bool v) override;
+    void enablePowerStableState(bool v) override;
+    void enableTimestamp(bool v) override;
+    void enableForceUpdateAS(bool v) override;
+
+    bool isStrictUpdateEnabled() const;
+    bool isPowerStableStateEnabled() const;
+    bool isTimestampEnabled() const;
+    bool isForceUpdateASEnabled() const;
+
+private:
+    Globals();
+    ~Globals() override;
+    void setFlag(GlobalFlag f, bool v);
+    bool getFlag(GlobalFlag f) const;
+
+    uint32_t m_flags = 0;
+};
 
 
 class Texture : public EntityBase<ITexture>
@@ -489,20 +511,5 @@ lptDefBaseT(Scene, IScene)
 lptDefBaseT(Context, IContext)
 
 #undef lptDefBaseT
-
-
-struct GlobalSettings
-{
-    std::atomic_uint32_t debug_flags{ 0 }; // combination of DebugFlag
-    std::atomic_uint32_t flags{ 0 }; // combination of GlobalFlag
-
-    void enableDebugFlag(DebugFlag flag);
-    void disableDebugFlag(DebugFlag flag);
-    bool hasDebugFlag(DebugFlag flag) const;
-
-    bool hasFlag(GlobalFlag v) const;
-};
-
-GlobalSettings& GetGlobals();
 
 } // namespace lpt

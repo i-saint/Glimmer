@@ -4,6 +4,7 @@
 #include <cstring>
 #include <algorithm>
 #include <initializer_list>
+#include "muIntrusiveArray.h"
 
 template<class T, int Align = 0x40> class RawVector;
 template<class T, int Align = 0x40> class SharedVector;
@@ -284,14 +285,22 @@ public:
         m_size = n >= m_size ? 0 : m_size - n;
     }
 
-    bool operator == (const RawVector& other) const
+    bool operator==(const RawVector& v) const
     {
-        return m_size == other.m_size && memcmp(m_data, other.m_data, sizeof(T)*m_size) == 0;
+        return m_size == v.m_size && memcmp(m_data, v.m_data, sizeof(T) * m_size) == 0;
+    }
+    bool operator!=(const RawVector& v) const
+    {
+        return !(*this == v);
     }
 
-    bool operator != (const RawVector& other) const
+    bool operator==(const IArray<T>& v) const
     {
-        return !(*this == other);
+        return m_size == v.size() && (m_data == v.data() || memcmp(m_data, v.data(), sizeof(T) * m_size) == 0);
+    }
+    bool operator!=(const IArray<T>& v) const
+    {
+        return !(*this == v);
     }
 
     void zeroclear()
@@ -633,14 +642,22 @@ public:
         m_size = n >= m_size ? 0 : m_size - n;
     }
 
-    bool operator == (const SharedVector& other) const
+    bool operator==(const SharedVector& v) const
     {
-        return m_size == other.m_size && (m_data == other.m_data || memcmp(m_data, other.m_data, sizeof(T)*m_size) == 0);
+        return m_size == v.m_size && (m_data == v.m_data || memcmp(m_data, v.m_data, sizeof(T) * m_size) == 0);
+    }
+    bool operator!=(const SharedVector& v) const
+    {
+        return !(*this == v);
     }
 
-    bool operator != (const SharedVector& other) const
+    bool operator==(const IArray<T>& v) const
     {
-        return !(*this == other);
+        return m_size == v.size() && (m_data == v.data() || memcmp(m_data, v.data(), sizeof(T) * m_size) == 0);
+    }
+    bool operator!=(const IArray<T>& v) const
+    {
+        return !(*this == v);
     }
 
     void zeroclear()

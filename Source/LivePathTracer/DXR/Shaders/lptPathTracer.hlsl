@@ -23,8 +23,9 @@ float CameraFocalLength()   { return abs(g_scene.camera.proj[1][1]); }
 float CameraNearPlane()     { return g_scene.camera.near_plane; }
 float CameraFarPlane()      { return g_scene.camera.far_plane; }
 
-uint  RenderFlags()         { return g_scene.render_flags; }
+uint  FrameCount()          { return g_scene.frame; }
 uint  SampleCount()         { return g_scene.sample_count; }
+uint  RenderFlags()         { return g_scene.render_flags; }
 float3 BackgroundColor()    { return g_scene.bg_color; }
 
 int LightCount()            { return g_scene.light_count; }
@@ -92,8 +93,7 @@ void RayGenRadiance()
     Payload payload = ShootRadianceRay();
     g_frame_buffer[screen_idx] = float4(payload.color, payload.t);
 
-    //int subframe_index = 0;
-    //uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, subframe_index);
+    //uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, FrameCount());
     //g_frame_buffer[screen_idx] = float4(
     //    rnd(seed) - 0.5f,
     //    rnd(seed) - 0.5f,
