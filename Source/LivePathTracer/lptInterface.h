@@ -220,6 +220,7 @@ public:
     virtual void setNormals(const float3* v, size_t n) = 0;
     virtual void setTangents(const float3* v, size_t n) = 0;
     virtual void setUV(const float2* v, size_t n) = 0;
+    virtual void setMaterialIDs(const int* v, size_t n) = 0; // per-face
 
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
     virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
@@ -233,7 +234,7 @@ using IMeshPtr = ref_ptr<IMesh>;
 class IMeshInstance : public IEntity
 {
 public:
-    virtual void setMaterial(IMaterial* v) = 0;
+    virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
 };

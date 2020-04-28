@@ -60,7 +60,7 @@ void Globals::enableForceUpdateAS(bool v)
     setFlag(GlobalFlag::ForceUpdateAS, v);
 }
 
-bool Globals::isStrictUpdateEnabled() const
+bool Globals::isStrictUpdateCheckEnabled() const
 {
     return getFlag(GlobalFlag::StrictUpdateCheck);
 }
@@ -229,7 +229,7 @@ void Light::setColor(float3 v)
 
 void Mesh::setIndices(const int* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_indices == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_indices == MakeIArray(v, n))
         return;
 
     m_indices.assign(v, v + n);
@@ -240,7 +240,7 @@ void Mesh::setIndices(const int* v, size_t n)
 
 void Mesh::setPoints(const float3* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_points == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_points == MakeIArray(v, n))
         return;
 
     m_points.assign(v, v + n);
@@ -250,7 +250,7 @@ void Mesh::setPoints(const float3* v, size_t n)
 
 void Mesh::setNormals(const float3* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_normals == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_normals == MakeIArray(v, n))
         return;
 
     m_normals.assign(v, v + n);
@@ -259,7 +259,7 @@ void Mesh::setNormals(const float3* v, size_t n)
 
 void Mesh::setTangents(const float3* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_tangents == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_tangents == MakeIArray(v, n))
         return;
 
     m_tangents.assign(v, v + n);
@@ -268,16 +268,25 @@ void Mesh::setTangents(const float3* v, size_t n)
 
 void Mesh::setUV(const float2* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_uv == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_uv == MakeIArray(v, n))
         return;
 
     m_uv.assign(v, v + n);
     markDirty(DirtyFlag::UV);
 }
 
+void Mesh::setMaterialIDs(const int* v, size_t n)
+{
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_material_ids == MakeIArray(v, n))
+        return;
+
+    m_material_ids.assign(v, v + n);
+    markDirty(DirtyFlag::Material);
+}
+
 void Mesh::setJointBindposes(const float4x4* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_joint_bindposes == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_bindposes == MakeIArray(v, n))
         return;
 
     m_joint_bindposes.assign(v, v + n);
@@ -286,7 +295,7 @@ void Mesh::setJointBindposes(const float4x4* v, size_t n)
 
 void Mesh::setJointWeights(const JointWeight* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_joint_weights == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_weights == MakeIArray(v, n))
         return;
 
     m_joint_weights.assign(v, v + n);
@@ -295,7 +304,7 @@ void Mesh::setJointWeights(const JointWeight* v, size_t n)
 
 void Mesh::setJointCounts(const uint8_t* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateEnabled() && m_joint_counts == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_counts == MakeIArray(v, n))
         return;
 
     m_joint_counts.assign(v, v + n);
@@ -307,7 +316,7 @@ void Mesh::markDynamic()
     m_dynamic = true;
 }
 
-void Mesh::updateFaceNormals()
+void Mesh::updateFaceData()
 {
     if (isDirty(DirtyFlag::Shape)) {
         mu::GenerateTriangleFaceNormals(m_face_normals, m_points, m_indices, false);
@@ -330,7 +339,8 @@ static RawVector<char> GetDummyBuffer_()
     static RawVector<char> s_buffer;
     return s_buffer;
 }
-template<class T> T* GetDummyBuffer(size_t n)
+template<class T>
+inline T* GetDummyBuffer(size_t n)
 {
     auto& buf = GetDummyBuffer_();
     size_t size = sizeof(T) * n;
@@ -344,7 +354,7 @@ void Mesh::exportVertices(vertex_t* dst)
     size_t vc = getVertexCount();
     auto* points    = m_points.cdata();
     auto* normals   = m_normals.empty() ? GetDummyBuffer<float3>(vc) : m_normals.cdata();
-    auto* tangents  = m_normals.empty() ? GetDummyBuffer<float3>(vc) : m_tangents.cdata();
+    auto* tangents  = m_tangents.empty() ? GetDummyBuffer<float3>(vc) : m_tangents.cdata();
     auto* uv        = m_uv.empty() ? GetDummyBuffer<float2>(vc) : m_uv.cdata();
 
     vertex_t tmp{};
@@ -359,16 +369,19 @@ void Mesh::exportVertices(vertex_t* dst)
 
 void Mesh::exportFaces(face_t* dst)
 {
-    updateFaceNormals();
+    updateFaceData();
 
     size_t fc = getFaceCount();
     auto* indices = m_indices.cdata();
     auto* normals = m_face_normals.cdata();
+    auto* mids = m_material_ids.empty() ? GetDummyBuffer<int>(fc) : m_material_ids.cdata();
+
     face_t tmp{};
     for (size_t fi = 0; fi < fc; ++fi) {
         for (int i = 0; i < 3; ++i)
             tmp.indices[i] = indices[i];
         indices += 3;
+        tmp.material_index = *mids++;
         tmp.normal = *normals++;
         *dst++ = tmp;
     }
@@ -379,14 +392,19 @@ void Mesh::exportFaces(face_t* dst)
 MeshInstance::MeshInstance(IMesh* v)
 {
     m_mesh = base_t(v);
-    m_data.mesh_index = GetID(m_mesh);
+    m_data.mesh_id = GetID(m_mesh);
     markDirty(DirtyFlag::Mesh);
 }
 
-void MeshInstance::setMaterial(IMaterial* v)
+void MeshInstance::setMaterial(IMaterial* v, int slot)
 {
+    if (slot >= _countof(m_data.material_ids)) {
+        mu::DbgBreak();
+        return;
+    }
+
     m_material = base_t(v);
-    m_data.material_index = GetID(m_material);
+    m_data.material_ids[slot] = GetID(m_material);
     markDirty(DirtyFlag::Material);
 }
 
@@ -468,7 +486,7 @@ void Scene::clear()
     markDirty(DirtyFlag::SceneEntities);
 }
 
-void Scene::update()
+void Scene::updateData()
 {
     m_data.frame++;
 

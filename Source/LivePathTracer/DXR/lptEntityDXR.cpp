@@ -274,7 +274,7 @@ void SceneDXR::updateResources()
 {
     if (!m_enabled)
         return;
-    update();
+    updateData();
 
     ContextDXR* ctx = m_context;
 

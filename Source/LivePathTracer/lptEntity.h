@@ -113,7 +113,7 @@ struct MaterialData
     float opacity = 1.0f;
     int diffuse_tex = -1;
     int emissive_tex = -1;
-    float pad{};
+    int pad = 0;
 
     DefCompare(MaterialData);
 };
@@ -130,10 +130,11 @@ struct InstanceData
 {
     float4x4 local_to_world = float4x4::identity();
     float4x4 world_to_local = float4x4::identity();
-    uint32_t mesh_index = -1;
-    uint32_t material_index = -1;
-    uint32_t instance_flags = 0; // combination of InstanceFlags
-    uint32_t layer_mask = 0;
+    int mesh_id = -1;
+    int instance_flags = 0; // combination of InstanceFlags
+    int layer_mask = 0;
+    int pad{};
+    int material_ids[32]{};
 
     DefCompare(InstanceData);
 };
@@ -282,7 +283,7 @@ public:
     void enableTimestamp(bool v) override;
     void enableForceUpdateAS(bool v) override;
 
-    bool isStrictUpdateEnabled() const;
+    bool isStrictUpdateCheckEnabled() const;
     bool isPowerStableStateEnabled() const;
     bool isTimestampEnabled() const;
     bool isForceUpdateASEnabled() const;
@@ -397,6 +398,7 @@ public:
     void setNormals(const float3* v, size_t n) override;
     void setTangents(const float3* v, size_t n) override;
     void setUV(const float2* v, size_t n) override;
+    void setMaterialIDs(const int* v, size_t n) override;
 
     void setJointBindposes(const float4x4* v, size_t n) override;
     void setJointWeights(const JointWeight* v, size_t n) override;
@@ -406,18 +408,19 @@ public:
 
     size_t getVertexCount() const;
     size_t getFaceCount() const;
-    void updateFaceNormals();
+    void updateFaceData();
     void exportVertices(vertex_t* dst);
     void exportFaces(face_t* dst);
 
 public:
     MeshData m_data;
     RawVector<int>    m_indices;
-    RawVector<float3> m_face_normals;
     RawVector<float3> m_points;
-    RawVector<float3> m_normals;
-    RawVector<float3> m_tangents;
-    RawVector<float2> m_uv;
+    RawVector<float3> m_normals;  // per-vertex
+    RawVector<float3> m_tangents; // 
+    RawVector<float2> m_uv;       // 
+    RawVector<float3> m_face_normals; // per-face
+    RawVector<int>    m_material_ids; // 
 
     RawVector<float4x4>    m_joint_bindposes;
     RawVector<uint8_t>     m_joint_counts;
@@ -434,7 +437,7 @@ class MeshInstance : public EntityBase<IMeshInstance>
 {
 public:
     MeshInstance(IMesh* v = nullptr);
-    void setMaterial(IMaterial* v) override;
+    void setMaterial(IMaterial* v, int slot) override;
     void setTransform(const float4x4& v) override;
     void setJointMatrices(const float4x4* v) override;
     bool hasFlag(InstanceFlag flag) const;
@@ -466,7 +469,7 @@ public:
     void removeMesh(IMeshInstance* v) override;
     void clear() override;
 
-    void update();
+    void updateData();
 
 public:
     bool m_enabled = true;

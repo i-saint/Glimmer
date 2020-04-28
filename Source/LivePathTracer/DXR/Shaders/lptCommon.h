@@ -51,7 +51,7 @@ struct CameraData
 
 struct LightData
 {
-    uint type; // LightType
+    int type; // LightType
     float3 position;
     float3 direction;
     float range;
@@ -61,7 +61,7 @@ struct LightData
 
 struct MaterialData
 {
-    uint type; // MaterialType
+    int type; // MaterialType
     float3 diffuse;
     float3 emissive;
     float roughness;
@@ -73,28 +73,30 @@ struct MaterialData
 
 struct MeshData
 {
-    uint face_count;
-    uint index_count;
-    uint vertex_count;
-    uint flags; // DeformFlag
+    int face_count;
+    int index_count;
+    int vertex_count;
+    int flags; // DeformFlag
 };
 
 struct InstanceData
 {
     float4x4 local_to_world;
     float4x4 world_to_local;
-    uint mesh_index;
-    uint material_index;
-    uint instance_flags;
-    uint layer_mask;
+    int mesh_id;
+    int instance_flags;
+    int layer_mask;
+    int pad;
+    int material_ids[32];
+
 };
 
 struct SceneData
 {
-    uint frame;
-    uint sample_count;
-    uint render_flags;
-    uint light_count;
+    int frame;
+    int sample_count;
+    int render_flags;
+    int light_count;
     float3 bg_color;
     float pad2;
 
@@ -122,24 +124,24 @@ struct face_t
 
 struct BlendshapeFrame
 {
-    uint delta_offset;
+    int delta_offset;
     float weight;
 };
 struct BlendshapeInfo
 {
-    uint frame_count;
-    uint frame_offset;
+    int frame_count;
+    int frame_offset;
 };
 
 struct BoneCount
 {
-    uint weight_count;
-    uint weight_offset;
+    int weight_count;
+    int weight_offset;
 };
 struct BoneWeight
 {
     float weight;
-    uint bone_index;
+    int bone_index;
 };
 
 
