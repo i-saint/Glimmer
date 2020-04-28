@@ -64,6 +64,11 @@ ContextDXR::~ContextDXR()
     clear();
 }
 
+bool ContextDXR::valid() const
+{
+    return m_device != nullptr;
+}
+
 void ContextDXR::clear()
 {
     m_cameras.clear();
@@ -240,6 +245,7 @@ bool ContextDXR::initializeDevice()
                 D3D12_FEATURE_DATA_D3D12_OPTIONS5 features5{};
                 hr = device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &features5, sizeof(D3D12_FEATURE_DATA_D3D12_OPTIONS5));
                 if (SUCCEEDED(hr) && features5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED) {
+                    m_device_name = mu::ToMBS(desc.Description);
                     return device;
                 }
             }
@@ -572,7 +578,7 @@ void ContextDXR::updateResources()
         bool dirty_instances = false;
         each_ref(m_mesh_instances, [&](auto& inst) {
             inst.updateResources();
-            if (inst.isDirty())
+            if (inst.isDirty() || inst.m_mesh->isDirty())
                 dirty_instances = true;
         });
 
@@ -744,6 +750,11 @@ void ContextDXR::finish()
 void* ContextDXR::getDevice()
 {
     return m_device.GetInterfacePtr();
+}
+
+const char* ContextDXR::getDeviceName()
+{
+    return m_device_name.c_str();
 }
 
 const char* ContextDXR::getTimestampLog()
@@ -1046,7 +1057,21 @@ void ContextDXR::createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* r
 
 lptAPI lpt::IContext* lptCreateContextDXR_()
 {
-    return new lpt::ContextDXR();
+    auto ret = new lpt::ContextDXR();
+    if (!ret->valid()) {
+        delete ret;
+        ret = nullptr;;
+    }
+    return ret;
+}
+
+#else // // _WIN32
+
+#include "lptInterface.h"
+
+lptAPI lpt::IContext* lptCreateContextDXR_()
+{
+    return nullptr;
 }
 
 #endif // _WIN32

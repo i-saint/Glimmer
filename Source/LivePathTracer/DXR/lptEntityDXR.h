@@ -5,7 +5,6 @@
 
 namespace lpt {
 
-
 class ContextDXR;
 
 template<class T>
@@ -149,7 +148,6 @@ public:
 
 public:
     // deformation
-    int m_deform_index = -1;
     ID3D12ResourcePtr m_buf_bs_weights;
     ID3D12ResourcePtr m_buf_joint_matrices;
     ID3D12ResourcePtr m_buf_vertices;

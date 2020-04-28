@@ -144,7 +144,7 @@ void MeshDXR::updateBLAS()
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
     inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-    if (m_dynamic) {
+    if (isDynamic()) {
         inputs.Flags =
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
@@ -185,8 +185,6 @@ void MeshDXR::clearBLAS()
 }
 
 
-static IndexAllocator s_deform_index_alloc;
-
 MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
     : super(v)
 {
@@ -194,16 +192,16 @@ MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
 
 MeshInstanceDXR::~MeshInstanceDXR()
 {
-    s_deform_index_alloc.free(m_deform_index);
+    m_context->m_deform_index_alloc.free(m_data.deform_id);
 }
 
 void MeshInstanceDXR::updateResources()
 {
     ContextDXR* ctx = m_context;
     auto& mesh = dxr_t(*m_mesh);
-    if (mesh.isSkinned() && mesh.isDirty(DirtyFlag::Vertices)) {
-        if (m_deform_index == -1)
-            m_deform_index = s_deform_index_alloc.allocate();
+    if (mesh.hasJoints() && mesh.isDirty(DirtyFlag::Vertices)) {
+        if (m_data.deform_id == -1)
+            m_data.deform_id = m_context->m_deform_index_alloc.allocate();
 
         // vertex buffer for deformation
         m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t));

@@ -21,6 +21,13 @@ enum class RenderFlag : uint32_t
     AdaptiveSampling    = 0x00000002,
 };
 
+enum class MeshFlag : uint32_t
+{
+    HasBlendshapes  = 0x00000001,
+    HasJoints       = 0x00000002,
+    IsDynamic       = 0x00000004,
+};
+
 enum class InstanceFlag : uint32_t
 {
     ReceiveShadows  = 0x00000001,
@@ -123,7 +130,7 @@ struct MeshData
     int face_count = 0;
     int index_count = 0;
     int vertex_count = 0;
-    int mesh_flags = 0;
+    int flags = 0;
 };
 
 struct InstanceData
@@ -131,9 +138,9 @@ struct InstanceData
     float4x4 local_to_world = float4x4::identity();
     float4x4 world_to_local = float4x4::identity();
     int mesh_id = -1;
+    int deform_id = -1;
     int instance_flags = 0; // combination of InstanceFlags
     int layer_mask = 0;
-    int pad{};
     int material_ids[32]{};
 
     DefCompare(InstanceData);
@@ -255,12 +262,12 @@ class EntityBase : public RefCount<T>
 public:
     bool isDirty(DirtyFlag v = DirtyFlag::Any) const
     {
-        return (m_dirty_flags & (uint32_t)v) != 0;
+        return get_flag(m_dirty_flags, v);
     }
 
     void markDirty(DirtyFlag v)
     {
-        m_dirty_flags |= (uint32_t)v;
+        set_flag(m_dirty_flags, v, true);
     }
 
     void clearDirty()
@@ -396,15 +403,34 @@ lptDefRefPtr(Light);
 lptDefBaseT(Light, ILight)
 
 
-struct BlendshapeData
+class Mesh;
+
+class Blendshape : public IBlendshape
 {
-    struct FrameData
+public:
+    struct Frame
     {
-        RawVector<float3> delta;
-        float weight = 0.0f;
+        RawVector<float3> delta_points;
+        RawVector<float3> delta_normals;
+        RawVector<float3> delta_tangents;
+        RawVector<float2> delta_uv;
+        float weight = 1.0f;
     };
-    std::vector<FrameData> frames;
+    using FramePtr = std::shared_ptr<Frame>;
+
+    Blendshape(Mesh* mesh);
+    void setName(const char* name) override;
+    int addFrame() override;
+    void setDeltaPoints(int frame, const float3* v, size_t n) override;
+    void setDeltaNormals(int frame, const float3* v, size_t n) override;
+    void setDeltaTangents(int frame, const float3* v, size_t n) override;
+    void setDeltaUV(int frame, const float2* v, size_t n) override;
+
+    Mesh* m_mesh = nullptr;
+    std::string m_name;
+    std::vector<FramePtr> m_frames;
 };
+using BlendshapePtr = std::shared_ptr<Blendshape>;
 
 class Mesh : public EntityBase<IMesh>
 {
@@ -419,10 +445,16 @@ public:
     void setJointBindposes(const float4x4* v, size_t n) override;
     void setJointWeights(const JointWeight* v, size_t n) override;
     void setJointCounts(const int* v, size_t n) override;
+    void clearJoints() override;
+
+    IBlendshape* addBlendshape() override;
+    void clearBlendshapes() override;
 
     void markDynamic() override;
 
-    bool isSkinned() const;
+    bool hasBlendshapes() const;
+    bool hasJoints() const;
+    bool isDynamic() const;
     size_t getFaceCount() const;
     size_t getIndexCount() const;
     size_t getVertexCount() const;
@@ -444,9 +476,7 @@ public:
     RawVector<int>         m_joint_counts;
     RawVector<JointWeight> m_joint_weights;
 
-    std::vector<BlendshapeData> blendshapes;
-
-    bool m_dynamic = false;
+    std::vector<BlendshapePtr> m_blendshapes;
 };
 lptDefRefPtr(Mesh);
 lptDefBaseT(Mesh, IMesh)

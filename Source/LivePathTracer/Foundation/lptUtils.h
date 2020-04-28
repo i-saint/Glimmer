@@ -101,6 +101,31 @@ inline bool find_any(const Container& src, const Condition& cond)
 }
 
 
+template<class T, lptEnableIf(std::is_enum<T>::value)>
+inline void set_flag(uint32_t& dst, T flag, bool v)
+{
+    if (v)
+        (uint32_t&)dst |= (uint32_t)flag;
+    else
+        (uint32_t&)dst &= ~(uint32_t)flag;
+}
+template<class T, lptEnableIf(std::is_enum<T>::value)>
+inline void set_flag(int& dst, T flag, bool v)
+{
+    set_flag((uint32_t&)dst, flag, v);
+}
+
+template<class T, lptEnableIf(std::is_enum<T>::value)>
+inline bool get_flag(uint32_t src, T flag)
+{
+    return (src & (uint32_t)flag) != 0;
+}
+template<class T, lptEnableIf(std::is_enum<T>::value)>
+inline bool get_flag(int src, T flag)
+{
+    return get_flag((uint32_t&)dst, flag);
+}
+
 
 template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
 ref_ptr<T>& cast(ref_ptr<U>& v)

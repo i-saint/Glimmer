@@ -9,11 +9,17 @@ TestCase(TestMinimum)
     lptGetGlobals()->enableTimestamp(true);
     lptGetGlobals()->enableStrictUpdateCheck(true);
 
+    auto ctx = lptCreateContextDXR();
+    if (!ctx) {
+        printf("DXR is not supported on this system.\n");
+        return;
+    }
+    printf("device: %s\n", ctx->getDeviceName());
+
     const int rt_width = 1024;
     const int rt_height = 1024;
     const lpt::TextureFormat rt_format = lpt::TextureFormat::RGBAf32;
 
-    auto ctx = lptCreateContextDXR();
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();
     auto light = ctx->createLight();

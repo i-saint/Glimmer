@@ -32,15 +32,12 @@ Globals::~Globals()
 
 void Globals::setFlag(GlobalFlag f, bool v)
 {
-    if (v)
-        m_flags |= (uint32_t)f;
-    else
-        m_flags &= ~(uint32_t)v;
+    set_flag(m_flags, f, v);
 }
 
 bool Globals::getFlag(GlobalFlag f) const
 {
-    return (m_flags & (uint32_t)f) != 0;
+    return get_flag(m_flags, f);
 }
 
 void Globals::enableStrictUpdateCheck(bool v)
@@ -243,6 +240,43 @@ void Light::setColor(float3 v)
 }
 
 
+Blendshape::Blendshape(Mesh* mesh)
+    : m_mesh(mesh)
+{
+}
+void Blendshape::setName(const char* name)
+{
+    m_name = name;
+}
+int Blendshape::addFrame()
+{
+    int ret = (int)m_frames.size();
+    m_frames.push_back(std::make_unique<Frame>());
+    m_mesh->markDirty(DirtyFlag::Blendshape);
+    return ret;
+}
+void Blendshape::setDeltaPoints(int frame, const float3* v, size_t n)
+{
+    m_frames[frame]->delta_points.assign(v, n);
+    m_mesh->markDirty(DirtyFlag::Blendshape);
+}
+void Blendshape::setDeltaNormals(int frame, const float3* v, size_t n)
+{
+    m_frames[frame]->delta_normals.assign(v, n);
+    m_mesh->markDirty(DirtyFlag::Blendshape);
+}
+void Blendshape::setDeltaTangents(int frame, const float3* v, size_t n)
+{
+    m_frames[frame]->delta_tangents.assign(v, n);
+    m_mesh->markDirty(DirtyFlag::Blendshape);
+}
+void Blendshape::setDeltaUV(int frame, const float2* v, size_t n)
+{
+    m_frames[frame]->delta_uv.assign(v, n);
+    m_mesh->markDirty(DirtyFlag::Blendshape);
+}
+
+
 void Mesh::setIndices(const int* v, size_t n)
 {
     if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_indices == MakeIArray(v, n))
@@ -307,6 +341,7 @@ void Mesh::setJointBindposes(const float4x4* v, size_t n)
 
     m_joint_bindposes.assign(v, v + n);
     markDirty(DirtyFlag::Joints);
+    set_flag(m_data.flags, MeshFlag::HasJoints, true);
 }
 
 void Mesh::setJointWeights(const JointWeight* v, size_t n)
@@ -316,6 +351,7 @@ void Mesh::setJointWeights(const JointWeight* v, size_t n)
 
     m_joint_weights.assign(v, v + n);
     markDirty(DirtyFlag::Joints);
+    set_flag(m_data.flags, MeshFlag::HasJoints, true);
 }
 
 void Mesh::setJointCounts(const int* v, size_t n)
@@ -325,11 +361,36 @@ void Mesh::setJointCounts(const int* v, size_t n)
 
     m_joint_counts.assign(v, v + n);
     markDirty(DirtyFlag::Joints);
+    set_flag(m_data.flags, MeshFlag::HasJoints, true);
+}
+
+void Mesh::clearJoints()
+{
+    m_joint_bindposes.clear();
+    m_joint_weights.clear();
+    m_joint_counts.clear();
+    set_flag(m_data.flags, MeshFlag::HasJoints, false);
+}
+
+IBlendshape* Mesh::addBlendshape()
+{
+    auto ret = std::make_shared<Blendshape>(this);
+    m_blendshapes.push_back(ret);
+    markDirty(DirtyFlag::Blendshape);
+    set_flag(m_data.flags, MeshFlag::HasBlendshapes, true);
+    return ret.get();
+}
+
+void Mesh::clearBlendshapes()
+{
+    m_blendshapes.clear();
+    markDirty(DirtyFlag::Blendshape);
+    set_flag(m_data.flags, MeshFlag::HasBlendshapes, false);
 }
 
 void Mesh::markDynamic()
 {
-    m_dynamic = true;
+    set_flag(m_data.flags, MeshFlag::IsDynamic, true);
 }
 
 void Mesh::updateFaceData()
@@ -339,9 +400,19 @@ void Mesh::updateFaceData()
     }
 }
 
-bool Mesh::isSkinned() const
+bool Mesh::hasBlendshapes() const
+{
+    return !m_blendshapes.empty();
+}
+
+bool Mesh::hasJoints() const
 {
     return m_joint_counts.size() == getVertexCount() && !m_joint_bindposes.empty() && !m_joint_weights.empty();
+}
+
+bool Mesh::isDynamic() const
+{
+    return (m_data.flags & (int)MeshFlag::IsDynamic);
 }
 
 size_t Mesh::getFaceCount() const

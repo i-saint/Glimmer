@@ -216,6 +216,18 @@ public:
 using ICameraPtr = ref_ptr<ICamera>;
 
 
+class IBlendshape
+{
+public:
+    virtual ~IBlendshape() {}
+    virtual void setName(const char* name) = 0;
+    virtual int addFrame() = 0;
+    virtual void setDeltaPoints(int frame, const float3* v, size_t n) = 0;
+    virtual void setDeltaNormals(int frame, const float3* v, size_t n) = 0;
+    virtual void setDeltaTangents(int frame, const float3* v, size_t n) = 0;
+    virtual void setDeltaUV(int frame, const float2* v, size_t n) = 0;
+};
+
 class IMesh : public IEntity
 {
 public:
@@ -229,6 +241,10 @@ public:
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
     virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
     virtual void setJointCounts(const int* v, size_t n) = 0;
+    virtual void clearJoints() = 0;
+
+    virtual IBlendshape* addBlendshape() = 0;
+    virtual void clearBlendshapes() = 0;
 
     virtual void markDynamic() = 0;
 };
@@ -278,6 +294,7 @@ public:
     virtual void finish() = 0;
 
     virtual void* getDevice() = 0;
+    virtual const char* getDeviceName() = 0;
     virtual const char* getTimestampLog() = 0;
 };
 using IContextPtr = ref_ptr<IContext>;

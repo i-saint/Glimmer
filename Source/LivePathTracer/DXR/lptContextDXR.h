@@ -32,8 +32,10 @@ public:
     void render() override;
     void finish() override;
     void* getDevice() override;
+    const char* getDeviceName() override;
     const char* getTimestampLog() override;
 
+    bool valid() const;
     void clear();
     bool checkError();
     bool initializeDevice();
@@ -90,8 +92,10 @@ public:
     EntityList<MeshDXR>         m_meshes;
     EntityList<MeshInstanceDXR> m_mesh_instances;
     EntityList<SceneDXR>        m_scenes;
+    IndexAllocator m_deform_index_alloc;
 
 
+    std::string m_device_name;
     IDXGIFactory4Ptr m_dxgi_factory;
     ID3D12Device5Ptr m_device;
     ID3D12CommandQueuePtr m_cmd_queue_direct;
@@ -121,8 +125,8 @@ public:
     DescriptorHandleDXR m_srv_meshes;
     DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_vertices;
-    DescriptorHandleDXR m_srv_faces;
     DescriptorHandleDXR m_srv_vertices_deformed;
+    DescriptorHandleDXR m_srv_faces;
     DescriptorHandleDXR m_srv_textures;
 
 #ifdef lptEnableTimestamp

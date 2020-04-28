@@ -25,15 +25,16 @@ enum RenderFlag
 
 enum InstanceFlag
 {
-    IF_RECEIVE_SHADOWS = 0x01,
-    IF_SHADOWS_ONLY = 0x02,
-    IF_CAST_SHADOWS = 0x04,
+    IF_RECEIVE_SHADOWS  = 0x00000001,
+    IF_SHADOWS_ONLY     = 0x00000002,
+    IF_CAST_SHADOWS     = 0x00000004,
 };
 
-enum DeformFlag
+enum MeshFlag
 {
-    DF_APPLY_BLENDSHAPE = 1,
-    DF_APPLY_SKINNING = 2,
+    MF_HAS_BLENDSHAPES  = 0x00000001,
+    MF_HAS_JOINTS       = 0x00000002,
+    MF_IS_DYNAMIC       = 0x00000004,
 };
 
 
@@ -76,7 +77,7 @@ struct MeshData
     int face_count;
     int index_count;
     int vertex_count;
-    int flags; // DeformFlag
+    int flags; // MeshFlag
 };
 
 struct InstanceData
@@ -84,11 +85,10 @@ struct InstanceData
     float4x4 local_to_world;
     float4x4 world_to_local;
     int mesh_id;
+    int deform_id;
     int instance_flags;
     int layer_mask;
-    int pad;
     int material_ids[32];
-
 };
 
 struct SceneData
