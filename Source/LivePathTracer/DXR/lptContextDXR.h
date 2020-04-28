@@ -79,6 +79,7 @@ public:
     void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size);
+    void createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format);
 
 public:
     EntityList<CameraDXR>       m_cameras;
@@ -127,7 +128,7 @@ public:
     TimestampDXRPtr m_timestamp;
 #endif // lptEnableTimestamp
 };
-lptDeclRefPtr(ContextDXR);
+lptDefRefPtr(ContextDXR);
 lptDefDXRT(ContextDXR, IContext)
 
 

@@ -181,7 +181,7 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name);
 #endif
 
 
-IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue);
+class ContextDXR;
 
 class SwapchainDXR
 {
@@ -189,14 +189,16 @@ public:
     struct FrameBufferData
     {
         ID3D12ResourcePtr m_buffer;
-        DescriptorHandleDXR m_srv;
         DescriptorHandleDXR m_uav;
+        DescriptorHandleDXR m_rtv;
     };
 
-    SwapchainDXR(IWindow *window, ID3D12CommandQueuePtr& cq);
+    SwapchainDXR(ContextDXR* ctx, IWindow *window, DXGI_FORMAT format);
+    FrameBufferData& getCurrentBuffer();
 
 public:
-    IWindowPtr m_window;
+    ContextDXR* m_context;
+    WindowPtr m_window;
     IDXGISwapChain3Ptr m_swapchain;
     std::vector<FrameBufferData> m_buffers;
 };

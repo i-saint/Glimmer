@@ -2,7 +2,7 @@
 #include "MeshUtils/MeshUtils.h"
 #include "Foundation/lptUtils.h"
 
-#define lptDeclRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
+#define lptDefRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
 #define lptMaxLights 32
 
 namespace lpt {
@@ -298,6 +298,11 @@ private:
 };
 
 
+#define lptDefBaseT(T, I)\
+    inline T* base_t(I* v) { return static_cast<T*>(v); }\
+    inline T& base_t(I& v) { return static_cast<T&>(v); }
+
+
 class Texture : public EntityBase<ITexture>
 {
 public:
@@ -310,7 +315,8 @@ public:
     int m_height = 0;
     RawVector<char> m_data;
 };
-lptDeclRefPtr(Texture);
+lptDefRefPtr(Texture);
+lptDefBaseT(Texture, ITexture)
 
 
 class RenderTarget : public EntityBase<IRenderTarget>
@@ -325,7 +331,8 @@ public:
     int m_height = 0;
     bool m_readback_enabled = false;
 };
-lptDeclRefPtr(RenderTarget);
+lptDefRefPtr(RenderTarget);
+lptDefBaseT(RenderTarget, IRenderTarget)
 
 
 class Material : public EntityBase<IMaterial>
@@ -344,7 +351,8 @@ public:
     TexturePtr m_tex_diffuse;
     TexturePtr m_tex_emissive;
 };
-lptDeclRefPtr(Material);
+lptDefRefPtr(Material);
+lptDefBaseT(Material, IMaterial)
 
 
 class Camera : public EntityBase<ICamera>
@@ -360,7 +368,8 @@ public:
 public:
     CameraData m_data;
 };
-lptDeclRefPtr(Camera);
+lptDefRefPtr(Camera);
+lptDefBaseT(Camera, ICamera)
 
 
 class Light : public EntityBase<ILight>
@@ -377,7 +386,8 @@ public:
 public:
     LightData m_data;
 };
-lptDeclRefPtr(Light);
+lptDefRefPtr(Light);
+lptDefBaseT(Light, ILight)
 
 
 struct BlendshapeData
@@ -430,7 +440,8 @@ public:
 
     bool m_dynamic = false;
 };
-lptDeclRefPtr(Mesh);
+lptDefRefPtr(Mesh);
+lptDefBaseT(Mesh, IMesh)
 
 
 class MeshInstance : public EntityBase<IMeshInstance>
@@ -451,7 +462,8 @@ public:
 
     uint32_t m_instance_flags = (uint32_t)InstanceFlag::Default;
 };
-lptDeclRefPtr(MeshInstance);
+lptDefRefPtr(MeshInstance);
+lptDefBaseT(MeshInstance, IMeshInstance)
 
 
 
@@ -479,7 +491,8 @@ public:
     std::vector<LightPtr> m_lights;
     std::vector<MeshInstancePtr> m_instances;
 };
-lptDeclRefPtr(Scene);
+lptDefRefPtr(Scene);
+lptDefBaseT(Scene, IScene)
 
 
 class Context : public RefCount<IContext>
@@ -492,24 +505,10 @@ public:
 
 public:
 };
-lptDeclRefPtr(Context);
-
-
-#define lptDefBaseT(T, I)\
-    class T;\
-    inline T* base_t(I* v) { return static_cast<T*>(v); }\
-    inline T& base_t(I& v) { return static_cast<T&>(v); }
-
-lptDefBaseT(Camera, ICamera)
-lptDefBaseT(Light, ILight)
-lptDefBaseT(Texture, ITexture)
-lptDefBaseT(RenderTarget, IRenderTarget)
-lptDefBaseT(Material, IMaterial)
-lptDefBaseT(Mesh, IMesh)
-lptDefBaseT(MeshInstance, IMeshInstance)
-lptDefBaseT(Scene, IScene)
+lptDefRefPtr(Context);
 lptDefBaseT(Context, IContext)
 
-#undef lptDefBaseT
+
+
 
 } // namespace lpt

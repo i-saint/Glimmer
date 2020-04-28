@@ -44,15 +44,20 @@ static LRESULT CALLBACK lptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
     switch (msg)
     {
     case WM_CLOSE:
+        ::DestroyWindow(hwnd);
         handle([&](Window* w) {
-            w->close();
+            w->onClose();
+        });
+        break;
+    case WM_DESTROY:
+        handle([&](Window* w) {
+            w->onDestroy();
         });
         break;
     case WM_SIZE:
         handle([&](Window* w) {
-            if (wParam == SIZE_RESTORED)
-                w->onResize(LOWORD(lParam), HIWORD(lParam));
-            else if (wParam == SIZE_MAXIMIZED)
+            w->onResize(LOWORD(lParam), HIWORD(lParam));
+            if (wParam == SIZE_MAXIMIZED)
                 w->onMaximize();
             else if (wParam == SIZE_MINIMIZED)
                 w->onMinimize();
@@ -132,7 +137,7 @@ void Window::close()
 {
     if (m_hwnd) {
         ::DestroyWindow(m_hwnd);
-        m_hwnd = nullptr;
+        onClose();
     }
 }
 
@@ -170,6 +175,22 @@ bool Window::isClosed()
 void Window::onRefCountZero()
 {
     delete this;
+}
+
+void Window::onDestroy()
+{
+    m_hwnd = nullptr;
+
+    eachCallback([&](IWindowCallback* cb) {
+        cb->onDestroy();
+    });
+}
+
+void Window::onClose()
+{
+    eachCallback([&](IWindowCallback* cb) {
+        cb->onClose();
+    });
 }
 
 void Window::onResize(int w, int h)

@@ -20,6 +20,8 @@ public:
     void* getHandle() override;
     void onRefCountZero() override;
 
+    void onDestroy();
+    void onClose();
     void onResize(int w, int h);
     void onMinimize();
     void onMaximize();
@@ -46,6 +48,7 @@ public:
     HWND m_hwnd = nullptr;
 #endif
 };
-lptDeclRefPtr(Window);
+lptDefRefPtr(Window);
+lptDefBaseT(Window, IWindow)
 
 } // namespace lpt

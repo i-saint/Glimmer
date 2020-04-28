@@ -1017,20 +1017,29 @@ void ContextDXR::createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* r
 {
     if (!res)
         return;
-    D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
-    uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uav_desc.Format = GetFloatFormat(res->GetDesc().Format);
-    m_device->CreateUnorderedAccessView(res, nullptr, &uav_desc, handle.hcpu);
+    D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
+    desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    desc.Format = GetFloatFormat(res->GetDesc().Format);
+    m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);
 }
 
 void ContextDXR::createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size)
 {
     if (!res)
         return;
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc{};
-    cbv_desc.BufferLocation = res->GetGPUVirtualAddress();
-    cbv_desc.SizeInBytes = UINT(size);
-    m_device->CreateConstantBufferView(&cbv_desc, handle.hcpu);
+    D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
+    desc.BufferLocation = res->GetGPUVirtualAddress();
+    desc.SizeInBytes = UINT(size);
+    m_device->CreateConstantBufferView(&desc, handle.hcpu);
+}
+
+void ContextDXR::createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format)
+{
+    D3D12_RENDER_TARGET_VIEW_DESC desc{};
+    desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    desc.Format = format;
+    desc.Texture2D.MipSlice = 0;
+    m_device->CreateRenderTargetView(res, &desc, handle.hcpu);
 }
 
 } // namespace lpt

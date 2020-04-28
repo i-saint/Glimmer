@@ -23,6 +23,10 @@ public:
     ContextDXR* m_context = nullptr;
 };
 
+#define lptDefDXRT(T, I)\
+    inline T* dxr_t(I* v) { return static_cast<T*>(v); }\
+    inline T& dxr_t(I& v) { return static_cast<T&>(v); }
+
 
 class RenderTargetDXR : public DXREntity<RenderTarget>
 {
@@ -40,7 +44,8 @@ public:
     ID3D12ResourcePtr m_accum_buffer;
     ID3D12ResourcePtr m_buf_readback;
 };
-lptDeclRefPtr(RenderTargetDXR);
+lptDefRefPtr(RenderTargetDXR);
+lptDefDXRT(RenderTargetDXR, IRenderTarget)
 
 
 class TextureDXR : public DXREntity<Texture>
@@ -58,7 +63,8 @@ public:
     ID3D12ResourcePtr m_buf_upload;
     DescriptorHandleDXR m_srv;
 };
-lptDeclRefPtr(TextureDXR);
+lptDefRefPtr(TextureDXR);
+lptDefDXRT(TextureDXR, ITexture)
 
 
 class MaterialDXR : public DXREntity<Material>
@@ -69,7 +75,8 @@ public:
 
 public:
 };
-lptDeclRefPtr(MaterialDXR);
+lptDefRefPtr(MaterialDXR);
+lptDefDXRT(MaterialDXR, IMaterial)
 
 
 class CameraDXR : public DXREntity<Camera>
@@ -80,7 +87,8 @@ public:
 
 public:
 };
-lptDeclRefPtr(CameraDXR);
+lptDefRefPtr(CameraDXR);
+lptDefDXRT(CameraDXR, ICamera)
 
 
 class LightDXR : public DXREntity<Light>
@@ -91,7 +99,8 @@ public:
 
 public:
 };
-lptDeclRefPtr(LightDXR);
+lptDefRefPtr(LightDXR);
+lptDefDXRT(LightDXR, ILight)
 
 
 class MeshDXR : public DXREntity<Mesh>
@@ -126,7 +135,8 @@ public:
     bool m_blas_updated = false;
 
 };
-lptDeclRefPtr(MeshDXR);
+lptDefRefPtr(MeshDXR);
+lptDefDXRT(MeshDXR, IMesh)
 
 
 class MeshInstanceDXR : public DXREntity<MeshInstance>
@@ -152,7 +162,8 @@ public:
     ID3D12ResourcePtr m_blas_scratch;
     bool m_blas_updated = false;
 };
-lptDeclRefPtr(MeshInstanceDXR);
+lptDefRefPtr(MeshInstanceDXR);
+lptDefDXRT(MeshInstanceDXR, IMeshInstance)
 
 
 class SceneDXR : public DXREntity<Scene>
@@ -179,22 +190,7 @@ public:
 
     uint32_t m_render_flags = 0;
 };
-lptDeclRefPtr(SceneDXR);
-
-
-
-
-#define lptDefDXRT(T, I)\
-    inline T* dxr_t(I* v) { return static_cast<T*>(v); }\
-    inline T& dxr_t(I& v) { return static_cast<T&>(v); }
-
-lptDefDXRT(CameraDXR, ICamera)
-lptDefDXRT(LightDXR, ILight)
-lptDefDXRT(TextureDXR, ITexture)
-lptDefDXRT(RenderTargetDXR, IRenderTarget)
-lptDefDXRT(MaterialDXR, IMaterial)
-lptDefDXRT(MeshDXR, IMesh)
-lptDefDXRT(MeshInstanceDXR, IMeshInstance)
+lptDefRefPtr(SceneDXR);
 lptDefDXRT(SceneDXR, IScene)
 
 } // namespace lpt

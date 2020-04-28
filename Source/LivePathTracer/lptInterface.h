@@ -286,6 +286,8 @@ class IWindowCallback
 {
 public:
     virtual ~IWindowCallback() {}
+    virtual void onDestroy() {}
+    virtual void onClose() {}
     virtual void onResize(int w, int h) {}
     virtual void onMinimize() {}
     virtual void onMaximize() {}
@@ -314,12 +316,16 @@ using IWindowPtr = ref_ptr<IWindow>;
 
 } // namespace lpt
 
-
-#ifdef _WIN32
-    #define lptAPI extern "C" __declspec(dllexport)
+#ifdef lptStatic
+    #define lptAPI 
 #else
-    #define lptAPI extern "C" __attribute__((visibility("default")))
+    #ifdef _WIN32
+        #define lptAPI extern "C" __declspec(dllexport)
+    #else
+        #define lptAPI extern "C" __attribute__((visibility("default")))
+    #endif
 #endif
+
 lptAPI lpt::IGlobals* lptGetGlobals();
 lptAPI lpt::IContext* lptCreateContextDXR_();
 lptAPI lpt::IWindow* lptCreateWindow_(int width, int height);

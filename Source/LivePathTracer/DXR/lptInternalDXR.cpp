@@ -331,7 +331,7 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name)
 }
 
 
-IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue)
+static IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr& factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue)
 {
     DXGI_SWAP_CHAIN_DESC1 desc = {};
     desc.BufferCount = lptSwapChainBuffers;
@@ -350,6 +350,29 @@ IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr factory, HWND hwnd, uint32_t
     IDXGISwapChain3Ptr ret;
     swapchain->QueryInterface(IID_PPV_ARGS(&ret));
     return ret;
+}
+
+SwapchainDXR::SwapchainDXR(ContextDXR* ctx, IWindow* window, DXGI_FORMAT format)
+    : m_context(ctx)
+    , m_window(base_t(window))
+{
+    m_swapchain = CreateSwapChain(ctx->m_dxgi_factory, (HWND)window->getHandle(), m_window->m_width, m_window->m_height, format, ctx->m_cmd_queue_direct);
+    if (m_swapchain) {
+        m_buffers.resize(lptSwapChainBuffers);
+        for (int i = 0; i < lptSwapChainBuffers; ++i) {
+            auto& dst = m_buffers[i];
+            m_swapchain->GetBuffer(i, IID_PPV_ARGS(&dst.m_buffer));
+            dst.m_rtv = ctx->m_desc_alloc.allocate();
+            dst.m_uav = ctx->m_desc_alloc.allocate();
+            ctx->createTextureRTV(dst.m_rtv, dst.m_buffer, format);
+            ctx->createTextureUAV(dst.m_uav, dst.m_buffer);
+        }
+    }
+}
+
+SwapchainDXR::FrameBufferData& SwapchainDXR::getCurrentBuffer()
+{
+    return m_buffers[m_swapchain->GetCurrentBackBufferIndex()];
 }
 
 
