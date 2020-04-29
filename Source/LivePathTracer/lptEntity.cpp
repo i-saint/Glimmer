@@ -276,6 +276,30 @@ void Blendshape::setDeltaUV(int frame, const float2* v, size_t n)
     m_mesh->markDirty(DirtyFlag::Blendshape);
 }
 
+size_t Blendshape::getFrameCount() const
+{
+    return m_frames.size();
+}
+
+void Blendshape::exportDelta(int frame, vertex_t* dst)
+{
+    size_t vc = m_mesh->getVertexCount();
+    const Frame& f = *m_frames[frame];
+    auto* points    = f.delta_points.empty() ? GetDummyBuffer<float3>(vc) : f.delta_points.cdata();
+    auto* normals   = f.delta_normals.empty() ? GetDummyBuffer<float3>(vc) : f.delta_normals.cdata();
+    auto* tangents  = f.delta_tangents.empty() ? GetDummyBuffer<float3>(vc) : f.delta_tangents.cdata();
+    auto* uv        = f.delta_uv.empty() ? GetDummyBuffer<float2>(vc) : f.delta_uv.cdata();
+
+    vertex_t tmp{};
+    for (size_t vi = 0; vi < vc; ++vi) {
+        tmp.point = *points++;
+        tmp.normal = *normals++;
+        tmp.tangent = *tangents++;
+        tmp.uv = *uv++;
+        *dst++ = tmp;
+    }
+}
+
 
 void Mesh::setIndices(const int* v, size_t n)
 {
@@ -428,22 +452,6 @@ size_t Mesh::getIndexCount() const
 size_t Mesh::getVertexCount() const
 {
     return m_points.size();
-}
-
-
-static RawVector<char> GetDummyBuffer_()
-{
-    static RawVector<char> s_buffer;
-    return s_buffer;
-}
-template<class T>
-inline T* GetDummyBuffer(size_t n)
-{
-    auto& buf = GetDummyBuffer_();
-    size_t size = sizeof(T) * n;
-    if (buf.size() < size)
-        buf.resize_zeroclear(size);
-    return (T*)buf.data();
 }
 
 void Mesh::exportVertices(vertex_t* dst)

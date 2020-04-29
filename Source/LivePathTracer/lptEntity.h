@@ -426,6 +426,10 @@ public:
     void setDeltaTangents(int frame, const float3* v, size_t n) override;
     void setDeltaUV(int frame, const float2* v, size_t n) override;
 
+    size_t getFrameCount() const;
+    void exportDelta(int frame, vertex_t* dst);
+
+public:
     Mesh* m_mesh = nullptr;
     std::string m_name;
     std::vector<FramePtr> m_frames;

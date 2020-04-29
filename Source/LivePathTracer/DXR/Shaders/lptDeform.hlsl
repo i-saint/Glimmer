@@ -6,7 +6,7 @@ RWStructuredBuffer<vertex_t>        g_dst_vertices  : register(u0);
 StructuredBuffer<vertex_t>          g_src_vertices  : register(t0);
 
 // blendshape data
-StructuredBuffer<float4>            g_bs_delta      : register(t1);
+StructuredBuffer<vertex_t>          g_bs_delta      : register(t1);
 StructuredBuffer<BlendshapeFrame>   g_bs_frames     : register(t2);
 StructuredBuffer<BlendshapeInfo>    g_bs_info       : register(t3);
 StructuredBuffer<float>             g_bs_weights    : register(t4);
@@ -55,10 +55,10 @@ float GetBlendshapeFrameWeight(uint bsi, uint fi)
     return g_bs_frames[offset + fi].weight;
 }
 
-float3 GetBlendshapeDelta(uint bsi, uint fi, uint vi)
+vertex_t GetBlendshapeDelta(uint bsi, uint fi, uint vi)
 {
     uint offset = g_bs_frames[g_bs_info[bsi].frame_offset + fi].delta_offset;
-    return g_bs_delta[offset + vi].xyz;
+    return g_bs_delta[offset + vi];
 }
 
 
@@ -78,10 +78,39 @@ float4x4 GetVertexJointMatrix(uint vi, uint bi)
     return g_joint_matrices[i];
 }
 
+vertex_t lerp(vertex_t a, vertex_t b, float c)
+{
+    vertex_t r;
+    r.position  = lerp(a.position, b.position, c);
+    r.normal    = lerp(a.normal,   b.normal,   c);
+    r.tangent   = lerp(a.tangent,  b.tangent,  c);
+    r.uv        = lerp(a.uv,       b.uv,       c);
+    return r;
+}
+
+vertex_t add(vertex_t a, vertex_t b)
+{
+    vertex_t r;
+    r.position  = a.position + b.position;
+    r.normal    = a.normal   + b.normal;
+    r.tangent   = a.tangent  + b.tangent;
+    r.uv        = a.uv       + b.uv;
+    return r;
+}
+
+vertex_t madd(vertex_t a, vertex_t b, float c)
+{
+    vertex_t r;
+    r.position  = a.position + (b.position * c);
+    r.normal    = a.normal   + (b.normal   * c);
+    r.tangent   = a.tangent  + (b.tangent  * c);
+    r.uv        = a.uv       + (b.uv       * c);
+    return r;
+}
 
 void ApplyBlendshape(uint vi, inout vertex_t v)
 {
-    float3 pos_deformed = v.position;
+    vertex_t result = v;
 
     uint blendshape_count = BlendshapeCount();
     for (uint bsi = 0; bsi < blendshape_count; ++bsi) {
@@ -93,12 +122,12 @@ void ApplyBlendshape(uint vi, inout vertex_t v)
         float last_weight = GetBlendshapeFrameWeight(bsi, frame_count - 1);
 
         if (weight < 0.0f) {
-            float3 delta = GetBlendshapeDelta(bsi, 0, vi);
+            vertex_t delta = GetBlendshapeDelta(bsi, 0, vi);
             float s = weight / GetBlendshapeFrameWeight(bsi, 0);
-            pos_deformed += delta * s;
+            result = madd(result, delta, s);
         }
         else if (weight > last_weight) {
-            float3 delta = GetBlendshapeDelta(bsi, frame_count - 1, vi);
+            vertex_t delta = GetBlendshapeDelta(bsi, frame_count - 1, vi);
             float s = 0.0f;
             if (frame_count >= 2) {
                 float prev_weight = GetBlendshapeFrameWeight(bsi, frame_count - 2);
@@ -107,11 +136,13 @@ void ApplyBlendshape(uint vi, inout vertex_t v)
             else {
                 s = weight / last_weight;
             }
-            pos_deformed += delta * s;
+            result = madd(result, delta, s);
         }
         else {
-            float3 p1 = 0.0f, p2 = 0.0f;
             float w1 = 0.0f, w2 = 0.0f;
+            vertex_t p1, p2;
+            p1.clear();
+            p2.clear();
 
             for (uint fi = 0; fi < frame_count; ++fi) {
                 float frame_weight = GetBlendshapeFrameWeight(bsi, fi);
@@ -126,10 +157,10 @@ void ApplyBlendshape(uint vi, inout vertex_t v)
                 }
             }
             float s = (weight - w1) / (w2 - w1);
-            pos_deformed += lerp(p1, p2, s);
+            result = add(result, lerp(p1, p2, s));
         }
     }
-    v.position = pos_deformed;
+    v = result;
 }
 
 void ApplySkinning(uint vi, inout vertex_t v)

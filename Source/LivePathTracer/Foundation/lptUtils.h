@@ -139,6 +139,15 @@ const ref_ptr<T>& cast(const ref_ptr<U>& v)
 }
 
 
+RawVector<char> GetDummyBuffer_(size_t n);
+template<class T>
+inline T* GetDummyBuffer(size_t n)
+{
+    auto& buf = GetDummyBuffer_(sizeof(T) * n);
+    return (T*)buf.data();
+}
+
+
 template<class T, class R> int GetID(ref_ptr<T, R>& p) { return p ? p->m_id : -1; }
 template<class T> int GetID(T* p) { return p ? p->m_id : -1; }
 

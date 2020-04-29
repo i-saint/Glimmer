@@ -111,6 +111,15 @@ struct vertex_t
     float3 tangent;
     float2 uv;
     float pad;
+
+    void clear()
+    {
+        position = 0.0f;
+        normal = 0.0f;
+        tangent = 0.0f;
+        uv = 0.0f;
+        pad = 0.0f;
+    }
 };
 
 struct face_t
