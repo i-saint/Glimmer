@@ -18,7 +18,7 @@ TestCase(TestMinimum)
 
     const int rt_width = 1024;
     const int rt_height = 1024;
-    const gpt::TextureFormat rt_format = gpt::TextureFormat::RGBAf32;
+    const auto rt_format = gpt::Format::RGBAf32;
 
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();

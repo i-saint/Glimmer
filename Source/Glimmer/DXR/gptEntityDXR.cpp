@@ -6,7 +6,7 @@
 
 namespace gpt {
 
-RenderTargetDXR::RenderTargetDXR(TextureFormat format, int width, int height)
+RenderTargetDXR::RenderTargetDXR(Format format, int width, int height)
     : super(format, width, height)
 {
 }
@@ -43,7 +43,7 @@ void RenderTargetDXR::updateResources()
 }
 
 
-TextureDXR::TextureDXR(TextureFormat format, int width, int height)
+TextureDXR::TextureDXR(Format format, int width, int height)
     : super(format, width, height)
 {
 }

@@ -439,12 +439,21 @@ UINT GetTexelSize(DXGI_FORMAT rtf)
     return 0;
 }
 
-DXGI_FORMAT GetDXGIFormat(TextureFormat format)
+DXGI_FORMAT GetDXGIFormat(Format format)
 {
     switch (format) {
-    case TextureFormat::RGBAu8: return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-    case TextureFormat::RGBAf16: return DXGI_FORMAT_R16G16B16A16_TYPELESS;
-    case TextureFormat::RGBAf32: return DXGI_FORMAT_R32G32B32A32_TYPELESS;
+    case Format::Ru8: return DXGI_FORMAT_R8_TYPELESS;
+    case Format::RGu8: return DXGI_FORMAT_R8G8_TYPELESS;
+    case Format::RGBAu8: return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+
+    case Format::Rf16: return DXGI_FORMAT_R16_TYPELESS;
+    case Format::RGf16: return DXGI_FORMAT_R16G16_TYPELESS;
+    case Format::RGBAf16: return DXGI_FORMAT_R16G16B16A16_TYPELESS;
+
+    case Format::Rf32: return DXGI_FORMAT_R32_TYPELESS;
+    case Format::RGf32: return DXGI_FORMAT_R32G32_TYPELESS;
+    case Format::RGBAf32: return DXGI_FORMAT_R32G32B32A32_TYPELESS;
+
     default: return DXGI_FORMAT_UNKNOWN;
     }
 }

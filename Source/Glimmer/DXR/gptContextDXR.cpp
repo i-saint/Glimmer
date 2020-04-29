@@ -97,7 +97,7 @@ ILightPtr ContextDXR::createLight()
     return r;
 }
 
-IRenderTargetPtr ContextDXR::createRenderTarget(TextureFormat format, int width, int height)
+IRenderTargetPtr ContextDXR::createRenderTarget(Format format, int width, int height)
 {
     auto r = new RenderTargetDXR(format, width, height);
     r->m_context = this;
@@ -105,7 +105,7 @@ IRenderTargetPtr ContextDXR::createRenderTarget(TextureFormat format, int width,
     return r;
 }
 
-ITexturePtr ContextDXR::createTexture(TextureFormat format, int width, int height)
+ITexturePtr ContextDXR::createTexture(Format format, int width, int height)
 {
     auto r = new TextureDXR(format, width, height);
     r->m_context = this;

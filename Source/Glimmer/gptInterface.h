@@ -2,10 +2,17 @@
 
 namespace gpt {
 
-enum class TextureFormat : uint32_t
+enum class Format : uint32_t
 {
+    Unknown,
+    Ru8,
+    RGu8,
     RGBAu8,
+    Rf16,
+    RGf16,
     RGBAf16,
+    Rf32,
+    RGf32,
     RGBAf32,
 };
 
@@ -197,6 +204,7 @@ public:
     virtual void setRoughness(float v) = 0;
     virtual void setEmissive(float3 v) = 0;
     virtual void setDiffuseTexture(ITexture* v) = 0;
+    virtual void setRoughnessTexture(ITexture* v) = 0;
     virtual void setEmissiveTexture(ITexture* v) = 0;
 };
 using IMaterialPtr = ref_ptr<IMaterial>;
@@ -296,8 +304,8 @@ class IContext : public IObject
 public:
     virtual ICameraPtr       createCamera() = 0;
     virtual ILightPtr        createLight() = 0;
-    virtual IRenderTargetPtr createRenderTarget(TextureFormat format, int width, int height) = 0;
-    virtual ITexturePtr      createTexture(TextureFormat format, int width, int height) = 0;
+    virtual IRenderTargetPtr createRenderTarget(Format format, int width, int height) = 0;
+    virtual ITexturePtr      createTexture(Format format, int width, int height) = 0;
     virtual IMaterialPtr     createMaterial() = 0;
     virtual IMeshPtr         createMesh() = 0;
     virtual IMeshInstancePtr createMeshInstance(IMesh* v) = 0;

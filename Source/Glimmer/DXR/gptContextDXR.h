@@ -23,8 +23,8 @@ public:
 
     ICameraPtr       createCamera() override;
     ILightPtr        createLight() override;
-    IRenderTargetPtr createRenderTarget(TextureFormat format, int width, int height) override;
-    ITexturePtr      createTexture(TextureFormat format, int width, int height) override;
+    IRenderTargetPtr createRenderTarget(Format format, int width, int height) override;
+    ITexturePtr      createTexture(Format format, int width, int height) override;
     IMaterialPtr     createMaterial() override;
     IMeshPtr         createMesh() override;
     IMeshInstancePtr createMeshInstance(IMesh* v) override;

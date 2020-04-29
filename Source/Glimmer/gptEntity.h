@@ -73,7 +73,7 @@ enum class DirtyFlag : uint32_t
 inline DirtyFlag operator|(DirtyFlag a, DirtyFlag b) { return (DirtyFlag)((uint32_t)a | (uint32_t)b); }
 
 
-int GetTexelSize(TextureFormat v);
+int GetTexelSize(Format v);
 
 #define gptDefCompare(T)\
     bool operator==(const T& v) const { return std::memcmp(this, &v, sizeof(*this)) == 0; }\
@@ -119,8 +119,8 @@ struct MaterialData
     float roughness = 0.5f;
     float opacity = 1.0f;
     int diffuse_tex = -1;
+    int roughness_tex = -1;
     int emissive_tex = -1;
-    int pad = 0;
 
     gptDefCompare(MaterialData);
 };
@@ -198,8 +198,6 @@ struct face_t
 {
     int3 indices;
     int material_index;
-    float3 normal;
-    float pad;
 
     gptDefCompare(face_t);
 };
@@ -335,11 +333,11 @@ private:
 class Texture : public EntityBase<ITexture>
 {
 public:
-    Texture(TextureFormat format, int width, int height);
+    Texture(Format format, int width, int height);
     void upload(const void* src) override;
 
 public:
-    TextureFormat m_format = TextureFormat::RGBAu8;
+    Format m_format = Format::RGBAu8;
     int m_width = 0;
     int m_height = 0;
     RawVector<char> m_data;
@@ -351,11 +349,11 @@ gptDefBaseT(Texture, ITexture)
 class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
-    RenderTarget(TextureFormat format, int width, int height);
+    RenderTarget(Format format, int width, int height);
     void enableReadback(bool v) override;
 
 public:
-    TextureFormat m_format = TextureFormat::RGBAu8;
+    Format m_format = Format::RGBAu8;
     int m_width = 0;
     int m_height = 0;
     bool m_readback_enabled = false;
@@ -373,11 +371,13 @@ public:
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;
     void setDiffuseTexture(ITexture* v) override;
+    void setRoughnessTexture(ITexture* v) override;
     void setEmissiveTexture(ITexture* v) override;
 
 public:
     MaterialData m_data;
     TexturePtr m_tex_diffuse;
+    TexturePtr m_tex_roughness;
     TexturePtr m_tex_emissive;
 };
 gptDefRefPtr(Material);
@@ -486,7 +486,6 @@ public:
     int getFaceCount() const;
     int getIndexCount() const;
     int getVertexCount() const;
-    void updateFaceData();
     void exportVertices(vertex_t* dst) const;
     void exportFaces(face_t* dst);
 
@@ -516,8 +515,7 @@ public:
     RawVector<float3> m_normals;  // per-vertex
     RawVector<float3> m_tangents; // 
     RawVector<float2> m_uv;       // 
-    RawVector<float3> m_face_normals; // per-face
-    RawVector<int>    m_material_ids; // 
+    RawVector<int>    m_material_ids; // per-face
 
     RawVector<float4x4>    m_joint_bindposes;
     RawVector<int>         m_joint_counts;

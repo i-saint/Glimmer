@@ -68,8 +68,8 @@ struct MaterialData
     float roughness;
     float opacity;
     int diffuse_tex;
+    int roughness_tex;
     int emissive_tex;
-    float pad;
 };
 
 struct BlendshapeFrameData
@@ -146,7 +146,5 @@ struct face_t
 {
     int3 indices;
     int material_index;
-    float3 normal;
-    float pad;
 };
 

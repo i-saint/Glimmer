@@ -34,6 +34,22 @@ LightData GetLight(int i)   { return g_scene.lights[i]; }
 
 float3 HitPosition() { return WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.01f); }
 
+float3 FaceNormal(int mesh_id, int face_id)
+{
+    face_t face = g_faces[mesh_id][face_id];
+    float3 p0 = g_vertices[mesh_id][face.indices[0]].position;
+    float3 p1 = g_vertices[mesh_id][face.indices[1]].position;
+    float3 p2 = g_vertices[mesh_id][face.indices[2]].position;
+    return normalize(cross(p1 - p0, p2 - p0));
+}
+float3 FaceNormal()
+{
+    // todo: handle skinned mesh
+    int mesh_id = g_instances[InstanceID()].mesh_id;
+    int face_id = PrimitiveIndex();
+    return FaceNormal(mesh_id, face_id);
+}
+
 uint InstanceFlags() { return g_instances[InstanceID()].instance_flags; }
 uint InstanceLayerMask() { return g_instances[InstanceID()].layer_mask; }
 

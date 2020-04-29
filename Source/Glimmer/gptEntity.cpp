@@ -4,12 +4,12 @@
 
 namespace gpt {
 
-int GetTexelSize(TextureFormat v)
+int GetTexelSize(Format v)
 {
     switch (v) {
-    case TextureFormat::RGBAu8: return 4;
-    case TextureFormat::RGBAf16: return 8;
-    case TextureFormat::RGBAf32: return 16;
+    case Format::RGBAu8: return 4;
+    case Format::RGBAf16: return 8;
+    case Format::RGBAf32: return 16;
     default: return 0;
     }
 }
@@ -90,7 +90,7 @@ int Globals::getMaxTraceDepth() const
     return m_max_trace_depth;
 }
 
-Texture::Texture(TextureFormat format, int width, int height)
+Texture::Texture(Format format, int width, int height)
 {
     m_format = format;
     m_width = width;
@@ -107,7 +107,7 @@ void Texture::upload(const void* src)
 }
 
 
-RenderTarget::RenderTarget(TextureFormat format, int width, int height)
+RenderTarget::RenderTarget(Format format, int width, int height)
 {
     m_format = format;
     m_width = width;
@@ -154,6 +154,13 @@ void Material::setDiffuseTexture(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
     m_data.diffuse_tex = GetID(m_tex_diffuse);
+    markDirty(DirtyFlag::Material);
+}
+
+void Material::setRoughnessTexture(ITexture* v)
+{
+    m_tex_roughness = base_t(v);
+    m_data.roughness_tex = GetID(m_tex_roughness);
     markDirty(DirtyFlag::Material);
 }
 
@@ -422,13 +429,6 @@ void Mesh::markDynamic()
     set_flag(m_data.flags, MeshFlag::IsDynamic, true);
 }
 
-void Mesh::updateFaceData()
-{
-    if (isDirty(DirtyFlag::Shape)) {
-        mu::GenerateTriangleFaceNormals(m_face_normals, m_points, m_indices, false);
-    }
-}
-
 bool Mesh::hasBlendshapes() const
 {
     return !m_blendshapes.empty();
@@ -479,11 +479,8 @@ void Mesh::exportVertices(vertex_t* dst) const
 
 void Mesh::exportFaces(face_t* dst)
 {
-    updateFaceData();
-
     int fc = getFaceCount();
     auto* indices = m_indices.cdata();
-    auto* normals = m_face_normals.cdata();
     auto* mids = m_material_ids.empty() ? GetDummyBuffer<int>(fc) : m_material_ids.cdata();
 
     face_t tmp{};
@@ -492,7 +489,6 @@ void Mesh::exportFaces(face_t* dst)
             tmp.indices[i] = indices[i];
         indices += 3;
         tmp.material_index = *mids++;
-        tmp.normal = *normals++;
         *dst++ = tmp;
     }
 }

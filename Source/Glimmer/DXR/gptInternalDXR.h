@@ -210,7 +210,7 @@ extern const D3D12_HEAP_PROPERTIES kReadbackHeapProps;
 static const DWORD kTimeoutMS = 3000;
 
 UINT GetTexelSize(DXGI_FORMAT rtf);
-DXGI_FORMAT GetDXGIFormat(TextureFormat format);
+DXGI_FORMAT GetDXGIFormat(Format format);
 DXGI_FORMAT GetFloatFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetUIntFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
