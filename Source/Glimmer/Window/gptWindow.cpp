@@ -1,8 +1,8 @@
 #include "pch.h"
-#include "lptWindow.h"
-#include "lptEntity.h"
+#include "gptWindow.h"
+#include "gptEntity.h"
 
-namespace lpt {
+namespace gpt {
 
 static std::vector<Window*> g_windows;
 
@@ -31,7 +31,7 @@ Window::~Window()
 
 #ifdef _WIN32
 
-static LRESULT CALLBACK lptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK gptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     bool handled = false;
     auto handle = [&](auto& body) {
@@ -108,14 +108,14 @@ bool Window::open(int width, int height)
         return true; // already opened
 
     const CHAR* title = m_name.c_str();
-    const CHAR* class_name = "lpt";
+    const CHAR* class_name = "Glimmer";
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
     WNDCLASS wc{};
-    wc.lpfnWndProc = &lptMsgProc;
+    wc.lpfnWndProc = &gptMsgProc;
     wc.hInstance = ::GetModuleHandle(nullptr);
     wc.lpszClassName = class_name;
-    //wc.hIcon = (HICON)::LoadImageA(nullptr, "lpt.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE | LR_SHARED);
+    //wc.hIcon = (HICON)::LoadImageA(nullptr, "Glimmer.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE | LR_SHARED);
 
     if (::RegisterClass(&wc) != 0) {
         RECT r{ 0, 0, (LONG)width, (LONG)height };
@@ -248,10 +248,10 @@ void Window::onMouseUp(int button)
 }
 
 
-} // namespace lpt
+} // namespace gpt
 
-lptAPI lpt::IWindow* lptCreateWindow_(int width, int height)
+gptAPI gpt::IWindow* gptCreateWindow_(int width, int height)
 {
-    return new lpt::Window(width, height);
+    return new gpt::Window(width, height);
 }
 

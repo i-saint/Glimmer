@@ -1,11 +1,11 @@
 #include "pch.h"
 #ifdef _WIN32
-#include "Foundation/lptLog.h"
-#include "Foundation/lptUtils.h"
-#include "lptContextDXR.h"
-#include "lptPathTracer.hlsl.h"
+#include "Foundation/gptLog.h"
+#include "Foundation/gptUtils.h"
+#include "gptContextDXR.h"
+#include "gptPathTracer.hlsl.h"
 
-namespace lpt {
+namespace gpt {
 
 enum class RayGenType : int
 {
@@ -147,8 +147,8 @@ IScenePtr ContextDXR::createScene()
 
 void ContextDXR::render()
 {
-    lptTimestampReset(m_timestamp);
-    lptTimestampSetEnable(m_timestamp, Globals::getInstance().isTimestampEnabled());
+    gptTimestampReset(m_timestamp);
+    gptTimestampSetEnable(m_timestamp, Globals::getInstance().isTimestampEnabled());
 
     prepare();
     updateResources();
@@ -162,7 +162,7 @@ bool ContextDXR::checkError()
 {
     auto reason = m_device->GetDeviceRemovedReason();
     if (reason != 0) {
-#ifdef lptEnableD3D12DREAD
+#ifdef gptEnableD3D12DREAD
         {
             ID3D12DeviceRemovedExtendedDataPtr dread;
             if (SUCCEEDED(m_device->QueryInterface(IID_PPV_ARGS(&dread)))) {
@@ -177,7 +177,7 @@ bool ContextDXR::checkError()
                 }
             }
         }
-#endif // lptEnableD3D12DREAD
+#endif // gptEnableD3D12DREAD
 
         {
             PSTR buf = nullptr;
@@ -194,7 +194,7 @@ bool ContextDXR::checkError()
 
 bool ContextDXR::initializeDevice()
 {
-#ifdef lptEnableD3D12DebugLayer
+#ifdef gptEnableD3D12DebugLayer
     {
         // enable d3d12 debug features
         ID3D12DebugPtr debug0;
@@ -203,18 +203,18 @@ bool ContextDXR::initializeDevice()
             // enable debug layer
             debug0->EnableDebugLayer();
 
-#ifdef lptEnableD3D12GBV
+#ifdef gptEnableD3D12GBV
             ID3D12Debug1Ptr debug1;
             if (SUCCEEDED(debug0->QueryInterface(IID_PPV_ARGS(&debug1)))) {
                 debug1->SetEnableGPUBasedValidation(true);
                 debug1->SetEnableSynchronizedCommandQueueValidation(true);
             }
-#endif // lptEnableD3D12GBV
+#endif // gptEnableD3D12GBV
         }
     }
-#endif // lptEnableD3D12DebugLayer
+#endif // gptEnableD3D12DebugLayer
 
-#ifdef lptEnableD3D12DREAD
+#ifdef gptEnableD3D12DREAD
     {
         ID3D12DeviceRemovedExtendedDataSettingsPtr dread_settings;
         if (SUCCEEDED(::D3D12GetDebugInterface(IID_PPV_ARGS(&dread_settings)))) {
@@ -222,7 +222,7 @@ bool ContextDXR::initializeDevice()
             dread_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
         }
     }
-#endif // lptEnableD3D12DREAD
+#endif // gptEnableD3D12DREAD
 
     ::CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgi_factory));
 
@@ -253,13 +253,13 @@ bool ContextDXR::initializeDevice()
         return nullptr;
     };
 
-#ifdef lptForceSoftwareDevice
+#ifdef gptForceSoftwareDevice
     m_device = create_device(true);
-#else // lptForceSoftwareDevice
+#else // gptForceSoftwareDevice
     m_device = create_device(false);
     if (!m_device)
         m_device = create_device(true);
-#endif // lptForceSoftwareDevice
+#endif // gptForceSoftwareDevice
 
     // failed to create device (DXR is not supported)
     if (!m_device) {
@@ -267,7 +267,7 @@ bool ContextDXR::initializeDevice()
         return false;
     }
 
-#ifdef lptEnableD3D12StablePowerState
+#ifdef gptEnableD3D12StablePowerState
     // try to set power stable state. this requires Windows to be developer mode.
     // https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-setstablepowerstate
     if (Globals::getInstance().isPowerStableStateEnabled()) {
@@ -295,7 +295,7 @@ bool ContextDXR::initializeDevice()
         D3D12_COMMAND_QUEUE_DESC desc{};
         desc.Type = type;
         m_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&dst));
-        lptSetName(dst, name);
+        gptSetName(dst, name);
     };
     create_command_queue(m_cmd_queue_direct, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct Queue");
     m_clm_direct = std::make_shared<CommandListManagerDXR>(m_device, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct List");
@@ -320,11 +320,11 @@ bool ContextDXR::initializeDevice()
             // instance / mesh / material info
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // vertex buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxMeshCount, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // face buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxMeshCount, 0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount, 0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // textures
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, lptDXRMaxTextureCount, 0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount, 0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         D3D12_ROOT_PARAMETER params[3]{};
@@ -355,7 +355,7 @@ bool ContextDXR::initializeDevice()
             }
         }
         if (m_rootsig) {
-            lptSetName(m_rootsig, L"Shadow Rootsig");
+            gptSetName(m_rootsig, L"Shadow Rootsig");
         }
         if (!m_rootsig)
             return false;
@@ -375,8 +375,8 @@ bool ContextDXR::initializeDevice()
         };
 
         D3D12_DXIL_LIBRARY_DESC dxil_desc{};
-        dxil_desc.DXILLibrary.pShaderBytecode = g_lptPathTracer;
-        dxil_desc.DXILLibrary.BytecodeLength = sizeof(g_lptPathTracer);
+        dxil_desc.DXILLibrary.pShaderBytecode = g_gptPathTracer;
+        dxil_desc.DXILLibrary.BytecodeLength = sizeof(g_gptPathTracer);
         // zero exports means 'export all'
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &dxil_desc);
 
@@ -400,7 +400,7 @@ bool ContextDXR::initializeDevice()
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &global_rootsig);
 
         D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_desc{};
-        pipeline_desc.MaxTraceRecursionDepth = lptDXRMaxTraceRecursionLevel;
+        pipeline_desc.MaxTraceRecursionDepth = gptDXRMaxTraceRecursionLevel;
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipeline_desc);
 
         D3D12_STATE_OBJECT_DESC pso_desc{};
@@ -408,9 +408,9 @@ bool ContextDXR::initializeDevice()
         pso_desc.pSubobjects = subobjects.data();
         pso_desc.NumSubobjects = (UINT)subobjects.size();
 
-#ifdef lptDebug
+#ifdef gptDebug
         PrintStateObjectDesc(&pso_desc);
-#endif // lptDebug
+#endif // gptDebug
 
         auto hr = m_device->CreateStateObject(&pso_desc, IID_PPV_ARGS(&m_pipeline_state));
         if (FAILED(hr)) {
@@ -418,11 +418,11 @@ bool ContextDXR::initializeDevice()
             return false;
         }
         if (m_pipeline_state) {
-            lptSetName(m_pipeline_state, L"Shadow Pipeline State");
+            gptSetName(m_pipeline_state, L"Shadow Pipeline State");
         }
     }
 
-    lptTimestampInitialize(m_timestamp, m_device);
+    gptTimestampInitialize(m_timestamp, m_device);
 
     return true;
 }
@@ -466,13 +466,13 @@ void ContextDXR::updateResources()
     if (!m_buf_shader_table) {
         m_shader_record_size = align_to(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
-        updateBuffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * lptDXRMaxShaderRecords, [this](char* addr) {
+        updateBuffer(m_buf_shader_table, m_buf_shader_table_staging, m_shader_record_size * gptDXRMaxShaderRecords, [this](char* addr) {
             ID3D12StateObjectPropertiesPtr sop;
             m_pipeline_state->QueryInterface(IID_PPV_ARGS(&sop));
 
             int shader_record_count = 0;
             auto add_shader_record = [&](const WCHAR* name) {
-                if (shader_record_count++ == lptDXRMaxShaderRecords) {
+                if (shader_record_count++ == gptDXRMaxShaderRecords) {
                     assert(0 && "shader_record_count exceeded its capacity");
                 }
                 void* sid = sop->GetShaderIdentifier(name);
@@ -498,25 +498,25 @@ void ContextDXR::updateResources()
                 add_shader_record(name);
 
             });
-        lptSetName(m_buf_shader_table, L"PathTracer Shader Table");
+        gptSetName(m_buf_shader_table, L"PathTracer Shader Table");
     }
 
     // desc heap
     if (!m_desc_heap) {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = lptDXRMaxDescriptorCount;
+        desc.NumDescriptors = gptDXRMaxDescriptorCount;
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
-        lptSetName(m_desc_heap, "Global Desc Heap");
+        gptSetName(m_desc_heap, "Global Desc Heap");
 
         m_desc_alloc.reset(m_device, m_desc_heap);
         m_srv_instances = m_desc_alloc.allocate();
         m_srv_meshes = m_desc_alloc.allocate();
         m_srv_materials = m_desc_alloc.allocate();
-        m_srv_vertices = m_desc_alloc.allocate(lptDXRMaxMeshCount);
-        m_srv_faces = m_desc_alloc.allocate(lptDXRMaxMeshCount);
-        m_srv_textures = m_desc_alloc.allocate(lptDXRMaxTextureCount);
+        m_srv_vertices = m_desc_alloc.allocate(gptDXRMaxMeshCount);
+        m_srv_faces = m_desc_alloc.allocate(gptDXRMaxMeshCount);
+        m_srv_textures = m_desc_alloc.allocate(gptDXRMaxTextureCount);
     }
 
     // render targets
@@ -546,7 +546,7 @@ void ContextDXR::updateResources()
                     dst[pmat->m_id] = pmat->m_data;
             });
             if (allocated) {
-                lptSetName(m_buf_materials, "Material Buffer");
+                gptSetName(m_buf_materials, "Material Buffer");
                 createBufferSRV(m_srv_materials, m_buf_materials, sizeof(MaterialData));
             }
         }
@@ -567,7 +567,7 @@ void ContextDXR::updateResources()
                     dst[pmesh->m_id] = pmesh->m_data;
             });
             if (allocated) {
-                lptSetName(m_buf_meshes, "Mesh Buffer");
+                gptSetName(m_buf_meshes, "Mesh Buffer");
                 createBufferSRV(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
             }
         }
@@ -588,7 +588,7 @@ void ContextDXR::updateResources()
                     dst[pinst->m_id] = pinst->m_data;
             });
             if (allocated) {
-                lptSetName(m_buf_instances, "Instance Buffer");
+                gptSetName(m_buf_instances, "Instance Buffer");
                 createBufferSRV(m_srv_instances, m_buf_instances, sizeof(InstanceData));
             }
         }
@@ -604,7 +604,7 @@ void ContextDXR::updateResources()
 
 void ContextDXR::deform()
 {
-    //lptTimestampQuery(m_timestamp, m_cl, "Deform begin");
+    //gptTimestampQuery(m_timestamp, m_cl, "Deform begin");
     //// todo
     //bool gpu_skinning = rd.hasFlag(RenderFlag::GPUSkinning) && m_deformer;
     //if (gpu_skinning) {
@@ -619,7 +619,7 @@ void ContextDXR::deform()
     //else {
         m_fv_deform = m_fv_upload;
     //}
-    //lptTimestampQuery(m_timestamp, m_cl, "Deform end");
+    //gptTimestampQuery(m_timestamp, m_cl, "Deform end");
 }
 
 void ContextDXR::updateBLAS()
@@ -627,14 +627,14 @@ void ContextDXR::updateBLAS()
     m_cl = m_clm_direct->get();
 
     // build BLAS
-    lptTimestampQuery(m_timestamp, m_cl, "Building BLAS begin");
+    gptTimestampQuery(m_timestamp, m_cl, "Building BLAS begin");
     each_ref(m_meshes, [&](auto& mesh) {
         mesh.updateBLAS();
     });
     each_ref(m_mesh_instances, [&](auto& inst) {
         inst.updateBLAS();
     });
-    lptTimestampQuery(m_timestamp, m_cl, "Building BLAS end");
+    gptTimestampQuery(m_timestamp, m_cl, "Building BLAS end");
 
     m_fv_blas = submit(m_fv_deform);
 }
@@ -643,11 +643,11 @@ void ContextDXR::updateTLAS()
 {
     m_cl = m_clm_direct->get();
 
-    lptTimestampQuery(m_timestamp, m_cl, "Building TLAS begin");
+    gptTimestampQuery(m_timestamp, m_cl, "Building TLAS begin");
     each_ref(m_scenes, [&](auto& scene) {
         scene.updateTLAS();
     });
-    lptTimestampQuery(m_timestamp, m_cl, "Building TLAS end");
+    gptTimestampQuery(m_timestamp, m_cl, "Building TLAS end");
 
     m_fv_tlas = submit(m_fv_blas);
 }
@@ -656,7 +656,7 @@ void ContextDXR::dispatchRays()
 {
     m_cl = m_clm_direct->get();
     auto& cl_rays = m_cl;
-    lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays begin");
+    gptTimestampQuery(m_timestamp, cl_rays, "DispatchRays begin");
 
     cl_rays->SetComputeRootSignature(m_rootsig);
     cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
@@ -709,18 +709,18 @@ void ContextDXR::dispatchRays()
         cl_rays->SetComputeRootDescriptorTable(1, scene.m_uav_accum_buffer.hgpu);
         do_dispatch(rt.m_frame_buffer, RayGenType::Default);
     });
-    lptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
+    gptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
 
 
     // handle render target readback
-    lptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
+    gptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
     each_ref(m_render_targets, [&](auto& rt) {
         if (rt.m_readback_enabled)
             copyTexture(rt.m_buf_readback, rt.m_frame_buffer, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
     });
-    lptTimestampQuery(m_timestamp, cl_rays, "Readback end");
+    gptTimestampQuery(m_timestamp, cl_rays, "Readback end");
 
-    lptTimestampResolve(m_timestamp, cl_rays);
+    gptTimestampResolve(m_timestamp, cl_rays);
 
     // submit
     m_fv_rays = submit(m_fv_tlas);
@@ -732,7 +732,7 @@ void ContextDXR::finish()
     if (m_fv_rays != 0) {
         m_fence->SetEventOnCompletion(m_fv_rays, m_fence_event);
         ::WaitForSingleObject(m_fence_event, kTimeoutMS);
-        lptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
+        gptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
     }
 
     // reset state
@@ -761,7 +761,7 @@ const char* ContextDXR::getDeviceName()
 
 const char* ContextDXR::getTimestampLog()
 {
-#ifdef lptEnableTimestamp
+#ifdef gptEnableTimestamp
     static std::string s_log;
     if (m_timestamp)
         s_log = m_timestamp->getLog();
@@ -1055,11 +1055,11 @@ void ContextDXR::createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* r
     m_device->CreateRenderTargetView(res, &desc, handle.hcpu);
 }
 
-} // namespace lpt
+} // namespace gpt
 
-lptAPI lpt::IContext* lptCreateContextDXR_()
+gptAPI gpt::IContext* gptCreateContextDXR_()
 {
-    auto ret = new lpt::ContextDXR();
+    auto ret = new gpt::ContextDXR();
     if (!ret->valid()) {
         delete ret;
         ret = nullptr;;
@@ -1069,9 +1069,9 @@ lptAPI lpt::IContext* lptCreateContextDXR_()
 
 #else // // _WIN32
 
-#include "lptInterface.h"
+#include "gptInterface.h"
 
-lptAPI lpt::IContext* lptCreateContextDXR_()
+gptAPI gpt::IContext* gptCreateContextDXR_()
 {
     return nullptr;
 }

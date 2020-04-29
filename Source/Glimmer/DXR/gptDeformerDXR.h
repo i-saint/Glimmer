@@ -1,6 +1,6 @@
 #pragma once
 #ifdef _WIN32
-namespace lpt {
+namespace gpt {
 
 class ContextDXR;
 
@@ -21,5 +21,5 @@ private:
 };
 using DeformerDXRPtr = std::shared_ptr<DeformerDXR>;
 
-} // namespace lpt
+} // namespace gpt
 #endif // _WIN32

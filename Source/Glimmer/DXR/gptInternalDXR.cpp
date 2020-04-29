@@ -1,10 +1,10 @@
 #include "pch.h"
-#include "lptInternalDXR.h"
-#include "lptEntityDXR.h"
-#include "lptContextDXR.h"
-#include "Foundation/lptLog.h"
+#include "gptInternalDXR.h"
+#include "gptEntityDXR.h"
+#include "gptContextDXR.h"
+#include "Foundation/gptLog.h"
 
-namespace lpt {
+namespace gpt {
 
 DescriptorHandleDXR::operator bool() const
 {
@@ -334,7 +334,7 @@ void SetNameImpl(ID3D12Object* obj, const std::wstring& name)
 static IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr& factory, HWND hwnd, uint32_t width, uint32_t height, DXGI_FORMAT format, ID3D12CommandQueuePtr cmd_queue)
 {
     DXGI_SWAP_CHAIN_DESC1 desc = {};
-    desc.BufferCount = lptSwapChainBuffers;
+    desc.BufferCount = gptDXRSwapChainBuffers;
     desc.Width = width;
     desc.Height = height;
     desc.Format = format;
@@ -358,8 +358,8 @@ SwapchainDXR::SwapchainDXR(ContextDXR* ctx, IWindow* window, DXGI_FORMAT format)
 {
     m_swapchain = CreateSwapChain(ctx->m_dxgi_factory, (HWND)window->getHandle(), m_window->m_width, m_window->m_height, format, ctx->m_cmd_queue_direct);
     if (m_swapchain) {
-        m_buffers.resize(lptSwapChainBuffers);
-        for (int i = 0; i < lptSwapChainBuffers; ++i) {
+        m_buffers.resize(gptDXRSwapChainBuffers);
+        for (int i = 0; i < gptDXRSwapChainBuffers; ++i) {
             auto& dst = m_buffers[i];
             m_swapchain->GetBuffer(i, IID_PPV_ARGS(&dst.m_buffer));
             dst.m_rtv = ctx->m_desc_alloc.allocate();
@@ -691,4 +691,4 @@ void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
     OutputDebugStringW(wstr.str().c_str());
 }
 
-} // namespace lpt
+} // namespace gpt

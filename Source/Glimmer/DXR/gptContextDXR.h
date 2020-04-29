@@ -1,17 +1,17 @@
 #pragma once
 #ifdef _WIN32
-#include "Foundation/lptUtils.h"
-#include "lptEntityDXR.h"
-#include "lptDeformerDXR.h"
+#include "Foundation/gptUtils.h"
+#include "gptEntityDXR.h"
+#include "gptDeformerDXR.h"
 
-namespace lpt {
+namespace gpt {
 
-#define lptDXRMaxTraceRecursionLevel  2
-#define lptDXRMaxDescriptorCount 8192
-#define lptDXRMaxMeshCount 2048
-#define lptDXRMaxTextureCount 2048
-#define lptDXRMaxShaderRecords 64
-#define lptSwapChainBuffers 2
+#define gptDXRMaxTraceRecursionLevel  2
+#define gptDXRMaxDescriptorCount 8192
+#define gptDXRMaxMeshCount 2048
+#define gptDXRMaxTextureCount 2048
+#define gptDXRMaxShaderRecords 64
+#define gptDXRSwapChainBuffers 2
 
 
 class ContextDXR : public DXREntity<Context>
@@ -130,12 +130,12 @@ public:
     DescriptorHandleDXR m_srv_faces;
     DescriptorHandleDXR m_srv_textures;
 
-#ifdef lptEnableTimestamp
+#ifdef gptEnableTimestamp
     TimestampDXRPtr m_timestamp;
-#endif // lptEnableTimestamp
+#endif // gptEnableTimestamp
 };
-lptDefRefPtr(ContextDXR);
-lptDefDXRT(ContextDXR, IContext)
+gptDefRefPtr(ContextDXR);
+gptDefDXRT(ContextDXR, IContext)
 
 
 
@@ -168,5 +168,5 @@ inline void ContextDXR::writeTexture(ID3D12Resource* dst, ID3D12Resource* stagin
     }
 }
 
-} // namespace lpt
+} // namespace gpt
 #endif // _WIN32

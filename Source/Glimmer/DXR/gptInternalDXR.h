@@ -1,9 +1,9 @@
 #pragma once
-#include "lptSettings.h"
-#include "lptEntity.h"
-#include "lptWindow.h"
+#include "gptSettings.h"
+#include "gptEntity.h"
+#include "gptWindow.h"
 
-namespace lpt {
+namespace gpt {
 
 #define DefPtr(_a) _COM_SMARTPTR_TYPEDEF(_a, __uuidof(_a))
 DefPtr(IDXGISwapChain1);
@@ -35,10 +35,10 @@ DefPtr(ID3D12RootSignature);
 DefPtr(ID3D12StateObjectProperties);
 DefPtr(ID3D12QueryHeap);
 DefPtr(ID3D12Debug);
-#ifdef lptEnableD3D12GBV
+#ifdef gptEnableD3D12GBV
     DefPtr(ID3D12Debug1);
 #endif
-#ifdef lptEnableD3D12DREAD
+#ifdef gptEnableD3D12DREAD
     DefPtr(ID3D12DeviceRemovedExtendedDataSettings);
     DefPtr(ID3D12DeviceRemovedExtendedData);
 #endif
@@ -154,30 +154,30 @@ private:
 };
 using TimestampDXRPtr = std::shared_ptr<TimestampDXR>;
 
-#ifdef lptEnableTimestamp
-#define lptTimestampInitialize(q, d)   if (!q) { q = std::make_shared<TimestampDXR>(d); }
-#define lptTimestampSetEnable(q, e)    q->setEnabled(e)
-#define lptTimestampReset(q)           q->reset()
-#define lptTimestampQuery(q, cl, m)    q->query(cl, m)
-#define lptTimestampResolve(q, cl)     q->resolve(cl)
-#define lptTimestampUpdateLog(q, cq)   q->updateLog(cq)
-#else lptEnableTimestamp
-#define lptTimestampInitialize(...)
-#define lptTimestampSetEnable(...)
-#define lptTimestampReset(...)
-#define lptTimestampQuery(...)
-#define lptTimestampResolve(...)
-#define lptTimestampUpdateLog(...)
-#endif lptEnableTimestamp
+#ifdef gptEnableTimestamp
+#define gptTimestampInitialize(q, d)   if (!q) { q = std::make_shared<TimestampDXR>(d); }
+#define gptTimestampSetEnable(q, e)    q->setEnabled(e)
+#define gptTimestampReset(q)           q->reset()
+#define gptTimestampQuery(q, cl, m)    q->query(cl, m)
+#define gptTimestampResolve(q, cl)     q->resolve(cl)
+#define gptTimestampUpdateLog(q, cq)   q->updateLog(cq)
+#else gptEnableTimestamp
+#define gptTimestampInitialize(...)
+#define gptTimestampSetEnable(...)
+#define gptTimestampReset(...)
+#define gptTimestampQuery(...)
+#define gptTimestampResolve(...)
+#define gptTimestampUpdateLog(...)
+#endif gptEnableTimestamp
 
 void SetNameImpl(ID3D12Object* obj, LPCSTR name);
 void SetNameImpl(ID3D12Object* obj, LPCWSTR name);
 void SetNameImpl(ID3D12Object* obj, const std::string& name);
 void SetNameImpl(ID3D12Object* obj, const std::wstring& name);
-#ifdef lptEnableResourceName
-#define lptSetName(res, name) SetNameImpl(res, name)
+#ifdef gptEnableResourceName
+#define gptSetName(res, name) SetNameImpl(res, name)
 #else
-#define lptSetName(...)
+#define gptSetName(...)
 #endif
 
 
@@ -262,4 +262,4 @@ bool ReuseOrExpandBuffer(ID3D12ResourcePtr& buf, size_t stride, size_t size, siz
     return false;
 };
 
-} // namespace lpt
+} // namespace gpt

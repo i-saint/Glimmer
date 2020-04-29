@@ -1,8 +1,8 @@
 #include "pch.h"
-#include "lptEntity.h"
-#include "Foundation//lptUtils.h"
+#include "gptEntity.h"
+#include "Foundation/gptUtils.h"
 
-namespace lpt {
+namespace gpt {
 
 int GetTexelSize(TextureFormat v)
 {
@@ -721,15 +721,15 @@ void Scene::updateData()
     if (m_camera)
         m_data.camera = m_camera->m_data;
 
-    int nlights = std::min((int)m_lights.size(), lptMaxLights);
+    int nlights = std::min((int)m_lights.size(), gptMaxLights);
     m_data.light_count = nlights;
     for (int li = 0; li < nlights; ++li)
         m_data.lights[li] = m_lights[li]->m_data;
 }
 
-} // namespace lpt 
+} // namespace gpt 
 
-lptAPI lpt::IGlobals* lptGetGlobals()
+gptAPI gpt::IGlobals* gptGetGlobals()
 {
-    return &lpt::Globals::getInstance();
+    return &gpt::Globals::getInstance();
 }

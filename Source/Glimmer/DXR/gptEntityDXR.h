@@ -1,9 +1,9 @@
 #pragma once
 #ifdef _WIN32
-#include "lptEntity.h"
-#include "lptInternalDXR.h"
+#include "gptEntity.h"
+#include "gptInternalDXR.h"
 
-namespace lpt {
+namespace gpt {
 
 class ContextDXR;
 
@@ -22,7 +22,7 @@ public:
     ContextDXR* m_context = nullptr;
 };
 
-#define lptDefDXRT(T, I)\
+#define gptDefDXRT(T, I)\
     inline T* dxr_t(I* v) { return static_cast<T*>(v); }\
     inline T& dxr_t(I& v) { return static_cast<T&>(v); }
 
@@ -43,8 +43,8 @@ public:
     ID3D12ResourcePtr m_accum_buffer;
     ID3D12ResourcePtr m_buf_readback;
 };
-lptDefRefPtr(RenderTargetDXR);
-lptDefDXRT(RenderTargetDXR, IRenderTarget)
+gptDefRefPtr(RenderTargetDXR);
+gptDefDXRT(RenderTargetDXR, IRenderTarget)
 
 
 class TextureDXR : public DXREntity<Texture>
@@ -62,8 +62,8 @@ public:
     ID3D12ResourcePtr m_buf_upload;
     DescriptorHandleDXR m_srv;
 };
-lptDefRefPtr(TextureDXR);
-lptDefDXRT(TextureDXR, ITexture)
+gptDefRefPtr(TextureDXR);
+gptDefDXRT(TextureDXR, ITexture)
 
 
 class MaterialDXR : public DXREntity<Material>
@@ -73,8 +73,8 @@ friend class ContextDXR;
 public:
 public:
 };
-lptDefRefPtr(MaterialDXR);
-lptDefDXRT(MaterialDXR, IMaterial)
+gptDefRefPtr(MaterialDXR);
+gptDefDXRT(MaterialDXR, IMaterial)
 
 
 class CameraDXR : public DXREntity<Camera>
@@ -84,8 +84,8 @@ friend class ContextDXR;
 public:
 public:
 };
-lptDefRefPtr(CameraDXR);
-lptDefDXRT(CameraDXR, ICamera)
+gptDefRefPtr(CameraDXR);
+gptDefDXRT(CameraDXR, ICamera)
 
 
 class LightDXR : public DXREntity<Light>
@@ -96,8 +96,8 @@ public:
 
 public:
 };
-lptDefRefPtr(LightDXR);
-lptDefDXRT(LightDXR, ILight)
+gptDefRefPtr(LightDXR);
+gptDefDXRT(LightDXR, ILight)
 
 
 class MeshDXR : public DXREntity<Mesh>
@@ -136,8 +136,8 @@ public:
     ID3D12ResourcePtr m_blas_scratch;
     bool m_blas_updated = false;
 };
-lptDefRefPtr(MeshDXR);
-lptDefDXRT(MeshDXR, IMesh)
+gptDefRefPtr(MeshDXR);
+gptDefDXRT(MeshDXR, IMesh)
 
 
 class MeshInstanceDXR : public DXREntity<MeshInstance>
@@ -165,8 +165,8 @@ public:
     ID3D12ResourcePtr m_blas_scratch;
     bool m_blas_updated = false;
 };
-lptDefRefPtr(MeshInstanceDXR);
-lptDefDXRT(MeshInstanceDXR, IMeshInstance)
+gptDefRefPtr(MeshInstanceDXR);
+gptDefDXRT(MeshInstanceDXR, IMeshInstance)
 
 
 class SceneDXR : public DXREntity<Scene>
@@ -193,8 +193,8 @@ public:
 
     uint32_t m_render_flags = 0;
 };
-lptDefRefPtr(SceneDXR);
-lptDefDXRT(SceneDXR, IScene)
+gptDefRefPtr(SceneDXR);
+gptDefDXRT(SceneDXR, IScene)
 
-} // namespace lpt
+} // namespace gpt
 #endif // _WIN32

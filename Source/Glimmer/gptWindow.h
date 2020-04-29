@@ -1,7 +1,7 @@
 #pragma once
-#include "lptEntity.h"
+#include "gptEntity.h"
 
-namespace lpt {
+namespace gpt {
 
 class Window : public RefCount<IWindow>
 {
@@ -48,7 +48,7 @@ public:
     HWND m_hwnd = nullptr;
 #endif
 };
-lptDefRefPtr(Window);
-lptDefBaseT(Window, IWindow)
+gptDefRefPtr(Window);
+gptDefBaseT(Window, IWindow)
 
-} // namespace lpt
+} // namespace gpt

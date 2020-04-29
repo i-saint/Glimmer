@@ -1,4 +1,4 @@
-#include "lptCommon.h"
+#include "gptCommon.h"
 
 #define kThreadBlockSize 4
 

@@ -1,10 +1,10 @@
 #pragma once
-#include "lptSettings.h"
-#include "lptInterface.h"
+#include "gptSettings.h"
+#include "gptInterface.h"
 
-namespace lpt {
+namespace gpt {
 
-#define lptEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
+#define gptEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
 
 template<class R, class... Args>
 struct lambda_traits_impl
@@ -101,7 +101,7 @@ inline bool find_any(const Container& src, const Condition& cond)
 }
 
 
-template<class T, lptEnableIf(std::is_enum<T>::value)>
+template<class T, gptEnableIf(std::is_enum<T>::value)>
 inline void set_flag(uint32_t& dst, T flag, bool v)
 {
     if (v)
@@ -109,30 +109,30 @@ inline void set_flag(uint32_t& dst, T flag, bool v)
     else
         (uint32_t&)dst &= ~(uint32_t)flag;
 }
-template<class T, lptEnableIf(std::is_enum<T>::value)>
+template<class T, gptEnableIf(std::is_enum<T>::value)>
 inline void set_flag(int& dst, T flag, bool v)
 {
     set_flag((uint32_t&)dst, flag, v);
 }
 
-template<class T, lptEnableIf(std::is_enum<T>::value)>
+template<class T, gptEnableIf(std::is_enum<T>::value)>
 inline bool get_flag(uint32_t src, T flag)
 {
     return (src & (uint32_t)flag) != 0;
 }
-template<class T, lptEnableIf(std::is_enum<T>::value)>
+template<class T, gptEnableIf(std::is_enum<T>::value)>
 inline bool get_flag(int src, T flag)
 {
     return get_flag((uint32_t&)dst, flag);
 }
 
 
-template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
+template<class T, class U, gptEnableIf(std::is_base_of<U, T>::value)>
 ref_ptr<T>& cast(ref_ptr<U>& v)
 {
     return (ref_ptr<T>&)v;
 }
-template<class T, class U, lptEnableIf(std::is_base_of<U, T>::value)>
+template<class T, class U, gptEnableIf(std::is_base_of<U, T>::value)>
 const ref_ptr<T>& cast(const ref_ptr<U>& v)
 {
     return (const ref_ptr<T>&)v;
@@ -233,4 +233,4 @@ private:
     int m_capacity = 0;
 };
 
-} // namespace lpt
+} // namespace gpt

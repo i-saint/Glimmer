@@ -1,15 +1,15 @@
 #include "pch.h"
 #include "Test.h"
 #include "MeshGenerator.h"
-#include "lptInterface.h"
+#include "gptInterface.h"
 
 
 TestCase(TestMinimum)
 {
-    lptGetGlobals()->enableTimestamp(true);
-    lptGetGlobals()->enableStrictUpdateCheck(true);
+    gptGetGlobals()->enableTimestamp(true);
+    gptGetGlobals()->enableStrictUpdateCheck(true);
 
-    auto ctx = lptCreateContextDXR();
+    auto ctx = gptCreateContextDXR();
     if (!ctx) {
         printf("DXR is not supported on this system.\n");
         return;
@@ -18,7 +18,7 @@ TestCase(TestMinimum)
 
     const int rt_width = 1024;
     const int rt_height = 1024;
-    const lpt::TextureFormat rt_format = lpt::TextureFormat::RGBAf32;
+    const gpt::TextureFormat rt_format = gpt::TextureFormat::RGBAf32;
 
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();
@@ -43,7 +43,7 @@ TestCase(TestMinimum)
             0, 1, 2,
         };
         auto triangle = ctx->createMesh();
-        triangle->setPoints((const lpt::float3*)points, _countof(points));
+        triangle->setPoints((const gpt::float3*)points, _countof(points));
         triangle->setIndices(indices, _countof(indices));
 
         // add a instance with default transform (identity matrix)
@@ -63,7 +63,7 @@ TestCase(TestMinimum)
             0, 1, 2, 0, 2, 3,
         };
         auto quad = ctx->createMesh();
-        quad->setPoints((const lpt::float3*)points, _countof(points));
+        quad->setPoints((const gpt::float3*)points, _countof(points));
         quad->setIndices(indices, _countof(indices));
 
         // add a instance with default transform
@@ -84,7 +84,7 @@ TestCase(TestMinimum)
     }
 
 
-    auto window = lptCreateWindow(512, 512);
+    auto window = gptCreateWindow(512, 512);
     while (!window->isClosed()) {
         window->processMessages();
     }

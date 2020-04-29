@@ -1,6 +1,6 @@
 #pragma once
 
-namespace lpt {
+namespace gpt {
 
 std::string GetErrorLog();
 void SetErrorLog(const char *format, ...);
@@ -8,10 +8,10 @@ void SetErrorLog(const std::string& str);
 void ClearErrorLog();
 void DebugPrintImpl(const char *fmt, ...);
 
-#ifdef lptDebug
-    #define lptDebugPrint(...) DebugPrintImpl(__VA_ARGS__)
+#ifdef gptDebug
+    #define gptDebugPrint(...) DebugPrintImpl(__VA_ARGS__)
 #else
-    #define lptDebugPrint(...)
+    #define gptDebugPrint(...)
 #endif
 
-} // namespace lpt
+} // namespace gpt

@@ -1,7 +1,7 @@
 #include "pch.h"
-#include "lptUtils.h"
+#include "gptUtils.h"
 
-namespace lpt {
+namespace gpt {
 
 RawVector<char> GetDummyBuffer_(size_t size)
 {
@@ -34,4 +34,4 @@ void IndexAllocator::free(int v)
         m_vacants.push_back(v);
 }
 
-} // namespace lpt
+} // namespace gpt

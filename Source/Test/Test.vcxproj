@@ -24,7 +24,7 @@
     <ClInclude Include="Test.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\LivePathTracer\LivePathTracer.vcxproj">
+    <ProjectReference Include="..\Glimmer\Glimmer.vcxproj">
       <Project>{66397903-6ff2-46c6-b51e-b323fd248fad}</Project>
     </ProjectReference>
     <ProjectReference Include="..\MeshUtils\MeshUtils.vcxproj">
@@ -51,7 +51,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir);$(SolutionDir)LivePathTracer;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)Glimmer;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)_out\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)_tmp\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
     <LibraryPath>$(LibraryPath)</LibraryPath>

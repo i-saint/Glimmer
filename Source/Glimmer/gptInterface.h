@@ -1,6 +1,6 @@
 #pragma once
 
-namespace lpt {
+namespace gpt {
 
 enum class TextureFormat : uint32_t
 {
@@ -21,7 +21,7 @@ enum class MaterialType : uint32_t
     Default,
 };
 
-#ifndef lptImpl
+#ifndef gptImpl
 struct float2
 {
     float x, y;
@@ -335,28 +335,28 @@ public:
 using IWindowPtr = ref_ptr<IWindow>;
 
 
-} // namespace lpt
+} // namespace gpt
 
-#ifdef lptStatic
-    #define lptAPI 
+#ifdef gptStatic
+    #define gptAPI 
 #else
     #ifdef _WIN32
-        #define lptAPI extern "C" __declspec(dllexport)
+        #define gptAPI extern "C" __declspec(dllexport)
     #else
-        #define lptAPI extern "C" __attribute__((visibility("default")))
+        #define gptAPI extern "C" __attribute__((visibility("default")))
     #endif
 #endif
 
-lptAPI lpt::IGlobals* lptGetGlobals();
-lptAPI lpt::IContext* lptCreateContextDXR_();
-lptAPI lpt::IWindow* lptCreateWindow_(int width, int height);
+gptAPI gpt::IGlobals* gptGetGlobals();
+gptAPI gpt::IContext* gptCreateContextDXR_();
+gptAPI gpt::IWindow* gptCreateWindow_(int width, int height);
 
-inline lpt::IContextPtr lptCreateContextDXR()
+inline gpt::IContextPtr gptCreateContextDXR()
 {
-    return lpt::IContextPtr(lptCreateContextDXR_());
+    return gpt::IContextPtr(gptCreateContextDXR_());
 }
 
-inline lpt::IWindowPtr lptCreateWindow(int width, int height)
+inline gpt::IWindowPtr gptCreateWindow(int width, int height)
 {
-    return lpt::IWindowPtr(lptCreateWindow_(width, height));
+    return gpt::IWindowPtr(gptCreateWindow_(width, height));
 }

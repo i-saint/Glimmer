@@ -1,5 +1,5 @@
-#include "lptMath.h"
-#include "lptCommon.h"
+#include "gptMath.h"
+#include "gptCommon.h"
 
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
 RWTexture2D<float4>             g_accum_buffer  : register(u1, space0);

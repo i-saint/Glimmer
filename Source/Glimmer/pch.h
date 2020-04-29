@@ -37,10 +37,10 @@
 #include <cassert>
 
 #include "MeshUtils/MeshUtils.h"
-#define lptImpl
+#define gptImpl
 
 
-namespace lpt {
+namespace gpt {
 
 using mu::float2;
 using mu::float3;
@@ -55,4 +55,4 @@ using mu::int2;
 using mu::int3;
 using mu::int4;
 
-} // namespace lpt
+} // namespace gpt

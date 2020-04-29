@@ -15,69 +15,69 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Foundation\lptLog.cpp">
+    <ClCompile Include="Foundation\gptLog.cpp">
       <Filter>Foundation</Filter>
     </ClCompile>
-    <ClCompile Include="DXR\lptDeformerDXR.cpp">
+    <ClCompile Include="DXR\gptDeformerDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="lptEntity.cpp" />
-    <ClCompile Include="DXR\lptEntityDXR.cpp">
+    <ClCompile Include="gptEntity.cpp" />
+    <ClCompile Include="DXR\gptEntityDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="DXR\lptInternalDXR.cpp">
+    <ClCompile Include="DXR\gptInternalDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="DXR\lptContextDXR.cpp">
+    <ClCompile Include="DXR\gptContextDXR.cpp">
       <Filter>DXR</Filter>
     </ClCompile>
-    <ClCompile Include="Window\lptWindow.cpp">
+    <ClCompile Include="Window\gptWindow.cpp">
       <Filter>Window</Filter>
     </ClCompile>
-    <ClCompile Include="Foundation\lptUtils.cpp">
+    <ClCompile Include="Foundation\gptUtils.cpp">
       <Filter>Foundation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Foundation\lptLog.h">
+    <ClInclude Include="Foundation\gptLog.h">
       <Filter>Foundation</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\lptDeformerDXR.h">
+    <ClInclude Include="DXR\gptDeformerDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
-    <ClInclude Include="lptSettings.h" />
+    <ClInclude Include="gptSettings.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="lptInterface.h" />
-    <ClInclude Include="lptEntity.h" />
-    <ClInclude Include="DXR\lptEntityDXR.h">
+    <ClInclude Include="gptInterface.h" />
+    <ClInclude Include="gptEntity.h" />
+    <ClInclude Include="DXR\gptEntityDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\lptInternalDXR.h">
+    <ClInclude Include="DXR\gptInternalDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
-    <ClInclude Include="Foundation\lptUtils.h">
+    <ClInclude Include="Foundation\gptUtils.h">
       <Filter>Foundation</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\lptContextDXR.h">
+    <ClInclude Include="DXR\gptContextDXR.h">
       <Filter>DXR</Filter>
     </ClInclude>
-    <ClInclude Include="lptWindow.h" />
-    <ClInclude Include="DXR\Shaders\lptCommon.h">
+    <ClInclude Include="gptWindow.h" />
+    <ClInclude Include="DXR\Shaders\gptCommon.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\Shaders\lptRandom.h">
+    <ClInclude Include="DXR\Shaders\gptRandom.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\Shaders\lptMath.h">
+    <ClInclude Include="DXR\Shaders\gptMath.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="DXR\Shaders\lptDeform.hlsl">
+    <FxCompile Include="DXR\Shaders\gptDeform.hlsl">
       <Filter>DXR\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="DXR\Shaders\lptPathTracer.hlsl">
+    <FxCompile Include="DXR\Shaders\gptPathTracer.hlsl">
       <Filter>DXR\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -1,11 +1,11 @@
 #pragma once
 #include "MeshUtils/MeshUtils.h"
-#include "Foundation/lptUtils.h"
+#include "Foundation/gptUtils.h"
 
-#define lptDefRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
-#define lptMaxLights 32
+#define gptDefRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
+#define gptMaxLights 32
 
-namespace lpt {
+namespace gpt {
 
 enum class GlobalFlag : uint32_t
 {
@@ -75,7 +75,7 @@ inline DirtyFlag operator|(DirtyFlag a, DirtyFlag b) { return (DirtyFlag)((uint3
 
 int GetTexelSize(TextureFormat v);
 
-#define DefCompare(T)\
+#define gptDefCompare(T)\
     bool operator==(const T& v) const { return std::memcmp(this, &v, sizeof(*this)) == 0; }\
     bool operator!=(const T& v) const { return !(*this == v); }\
 
@@ -96,7 +96,7 @@ struct CameraData
     float fov = 60.0f;
     float pad{};
 
-    DefCompare(CameraData);
+    gptDefCompare(CameraData);
 };
 
 struct LightData
@@ -108,7 +108,7 @@ struct LightData
     float3 color = float3::one();
     float spot_angle = 0.0f; // radian
 
-    DefCompare(LightData);
+    gptDefCompare(LightData);
 };
 
 struct MaterialData
@@ -122,7 +122,7 @@ struct MaterialData
     int emissive_tex = -1;
     int pad = 0;
 
-    DefCompare(MaterialData);
+    gptDefCompare(MaterialData);
 };
 
 struct BlendshapeFrameData
@@ -159,7 +159,7 @@ struct InstanceData
     int layer_mask = 0;
     int material_ids[32]{};
 
-    DefCompare(InstanceData);
+    gptDefCompare(InstanceData);
 };
 
 struct SceneData
@@ -172,9 +172,9 @@ struct SceneData
     float3 bg_color = {0.1f, 0.1f, 0.1f};
 
     CameraData camera;
-    LightData lights[lptMaxLights];
+    LightData lights[gptMaxLights];
 
-    DefCompare(SceneData);
+    gptDefCompare(SceneData);
     template<class Body>
     void eachLight(const Body& body)
     {
@@ -191,7 +191,7 @@ struct vertex_t
     float2 uv;
     float pad;
 
-    DefCompare(vertex_t);
+    gptDefCompare(vertex_t);
 };
 
 struct face_t
@@ -201,10 +201,10 @@ struct face_t
     float3 normal;
     float pad;
 
-    DefCompare(face_t);
+    gptDefCompare(face_t);
 };
 
-#undef DefCompare
+#undef gptDefCompare
 
 
 template<class T>
@@ -327,7 +327,7 @@ private:
 };
 
 
-#define lptDefBaseT(T, I)\
+#define gptDefBaseT(T, I)\
     inline T* base_t(I* v) { return static_cast<T*>(v); }\
     inline T& base_t(I& v) { return static_cast<T&>(v); }
 
@@ -344,8 +344,8 @@ public:
     int m_height = 0;
     RawVector<char> m_data;
 };
-lptDefRefPtr(Texture);
-lptDefBaseT(Texture, ITexture)
+gptDefRefPtr(Texture);
+gptDefBaseT(Texture, ITexture)
 
 
 class RenderTarget : public EntityBase<IRenderTarget>
@@ -360,8 +360,8 @@ public:
     int m_height = 0;
     bool m_readback_enabled = false;
 };
-lptDefRefPtr(RenderTarget);
-lptDefBaseT(RenderTarget, IRenderTarget)
+gptDefRefPtr(RenderTarget);
+gptDefBaseT(RenderTarget, IRenderTarget)
 
 
 class Material : public EntityBase<IMaterial>
@@ -380,8 +380,8 @@ public:
     TexturePtr m_tex_diffuse;
     TexturePtr m_tex_emissive;
 };
-lptDefRefPtr(Material);
-lptDefBaseT(Material, IMaterial)
+gptDefRefPtr(Material);
+gptDefBaseT(Material, IMaterial)
 
 
 class Camera : public EntityBase<ICamera>
@@ -397,8 +397,8 @@ public:
 public:
     CameraData m_data;
 };
-lptDefRefPtr(Camera);
-lptDefBaseT(Camera, ICamera)
+gptDefRefPtr(Camera);
+gptDefBaseT(Camera, ICamera)
 
 
 class Light : public EntityBase<ILight>
@@ -415,8 +415,8 @@ public:
 public:
     LightData m_data;
 };
-lptDefRefPtr(Light);
-lptDefBaseT(Light, ILight)
+gptDefRefPtr(Light);
+gptDefBaseT(Light, ILight)
 
 
 class Mesh;
@@ -525,8 +525,8 @@ public:
 
     std::vector<BlendshapePtr> m_blendshapes;
 };
-lptDefRefPtr(Mesh);
-lptDefBaseT(Mesh, IMesh)
+gptDefRefPtr(Mesh);
+gptDefBaseT(Mesh, IMesh)
 
 
 class MeshInstance : public EntityBase<IMeshInstance>
@@ -551,8 +551,8 @@ public:
 
     uint32_t m_instance_flags = (uint32_t)InstanceFlag::Default;
 };
-lptDefRefPtr(MeshInstance);
-lptDefBaseT(MeshInstance, IMeshInstance)
+gptDefRefPtr(MeshInstance);
+gptDefBaseT(MeshInstance, IMeshInstance)
 
 
 
@@ -580,8 +580,8 @@ public:
     std::vector<LightPtr> m_lights;
     std::vector<MeshInstancePtr> m_instances;
 };
-lptDefRefPtr(Scene);
-lptDefBaseT(Scene, IScene)
+gptDefRefPtr(Scene);
+gptDefBaseT(Scene, IScene)
 
 
 class Context : public RefCount<IContext>
@@ -594,10 +594,10 @@ public:
 
 public:
 };
-lptDefRefPtr(Context);
-lptDefBaseT(Context, IContext)
+gptDefRefPtr(Context);
+gptDefBaseT(Context, IContext)
 
 
 
 
-} // namespace lpt
+} // namespace gpt

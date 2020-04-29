@@ -1,13 +1,13 @@
 #include "pch.h"
 #ifdef _WIN32
-#include "Foundation/lptLog.h"
-#include "lptContextDXR.h"
-#include "lptDeformerDXR.h"
+#include "Foundation/gptLog.h"
+#include "gptContextDXR.h"
+#include "gptDeformerDXR.h"
 
 // shader binaries
-#include "lptDeform.hlsl.h"
+#include "gptDeform.hlsl.h"
 
-namespace lpt {
+namespace gpt {
 
 
 
@@ -56,15 +56,15 @@ DeformerDXR::DeformerDXR(ContextDXR* ctx)
             }
         }
         if (m_rootsig) {
-            lptSetName(m_rootsig, L"Deform Rootsig");
+            gptSetName(m_rootsig, L"Deform Rootsig");
         }
     }
 
     if (m_rootsig) {
         D3D12_COMPUTE_PIPELINE_STATE_DESC psd {};
         psd.pRootSignature = m_rootsig.GetInterfacePtr();
-        psd.CS.pShaderBytecode = g_lptDeform;
-        psd.CS.BytecodeLength = sizeof(g_lptDeform);
+        psd.CS.pShaderBytecode = g_gptDeform;
+        psd.CS.BytecodeLength = sizeof(g_gptDeform);
 
         HRESULT hr = device->CreateComputePipelineState(&psd, IID_PPV_ARGS(&m_pipeline_state));
         if (FAILED(hr)) {
@@ -73,7 +73,7 @@ DeformerDXR::DeformerDXR(ContextDXR* ctx)
     }
 
     if (m_pipeline_state) {
-        lptSetName(m_pipeline_state, L"Deform Pipeline State");
+        gptSetName(m_pipeline_state, L"Deform Pipeline State");
         m_clm_deform = std::make_shared<CommandListManagerDXR>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_pipeline_state, L"Deforms");
     }
 }
@@ -100,5 +100,5 @@ void DeformerDXR::deform(ID3D12GraphicsCommandList4Ptr& cl, MeshInstanceDXR& ins
     cl->Dispatch((UINT)mesh.getVertexCount(), 1, 1);
 }
 
-} // namespace lpt
+} // namespace gpt
 #endif // _WIN32

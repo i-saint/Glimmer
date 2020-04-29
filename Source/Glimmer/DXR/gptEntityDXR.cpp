@@ -1,10 +1,10 @@
 #include "pch.h"
 #ifdef _WIN32
-#include "Foundation/lptLog.h"
-#include "lptEntityDXR.h"
-#include "lptContextDXR.h"
+#include "Foundation/gptLog.h"
+#include "gptEntityDXR.h"
+#include "gptContextDXR.h"
 
-namespace lpt {
+namespace gpt {
 
 RenderTargetDXR::RenderTargetDXR(TextureFormat format, int width, int height)
     : super(format, width, height)
@@ -33,12 +33,12 @@ void RenderTargetDXR::updateResources()
     if (!m_frame_buffer) {
         m_frame_buffer = ctx->createTexture(m_width, m_height, GetDXGIFormat(m_format));
         m_accum_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
-        lptSetName(m_frame_buffer, m_name + " Frame Buffer");
-        lptSetName(m_accum_buffer, m_name + " Accum Buffer");
+        gptSetName(m_frame_buffer, m_name + " Frame Buffer");
+        gptSetName(m_accum_buffer, m_name + " Accum Buffer");
     }
     if (m_readback_enabled && !m_buf_readback) {
         m_buf_readback = ctx->createTextureReadbackBuffer(m_width, m_height, GetDXGIFormat(m_format));
-        lptSetName(m_buf_readback, m_name + " Readback Buffer");
+        gptSetName(m_buf_readback, m_name + " Readback Buffer");
     }
 }
 
@@ -60,8 +60,8 @@ void TextureDXR::updateResources()
         auto format = GetDXGIFormat(m_format);
         m_texture = ctx->createTexture(m_width, m_height, format);
         m_buf_upload = ctx->createTextureUploadBuffer(m_width, m_height, format);
-        lptSetName(m_texture, m_name + " Texture");
-        lptSetName(m_buf_upload, m_name + " Upload Buffer");
+        gptSetName(m_texture, m_name + " Texture");
+        gptSetName(m_buf_upload, m_name + " Upload Buffer");
 
         m_srv = ctx->m_srv_textures + size_t(ctx->m_desc_alloc.getStride() * m_id);
         ctx->createTextureSRV(m_srv, m_texture);
@@ -85,7 +85,7 @@ void MeshDXR::updateResources()
     if (isDirty(DirtyFlag::Indices)) {
         bool allocated = ctx->updateBuffer(m_buf_indices, m_buf_indices_staging, m_indices.cdata(), m_indices.size() * sizeof(int));
         if (allocated) {
-            lptSetName(m_buf_indices, m_name + " Index Buffer");
+            gptSetName(m_buf_indices, m_name + " Index Buffer");
         }
     }
 
@@ -95,7 +95,7 @@ void MeshDXR::updateResources()
             exportVertices(dst);
         });
         if (allocated) {
-            lptSetName(m_buf_vertices, m_name + " Vertex Buffer");
+            gptSetName(m_buf_vertices, m_name + " Vertex Buffer");
             m_srv_vertices = ctx->m_srv_vertices + size_t(ctx->m_desc_alloc.getStride() * m_id);
             ctx->createBufferSRV(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
         }
@@ -107,7 +107,7 @@ void MeshDXR::updateResources()
             exportFaces(dst);
         });
         if (allocated) {
-            lptSetName(m_buf_faces, m_name + " Face Buffer");
+            gptSetName(m_buf_faces, m_name + " Face Buffer");
             m_srv_faces = ctx->m_srv_faces + size_t(ctx->m_desc_alloc.getStride() * m_id);
             ctx->createBufferSRV(m_srv_faces, m_buf_faces, sizeof(face_t));
         }
@@ -130,7 +130,7 @@ void MeshDXR::updateResources()
                 exportJointCounts(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_joint_counts, m_name + " Joint Counts");
+                gptSetName(m_buf_joint_counts, m_name + " Joint Counts");
                 ctx->createBufferSRV(m_srv_joint_counts, m_buf_joint_counts, sizeof(JointCount));
             }
 
@@ -138,7 +138,7 @@ void MeshDXR::updateResources()
                 exportJointWeights(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_joint_weights, m_name + " Joint Weights");
+                gptSetName(m_buf_joint_weights, m_name + " Joint Weights");
                 ctx->createBufferSRV(m_srv_joint_weights, m_buf_joint_weights, sizeof(JointWeight));
             }
         }
@@ -156,7 +156,7 @@ void MeshDXR::updateResources()
                 exportBlendshapes(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_bs, m_name + " Blendshape");
+                gptSetName(m_buf_bs, m_name + " Blendshape");
                 ctx->createBufferSRV(m_srv_bs, m_buf_bs, sizeof(BlendshapeData));
             }
 
@@ -164,7 +164,7 @@ void MeshDXR::updateResources()
                 exportBlendshapeFrames(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_joint_weights, m_name + " Blendshape Frames");
+                gptSetName(m_buf_joint_weights, m_name + " Blendshape Frames");
                 ctx->createBufferSRV(m_srv_bs_frames, m_buf_bs_frames, sizeof(BlendshapeFrameData));
             }
 
@@ -172,7 +172,7 @@ void MeshDXR::updateResources()
                 exportBlendshapeDelta(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_bs_delta, m_name + " Blendshape Delta");
+                gptSetName(m_buf_bs_delta, m_name + " Blendshape Delta");
                 ctx->createBufferSRV(m_srv_bs_delta, m_buf_bs_delta, sizeof(vertex_t));
             }
         }
@@ -231,8 +231,8 @@ void MeshDXR::updateBLAS()
 
         m_blas_scratch = ctx->createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
         m_blas = ctx->createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
-        lptSetName(m_blas_scratch, m_name + " BLAS Scratch");
-        lptSetName(m_blas, m_name + " BLAS");
+        gptSetName(m_blas_scratch, m_name + " BLAS Scratch");
+        gptSetName(m_blas, m_name + " BLAS");
     }
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
@@ -274,7 +274,7 @@ void MeshInstanceDXR::updateResources()
         // vertex buffer for deformation
         if (mesh.isDirty(DirtyFlag::Vertices)) {
             m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t));
-            lptSetName(m_buf_vertices, m_name + " Vertex Buffer (Deformed)");
+            gptSetName(m_buf_vertices, m_name + " Vertex Buffer (Deformed)");
             // todo: SRV & UAV
         }
 
@@ -283,7 +283,7 @@ void MeshInstanceDXR::updateResources()
                 exportJointMatrices(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_joint_matrices, m_name + " Joint Matrices");
+                gptSetName(m_buf_joint_matrices, m_name + " Joint Matrices");
                 // todo: SRV
             }
         }
@@ -293,7 +293,7 @@ void MeshInstanceDXR::updateResources()
                 exportBlendshapeWeights(dst);
             });
             if (allocated) {
-                lptSetName(m_buf_bs_weights, m_name + " Blendshape Weights");
+                gptSetName(m_buf_bs_weights, m_name + " Blendshape Weights");
                 // todo: SRV
             }
         }
@@ -341,8 +341,8 @@ void MeshInstanceDXR::updateBLAS()
 
             m_blas_scratch = ctx->createBuffer(info.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
             m_blas = ctx->createBuffer(info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
-            lptSetName(m_blas_scratch, m_name + " BLAS Scratch");
-            lptSetName(m_blas, m_name + " BLAS");
+            gptSetName(m_blas_scratch, m_name + " BLAS Scratch");
+            gptSetName(m_blas, m_name + " BLAS");
         }
 
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC as_desc{};
@@ -399,7 +399,7 @@ void SceneDXR::updateResources()
         *mapped = m_data;
     });
     if (allocated) {
-        lptSetName(m_buf_scene, m_name + " Scene Buffer");
+        gptSetName(m_buf_scene, m_name + " Scene Buffer");
         ctx->createCBV(m_cbv_scene, m_buf_scene, cb_size);
     }
 
@@ -442,7 +442,7 @@ void SceneDXR::updateTLAS()
     // create instance desc buffer
     ReuseOrExpandBuffer(m_tlas_instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, ctx](size_t size) {
         m_tlas_instance_desc = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
-        lptSetName(m_tlas_instance_desc, m_name + " TLAS Instance Desk");
+        gptSetName(m_tlas_instance_desc, m_name + " TLAS Instance Desk");
     });
 
     // update instance desc
@@ -473,13 +473,13 @@ void SceneDXR::updateTLAS()
         // scratch buffer
         ReuseOrExpandBuffer(m_tlas_scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, ctx](size_t size) {
             m_tlas_scratch = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
-            lptSetName(m_tlas_scratch, m_name + " TLAS Scratch");
+            gptSetName(m_tlas_scratch, m_name + " TLAS Scratch");
             });
 
         // TLAS buffer
         bool expanded = ReuseOrExpandBuffer(m_tlas, 1, info.ResultDataMaxSizeInBytes, 1024 * 256, [this, ctx](size_t size) {
             m_tlas = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
-            lptSetName(m_tlas, m_name + " TLAS");
+            gptSetName(m_tlas, m_name + " TLAS");
             });
         if (expanded) {
             // SRV
@@ -508,5 +508,5 @@ void SceneDXR::updateTLAS()
     }
 }
 
-} // namespace lpt
+} // namespace gpt
 #endif // _WIN32

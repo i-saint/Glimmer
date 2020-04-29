@@ -1,7 +1,7 @@
 #include "pch.h"
-#include "lptLog.h"
+#include "gptLog.h"
 
-namespace lpt {
+namespace gpt {
 
 static std::mutex g_log_mutex;
 static std::string g_error_log;
@@ -57,4 +57,4 @@ void DebugPrintImpl(const char *fmt, ...)
     va_end(args);
 }
 
-} // namespace lpt
+} // namespace gpt
