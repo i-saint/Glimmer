@@ -94,7 +94,6 @@ void MeshDXR::updateResources()
         bool allocated = ctx->updateBuffer(m_buf_vertices, m_buf_vertices_staging, getVertexCount() * sizeof(vertex_t), [this](vertex_t* dst) {
             exportVertices(dst);
         });
-
         if (allocated) {
             lptSetName(m_buf_vertices, m_name + " Vertex Buffer");
             m_srv_vertices = ctx->m_srv_vertices + size_t(ctx->m_desc_alloc.getStride() * m_id);
@@ -107,11 +106,58 @@ void MeshDXR::updateResources()
         bool allocated = ctx->updateBuffer(m_buf_faces, m_buf_faces_staging, getFaceCount() * sizeof(face_t), [this](face_t* dst) {
             exportFaces(dst);
         });
-
         if (allocated) {
             lptSetName(m_buf_faces, m_name + " Face Buffer");
             m_srv_faces = ctx->m_srv_faces + size_t(ctx->m_desc_alloc.getStride() * m_id);
             ctx->createBufferSRV(m_srv_faces, m_buf_faces, sizeof(face_t));
+        }
+    }
+
+    // update joint buffers
+    if (isDirty(DirtyFlag::Joints)) {
+        bool allocated;
+        allocated = ctx->updateBuffer(m_buf_joint_counts, m_buf_joint_counts_staging, getVertexCount() * sizeof(JointCount), [this](JointCount* dst) {
+            exportJointCounts(dst);
+        });
+        if (allocated) {
+            lptSetName(m_buf_joint_counts, m_name + " Joint Counts");
+            // todo: SRV
+        }
+
+        allocated = ctx->updateBuffer(m_buf_joint_weights, m_buf_joint_weights_staging, getJointWeightCount() * sizeof(JointWeight), [this](JointWeight* dst) {
+            exportJointWeights(dst);
+        });
+        if (allocated) {
+            lptSetName(m_buf_joint_weights, m_name + " Joint Weights");
+            // todo: SRV
+        }
+    }
+
+    // update blendshape buffers
+    if (isDirty(DirtyFlag::Blendshape)) {
+        bool allocated;
+        allocated = ctx->updateBuffer(m_buf_bs, m_buf_bs_staging, getBlendshapeCount() * sizeof(BlendshapeData), [this](BlendshapeData* dst) {
+            exportBlendshapes(dst);
+        });
+        if (allocated) {
+            lptSetName(m_buf_bs, m_name + " Blendshape");
+            // todo: SRV
+        }
+
+        allocated = ctx->updateBuffer(m_buf_bs_frames, m_buf_bs_frames_staging, getBlendshapeFrameCount() * sizeof(BlendshapeFrameData), [this](BlendshapeFrameData* dst) {
+            exportBlendshapeFrames(dst);
+        });
+        if (allocated) {
+            lptSetName(m_buf_joint_weights, m_name + " Blendshape Frames");
+            // todo: SRV
+        }
+
+        allocated = ctx->updateBuffer(m_buf_bs_delta, m_buf_bs_delta_staging, getBlendshapeFrameCount() * getVertexCount() * sizeof(vertex_t), [this](vertex_t* dst) {
+            exportBlendshapeDelta(dst);
+        });
+        if (allocated) {
+            lptSetName(m_buf_bs_delta, m_name + " Blendshape Delta");
+            // todo: SRV
         }
     }
 }

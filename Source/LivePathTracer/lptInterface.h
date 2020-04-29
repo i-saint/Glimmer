@@ -146,10 +146,10 @@ public:
 };
 
 
-class IEntity
+class IObject
 {
 public:
-    virtual ~IEntity() {}
+    virtual ~IObject() {}
     virtual int getID()const = 0;
     virtual int addRef() = 0;
     virtual int release() = 0;
@@ -159,7 +159,7 @@ public:
 };
 
 
-class ITexture : public IEntity
+class ITexture : public IObject
 {
 public:
     virtual void upload(const void* src) = 0;
@@ -168,7 +168,7 @@ public:
 using ITexturePtr = ref_ptr<ITexture>;
 
 
-class IRenderTarget : public IEntity
+class IRenderTarget : public IObject
 {
 public:
     virtual void enableReadback(bool v) = 0;
@@ -178,7 +178,7 @@ public:
 using IRenderTargetPtr = ref_ptr<IRenderTarget>;
 
 
-class IMaterial : public IEntity
+class IMaterial : public IObject
 {
 public:
     virtual void setType(MaterialType v) = 0;
@@ -191,7 +191,7 @@ public:
 using IMaterialPtr = ref_ptr<IMaterial>;
 
 
-class ILight : public IEntity
+class ILight : public IObject
 {
 public:
     virtual void setType(LightType v) = 0;
@@ -204,7 +204,7 @@ public:
 using ILightPtr = ref_ptr<ILight>;
 
 
-class ICamera : public IEntity
+class ICamera : public IObject
 {
 public:
     virtual void setPosition(float3 v) = 0;
@@ -222,13 +222,14 @@ public:
     virtual ~IBlendshape() {}
     virtual void setName(const char* name) = 0;
     virtual int addFrame() = 0;
+    virtual void setWeight(int frame, float v) = 0; // 0.0f - 1.0f
     virtual void setDeltaPoints(int frame, const float3* v, size_t n) = 0;
     virtual void setDeltaNormals(int frame, const float3* v, size_t n) = 0;
     virtual void setDeltaTangents(int frame, const float3* v, size_t n) = 0;
     virtual void setDeltaUV(int frame, const float2* v, size_t n) = 0;
 };
 
-class IMesh : public IEntity
+class IMesh : public IObject
 {
 public:
     virtual void setIndices(const int* v, size_t n) = 0;
@@ -251,7 +252,7 @@ public:
 using IMeshPtr = ref_ptr<IMesh>;
 
 
-class IMeshInstance : public IEntity
+class IMeshInstance : public IObject
 {
 public:
     virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
@@ -261,7 +262,7 @@ public:
 using IMeshInstancePtr = ref_ptr<IMeshInstance>;
 
 
-class IScene : public IEntity
+class IScene : public IObject
 {
 public:
     virtual void setEnabled(bool v) = 0;
@@ -278,7 +279,7 @@ public:
 using IScenePtr = ref_ptr<IScene>;
 
 
-class IContext : public IEntity
+class IContext : public IObject
 {
 public:
     virtual ICameraPtr       createCamera() = 0;
@@ -317,7 +318,7 @@ public:
     virtual void onMouseUp(int button) {}
 };
 
-class IWindow : public IEntity
+class IWindow : public IObject
 {
 public:
     virtual bool open(int width, int height) = 0;

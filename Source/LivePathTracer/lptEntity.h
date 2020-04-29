@@ -125,6 +125,22 @@ struct MaterialData
     DefCompare(MaterialData);
 };
 
+struct BlendshapeFrameData
+{
+    int delta_offset = 0;
+    float weight = 0;
+};
+struct BlendshapeData
+{
+    int frame_count = 0;
+    int frame_offset = 0;
+};
+struct JointCount
+{
+    int weight_count = 0;
+    int weight_offset = 0;
+};
+
 struct MeshData
 {
     int face_count = 0;
@@ -421,13 +437,23 @@ public:
     Blendshape(Mesh* mesh);
     void setName(const char* name) override;
     int addFrame() override;
+    void setWeight(int frame, float v) override;
     void setDeltaPoints(int frame, const float3* v, size_t n) override;
     void setDeltaNormals(int frame, const float3* v, size_t n) override;
     void setDeltaTangents(int frame, const float3* v, size_t n) override;
     void setDeltaUV(int frame, const float2* v, size_t n) override;
 
-    size_t getFrameCount() const;
-    void exportDelta(int frame, vertex_t* dst);
+    int getFrameCount() const;
+    void exportDelta(int frame, vertex_t* dst) const;
+
+
+    // Body: [](const Blendshape::Frame&) -> void
+    template<class Body>
+    void eachFrame(const Body& body) const
+    {
+        for (auto& pf : m_frames)
+            body(*pf);
+    }
 
 public:
     Mesh* m_mesh = nullptr;
@@ -450,21 +476,38 @@ public:
     void setJointWeights(const JointWeight* v, size_t n) override;
     void setJointCounts(const int* v, size_t n) override;
     void clearJoints() override;
-
     IBlendshape* addBlendshape() override;
     void clearBlendshapes() override;
-
     void markDynamic() override;
 
     bool hasBlendshapes() const;
     bool hasJoints() const;
     bool isDynamic() const;
-    size_t getFaceCount() const;
-    size_t getIndexCount() const;
-    size_t getVertexCount() const;
+    int getFaceCount() const;
+    int getIndexCount() const;
+    int getVertexCount() const;
     void updateFaceData();
-    void exportVertices(vertex_t* dst);
+    void exportVertices(vertex_t* dst) const;
     void exportFaces(face_t* dst);
+
+    int getJointCount() const;
+    int getJointWeightCount() const;
+    void exportJointCounts(JointCount* dst) const;
+    void exportJointWeights(JointWeight* dst) const;
+
+    int getBlendshapeCount() const;
+    int getBlendshapeFrameCount() const;
+    void exportBlendshapes(BlendshapeData* dst) const;
+    void exportBlendshapeFrames(BlendshapeFrameData* dst) const;
+    void exportBlendshapeDelta(vertex_t* dst) const;
+
+    // Body: [](const Blendshape&) -> void
+    template<class Body>
+    void eachBlendshape(const Body& body) const
+    {
+        for (auto& pbs : m_blendshapes)
+            body(*pbs);
+    }
 
 public:
     MeshData m_data;

@@ -72,6 +72,26 @@ struct MaterialData
     float pad;
 };
 
+struct BlendshapeFrameData
+{
+    int delta_offset;
+    float weight;
+};
+struct BlendshapeData
+{
+    int frame_count;
+    int frame_offset;
+};
+struct JointCount
+{
+    int weight_count;
+    int weight_offset;
+};
+struct JointWeight
+{
+    float weight;
+    int joint_index;
+};
 struct MeshData
 {
     int face_count;
@@ -129,28 +149,4 @@ struct face_t
     float3 normal;
     float pad;
 };
-
-
-struct BlendshapeFrame
-{
-    int delta_offset;
-    float weight;
-};
-struct BlendshapeInfo
-{
-    int frame_count;
-    int frame_offset;
-};
-
-struct JointCount
-{
-    int weight_count;
-    int weight_offset;
-};
-struct JointWeight
-{
-    float weight;
-    int joint_index;
-};
-
 

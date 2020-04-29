@@ -255,6 +255,11 @@ int Blendshape::addFrame()
     m_mesh->markDirty(DirtyFlag::Blendshape);
     return ret;
 }
+void Blendshape::setWeight(int frame, float v)
+{
+    m_frames[frame]->weight = v;
+    m_mesh->markDirty(DirtyFlag::Blendshape);
+}
 void Blendshape::setDeltaPoints(int frame, const float3* v, size_t n)
 {
     m_frames[frame]->delta_points.assign(v, n);
@@ -276,14 +281,14 @@ void Blendshape::setDeltaUV(int frame, const float2* v, size_t n)
     m_mesh->markDirty(DirtyFlag::Blendshape);
 }
 
-size_t Blendshape::getFrameCount() const
+int Blendshape::getFrameCount() const
 {
-    return m_frames.size();
+    return (int)m_frames.size();
 }
 
-void Blendshape::exportDelta(int frame, vertex_t* dst)
+void Blendshape::exportDelta(int frame, vertex_t* dst) const
 {
-    size_t vc = m_mesh->getVertexCount();
+    int vc = m_mesh->getVertexCount();
     const Frame& f = *m_frames[frame];
     auto* points    = f.delta_points.empty() ? GetDummyBuffer<float3>(vc) : f.delta_points.cdata();
     auto* normals   = f.delta_normals.empty() ? GetDummyBuffer<float3>(vc) : f.delta_normals.cdata();
@@ -291,7 +296,7 @@ void Blendshape::exportDelta(int frame, vertex_t* dst)
     auto* uv        = f.delta_uv.empty() ? GetDummyBuffer<float2>(vc) : f.delta_uv.cdata();
 
     vertex_t tmp{};
-    for (size_t vi = 0; vi < vc; ++vi) {
+    for (int vi = 0; vi < vc; ++vi) {
         tmp.point = *points++;
         tmp.normal = *normals++;
         tmp.tangent = *tangents++;
@@ -439,31 +444,31 @@ bool Mesh::isDynamic() const
     return (m_data.flags & (int)MeshFlag::IsDynamic);
 }
 
-size_t Mesh::getFaceCount() const
+int Mesh::getFaceCount() const
 {
-    return m_indices.size() / 3;
+    return (int)m_indices.size() / 3;
 }
 
-size_t Mesh::getIndexCount() const
+int Mesh::getIndexCount() const
 {
-    return m_indices.size();
+    return (int)m_indices.size();
 }
 
-size_t Mesh::getVertexCount() const
+int Mesh::getVertexCount() const
 {
-    return m_points.size();
+    return (int)m_points.size();
 }
 
-void Mesh::exportVertices(vertex_t* dst)
+void Mesh::exportVertices(vertex_t* dst) const
 {
-    size_t vc = getVertexCount();
+    int vc = getVertexCount();
     auto* points    = m_points.cdata();
     auto* normals   = m_normals.empty() ? GetDummyBuffer<float3>(vc) : m_normals.cdata();
     auto* tangents  = m_tangents.empty() ? GetDummyBuffer<float3>(vc) : m_tangents.cdata();
     auto* uv        = m_uv.empty() ? GetDummyBuffer<float2>(vc) : m_uv.cdata();
 
     vertex_t tmp{};
-    for (size_t vi = 0; vi < vc; ++vi) {
+    for (int vi = 0; vi < vc; ++vi) {
         tmp.point = *points++;
         tmp.normal = *normals++;
         tmp.tangent = *tangents++;
@@ -476,13 +481,13 @@ void Mesh::exportFaces(face_t* dst)
 {
     updateFaceData();
 
-    size_t fc = getFaceCount();
+    int fc = getFaceCount();
     auto* indices = m_indices.cdata();
     auto* normals = m_face_normals.cdata();
     auto* mids = m_material_ids.empty() ? GetDummyBuffer<int>(fc) : m_material_ids.cdata();
 
     face_t tmp{};
-    for (size_t fi = 0; fi < fc; ++fi) {
+    for (int fi = 0; fi < fc; ++fi) {
         for (int i = 0; i < 3; ++i)
             tmp.indices[i] = indices[i];
         indices += 3;
@@ -490,6 +495,88 @@ void Mesh::exportFaces(face_t* dst)
         tmp.normal = *normals++;
         *dst++ = tmp;
     }
+}
+
+int Mesh::getJointCount() const
+{
+    return (int)m_joint_bindposes.size();
+}
+
+int Mesh::getJointWeightCount() const
+{
+    return (int)m_joint_weights.size();
+}
+
+void Mesh::exportJointCounts(JointCount* dst) const
+{
+    int offset = 0;
+    JointCount tmp;
+    for (auto c : m_joint_counts) {
+        tmp.weight_count = c;
+        tmp.weight_offset = offset;
+        offset += c;
+        *dst++ = tmp;
+    }
+}
+
+void Mesh::exportJointWeights(JointWeight* dst) const
+{
+    m_joint_weights.copy_to(dst);
+}
+
+
+int Mesh::getBlendshapeCount() const
+{
+    return (int)m_blendshapes.size();
+}
+
+int Mesh::getBlendshapeFrameCount() const
+{
+    int r = 0;
+    eachBlendshape([&r](auto& bs) {
+        r += bs.getFrameCount();
+    });
+    return r;
+}
+
+void Mesh::exportBlendshapes(BlendshapeData* dst) const
+{
+    int offset = 0;
+    BlendshapeData tmp;
+    eachBlendshape([&](auto& bs) {
+        int n = bs.getFrameCount();
+        tmp.frame_count = n;
+        tmp.frame_offset = offset;
+        offset += n;
+        *dst++ = tmp;
+    });
+}
+
+void Mesh::exportBlendshapeFrames(BlendshapeFrameData* dst) const
+{
+    int vc = getVertexCount();
+    int offset = 0;
+    BlendshapeFrameData tmp;
+    eachBlendshape([&](auto& bs) {
+        bs.eachFrame([&](auto& frame) {
+            tmp.delta_offset = offset;
+            tmp.weight = frame.weight;
+            offset += vc;
+            *dst++ = tmp;
+        });
+    });
+}
+
+void Mesh::exportBlendshapeDelta(vertex_t* dst) const
+{
+    int vc = getVertexCount();
+    eachBlendshape([&](auto& bs) {
+        int nf = bs.getFrameCount();
+        for (int fi = 0; fi < nf; ++fi) {
+            bs.exportDelta(fi, dst);
+            dst += vc;
+        }
+    });
 }
 
 
