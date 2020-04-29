@@ -22,16 +22,14 @@ struct ONB
     float3 normal;
 };
 
-void cosine_sample_hemisphere(float u1, float u2, out float3 p)
+float3 cosine_sample_hemisphere(float u1, float u2)
 {
     // Uniformly sample disk.
-    const float r = sqrt(u1);
-    const float phi = 2.0f * PI * u2;
-    p.x = r * cos(phi);
-    p.y = r * sin(phi);
-
-    // Project up to hemisphere.
-    p.z = sqrt(max(0.0f, 1.0f - p.x * p.x - p.y * p.y));
+    float r = sqrt(u1);
+    float phi = 2.0f * PI * u2;
+    float x = r * cos(phi);
+    float y = r * sin(phi);
+    return float3(x, y, sqrt(max(0.0f, 1.0f - (x * x) - (y * y))));
 }
 
 uint tea(uint val0, uint val1)

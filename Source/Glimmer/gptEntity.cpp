@@ -477,7 +477,7 @@ void Mesh::exportVertices(vertex_t* dst) const
     }
 }
 
-void Mesh::exportFaces(face_t* dst)
+void Mesh::exportFaces(face_t* dst) const
 {
     int fc = getFaceCount();
     auto* indices = m_indices.cdata();

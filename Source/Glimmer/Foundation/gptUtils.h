@@ -4,104 +4,14 @@
 
 namespace gpt {
 
-#define gptEnableIf(...) std::enable_if_t<__VA_ARGS__, bool> = true
+using mu::lambda_traits;
+using mu::each;
+using mu::each_ref;
+using mu::each_with_index;
+using mu::erase;
+using mu::erase_if;
 
-template<class R, class... Args>
-struct lambda_traits_impl
-{
-    using return_type = R;
-    enum { arity = sizeof...(Args) };
-
-    template<size_t i> struct arg
-    {
-        using type = typename std::tuple_element<i, std::tuple<Args...>>::type;
-    };
-};
-
-template<class L>
-struct lambda_traits : lambda_traits<decltype(&L::operator())>
-{};
-
-template<class R, class T, class... Args>
-struct lambda_traits<R(T::*)(Args...)> : lambda_traits_impl<R, Args...>
-{};
-
-template<class R, class T, class... Args>
-struct lambda_traits<R(T::*)(Args...) const> : lambda_traits_impl<R, Args...>
-{};
-
-
-template<class Container, class Body>
-inline void each(Container& dst, const Body& body)
-{
-    for (auto& v : dst)
-        body(v);
-}
-
-template<class Container, class Body>
-inline void each_ref(Container& dst, const Body& body)
-{
-    for (auto& v : dst)
-        body(*v);
-}
-
-template<class Container, class Body>
-inline void each_with_index(Container& dst, const Body& body)
-{
-    int i = 0;
-    for (auto& v : dst)
-        body(v, i++);
-}
-
-template<class Container, class Condition>
-inline bool erase_if(Container& dst, const Condition& cond)
-{
-    size_t size_prev = dst.size();
-    dst.erase(
-        std::remove_if(dst.begin(), dst.end(), cond),
-        dst.end());
-    return dst.size() != size_prev;
-}
-
-template<class K, class V, class Condition>
-inline void erase_if(std::map<K, V>& dst, const Condition& cond)
-{
-    std::vector<K> keys_to_erase;
-    for (auto& kvp : dst) {
-        if (cond(kvp.second))
-            keys_to_erase.push_back(kvp.first);
-    }
-    for (auto& k : keys_to_erase)
-        dst.erase(k);
-    return !keys_to_erase.empty();
-}
-
-template<class Container, class T>
-inline bool erase(Container& dst, T v)
-{
-    auto it = std::find_if(dst.begin(), dst.end(), [&](const auto& e) { return e == v; });
-    if (it != dst.end()) {
-        dst.erase(it);
-        return true;
-    }
-    else {
-        return false;
-    }
-}
-
-
-template<class Container, class Condition>
-inline bool find_any(const Container& src, const Condition& cond)
-{
-    for (auto& v : src) {
-        if (cond(v))
-            return true;
-    }
-    return false;
-}
-
-
-template<class T, gptEnableIf(std::is_enum<T>::value)>
+template<class T, muEnableIf(std::is_enum<T>::value)>
 inline void set_flag(uint32_t& dst, T flag, bool v)
 {
     if (v)
@@ -109,35 +19,35 @@ inline void set_flag(uint32_t& dst, T flag, bool v)
     else
         (uint32_t&)dst &= ~(uint32_t)flag;
 }
-template<class T, gptEnableIf(std::is_enum<T>::value)>
+template<class T, muEnableIf(std::is_enum<T>::value)>
 inline void set_flag(int& dst, T flag, bool v)
 {
     set_flag((uint32_t&)dst, flag, v);
 }
 
-template<class T, gptEnableIf(std::is_enum<T>::value)>
+template<class T, muEnableIf(std::is_enum<T>::value)>
 inline bool get_flag(uint32_t src, T flag)
 {
     return (src & (uint32_t)flag) != 0;
 }
-template<class T, gptEnableIf(std::is_enum<T>::value)>
+template<class T, muEnableIf(std::is_enum<T>::value)>
 inline bool get_flag(int src, T flag)
 {
     return get_flag((uint32_t)dst, flag);
 }
-template<class T, gptEnableIf(std::is_enum<T>::value)>
+template<class T, muEnableIf(std::is_enum<T>::value)>
 inline bool get_flag(T src, T flag)
 {
     return get_flag((uint32_t)src, flag);
 }
 
 
-template<class T, class U, gptEnableIf(std::is_base_of<U, T>::value)>
+template<class T, class U, muEnableIf(std::is_base_of<U, T>::value)>
 ref_ptr<T>& cast(ref_ptr<U>& v)
 {
     return (ref_ptr<T>&)v;
 }
-template<class T, class U, gptEnableIf(std::is_base_of<U, T>::value)>
+template<class T, class U, muEnableIf(std::is_base_of<U, T>::value)>
 const ref_ptr<T>& cast(const ref_ptr<U>& v)
 {
     return (const ref_ptr<T>&)v;

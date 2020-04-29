@@ -487,7 +487,7 @@ public:
     int getIndexCount() const;
     int getVertexCount() const;
     void exportVertices(vertex_t* dst) const;
-    void exportFaces(face_t* dst);
+    void exportFaces(face_t* dst) const;
 
     int getJointCount() const;
     int getJointWeightCount() const;

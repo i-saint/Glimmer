@@ -1739,30 +1739,40 @@ template<class T> inline tvec4<T> orthogonalize_tangent(
         dot(cross(normal, tangent), binormal) > T(0.0) ? T(1.0) : -T(1.0) };
 }
 
-template<class A1, class Body>
-static inline void enumerate(A1& a1, const Body& body)
+template<class T>
+tvec3<T> cosine_sample_hemisphere(T u1, T u2)
 {
-    size_t n = a1.size();
-    for (size_t i = 0; i < n; ++i)
-        body(a1[i]);
+    T r = std::sqrt(u1);
+    T phi = T(2) * T(PI) * u2;
+    T x = r * std::cos(phi);
+    T y = r * std::sin(phi);
+    return { x, y, std::sqrt(std::max(T(0), T(1) - (x * x) - (y * y))) };
 }
-template<class A1, class A2, class Body>
-static inline void enumerate(A1& a1, A2& a2, const Body& body)
+
+// orthonormal basis
+template<class T>
+struct ONB
 {
-    size_t n = a1.size();
-    if (n != a2.size())
-        return;
-    for (size_t i = 0; i < n; ++i)
-        body(a1[i], a2[i]);
-}
-template<class A1, class A2, class A3, class Body>
-static inline void enumerate(A1& a1, A2& a2, A3& a3, const Body& body)
-{
-    size_t n = a1.size();
-    if (n != a2.size() || n != a3.size())
-        return;
-    for (size_t i = 0; i < n; ++i)
-        body(a1[i], a2[i], a3[i]);
-}
+    ONB() {}
+    ONB(const tvec3<T>& n) { init(n); }
+
+    void init(const tvec3<T>& n)
+    {
+        normal = n;
+        binormal = normalize(abs(n.x) > abs(n.z) ? tvec3<T>{-n.y, n.x, 0} : tvec3<T>{ 0, -n.z, n.y });
+        tangent = cross(binormal, normal);
+    }
+
+    tvec3<T> inverse_transform(tvec3<T> p)
+    {
+        return (tangent * p.x) + (binormal * p.y) + (normal * p.z);
+    }
+
+    tvec3<T> tangent;
+    tvec3<T> binormal;
+    tvec3<T> normal;
+};
+using ONBf = ONB<float>;
+using ONBd = ONB<double>;
 
 } // namespace mu

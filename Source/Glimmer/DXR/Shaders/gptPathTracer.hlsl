@@ -32,10 +32,14 @@ float3 BackgroundColor()    { return g_scene.bg_color; }
 int LightCount()            { return g_scene.light_count; }
 LightData GetLight(int i)   { return g_scene.lights[i]; }
 
-float3 HitPosition() { return WorldRayOrigin() + WorldRayDirection() * (RayTCurrent() - 0.01f); }
+uint InstanceFlags() { return g_instances[InstanceID()].instance_flags; }
+uint InstanceLayerMask() { return g_instances[InstanceID()].layer_mask; }
+int  MeshID() { return g_instances[InstanceID()].mesh_id; }
 
-float3 FaceNormal(int mesh_id, int face_id)
+float3 FaceNormal(int instance_id, int face_id)
 {
+    // todo: handle skinned mesh
+    int mesh_id = g_instances[instance_id].mesh_id;
     face_t face = g_faces[mesh_id][face_id];
     float3 p0 = g_vertices[mesh_id][face.indices[0]].position;
     float3 p1 = g_vertices[mesh_id][face.indices[1]].position;
@@ -44,14 +48,30 @@ float3 FaceNormal(int mesh_id, int face_id)
 }
 float3 FaceNormal()
 {
-    // todo: handle skinned mesh
-    int mesh_id = g_instances[InstanceID()].mesh_id;
+    int instance_id = InstanceID();
     int face_id = PrimitiveIndex();
-    return FaceNormal(mesh_id, face_id);
+    return FaceNormal(instance_id, face_id);
 }
 
-uint InstanceFlags() { return g_instances[InstanceID()].instance_flags; }
-uint InstanceLayerMask() { return g_instances[InstanceID()].layer_mask; }
+MaterialData FaceMaterial(int instance_id, int face_id)
+{
+    InstanceData instance = g_instances[instance_id];
+    int mesh_id = instance.mesh_id;
+    face_t face = g_faces[mesh_id][face_id];
+    return g_materials[instance.material_ids[face.material_index]];
+}
+MaterialData FaceMaterial()
+{
+    int instance_id = InstanceID();
+    int face_id = PrimitiveIndex();
+    return FaceMaterial(instance_id, face_id);
+}
+
+float3 HitPosition()
+{
+    return offset_ray(WorldRayOrigin() + (WorldRayDirection() * RayTCurrent()), FaceNormal());
+}
+
 
 
 struct Payload

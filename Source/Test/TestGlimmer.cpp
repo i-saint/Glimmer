@@ -3,6 +3,13 @@
 #include "MeshGenerator.h"
 #include "gptInterface.h"
 
+TestCase(TestMath)
+{
+    mu::ONBf onb(float3::up());
+    float3 p = mu::cosine_sample_hemisphere(0.5f, 0.5f);
+    float3 r = onb.inverse_transform(p);
+    printf("r: {%f, %f, %f}\n", r.x, r.y, r.z);
+}
 
 TestCase(TestMinimum)
 {

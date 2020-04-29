@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "muCompression.h"
 #include "muSIMD.h"
+#include "muAlgorithm.h"
 
 namespace mu {
 
@@ -17,7 +18,7 @@ static_assert(sizeof(snormx3_32) == 4, "");
 template<class DstType, class SrcType>
 static inline void convert(RawVector<DstType>& dst, const RawVector<SrcType>& src)
 {
-    enumerate(dst, src, [](auto& d, const auto& s) { d = to<DstType>(s); });
+    each(dst, src, [](auto& d, const auto& s) { d = to<DstType>(s); });
 }
 
 template<class PackedType, class PlainType>
@@ -76,7 +77,7 @@ struct EncodeImpl<PackedType, PlainType, true>
 
         auto bmin = dst.bound_min;
         auto rsize = rcp(dst.bound_max - dst.bound_min);
-        enumerate(dst.packed, src, [bmin, rsize](auto& d, const auto& s) {
+        each(dst.packed, src, [bmin, rsize](auto& d, const auto& s) {
             d = to<PackedType>((s - bmin) * rsize);
         });
     }
@@ -89,7 +90,7 @@ struct EncodeImpl<PackedType, PlainType, true>
 
         auto bmin = src.bound_min;
         auto size = (src.bound_max - src.bound_min);
-        enumerate(dst, src.packed, [bmin, size](auto& d, const auto& s) {
+        each(dst, src.packed, [bmin, size](auto& d, const auto& s) {
             d = to<PlainType>(s) * size + bmin;
         });
     }
@@ -109,7 +110,7 @@ struct EncodeImpl<PackedType, PlainType, false>
         MinMax(src.data(), src.size(), dst.bound_min, dst.bound_max);
 
         auto bmin = dst.bound_min;
-        enumerate(dst.packed, src, [bmin](auto& d, const auto& s) {
+        each(dst.packed, src, [bmin](auto& d, const auto& s) {
             d = (PackedType)(s - bmin);
         });
     }
@@ -121,7 +122,7 @@ struct EncodeImpl<PackedType, PlainType, false>
             return;
 
         auto bmin = src.bound_min;
-        enumerate(dst, src.packed, [bmin](auto& d, const auto& s) {
+        each(dst, src.packed, [bmin](auto& d, const auto& s) {
             d = (PlainType)(s) + bmin;
         });
     }
