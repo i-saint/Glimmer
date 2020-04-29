@@ -1,7 +1,8 @@
 #pragma once
 #ifdef _WIN32
-#include "lptEntityDXR.h"
 #include "Foundation/lptUtils.h"
+#include "lptEntityDXR.h"
+#include "lptDeformerDXR.h"
 
 namespace lpt {
 

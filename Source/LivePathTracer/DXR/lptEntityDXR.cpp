@@ -245,15 +245,36 @@ void MeshInstanceDXR::updateResources()
 {
     ContextDXR* ctx = m_context;
     auto& mesh = dxr_t(*m_mesh);
-    if (mesh.hasJoints() && mesh.isDirty(DirtyFlag::Vertices)) {
+    if (mesh.hasJoints() || mesh.hasBlendshapes()) {
         if (m_data.deform_id == -1)
             m_data.deform_id = m_context->m_deform_index_alloc.allocate();
 
         // vertex buffer for deformation
-        m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t));
-        lptSetName(m_buf_vertices, m_name + " Vertex Buffer (Deformed)");
+        if (mesh.isDirty(DirtyFlag::Vertices)) {
+            m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t));
+            lptSetName(m_buf_vertices, m_name + " Vertex Buffer (Deformed)");
+            // todo: SRV & UAV
+        }
 
-        // todo: SRV & UAV
+        if (mesh.hasJoints()) {
+            bool allocated = ctx->updateBuffer(m_buf_joint_matrices, m_buf_joint_matrices_staging, mesh.getJointCount() * sizeof(float4x4), [this](float4x4* dst) {
+                exportJointMatrices(dst);
+            });
+            if (allocated) {
+                lptSetName(m_buf_joint_matrices, m_name + " Joint Matrices");
+                // todo: SRV
+            }
+        }
+
+        if (mesh.hasBlendshapes()) {
+            bool allocated = ctx->updateBuffer(m_buf_bs_weights, m_buf_bs_weights_staging, mesh.getBlendshapeCount() * sizeof(float), [this](float* dst) {
+                exportBlendshapeWeights(dst);
+            });
+            if (allocated) {
+                lptSetName(m_buf_bs_weights, m_name + " Blendshape Weights");
+                // todo: SRV
+            }
+        }
     }
 }
 

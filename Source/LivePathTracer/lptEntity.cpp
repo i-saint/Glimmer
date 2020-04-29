@@ -620,6 +620,26 @@ bool MeshInstance::hasFlag(InstanceFlag v) const
     return (m_instance_flags & (uint32_t)v) != 0;
 }
 
+void MeshInstance::exportJointMatrices(float4x4* dst) const
+{
+    // note:
+    // object space skinning is recommended for better BLAS building. ( http://intro-to-dxr.cwyman.org/presentations/IntroDXR_RaytracingAPI.pdf )
+    // so, try to convert bone matrices to root bone space.
+    // on skinned meshes, inst.transform is root bone's transform or identity if root bone is not assigned.
+    // both cases work, but identity matrix means world space skinning that is not optimal.
+    auto& mesh = *m_mesh;
+    auto iroot = mu::invert(m_data.local_to_world);
+    int joint_count = (int)m_joint_matrices.size();
+    for (int ji = 0; ji < joint_count; ++ji) {
+        *dst++ = mesh.m_joint_bindposes[ji] * m_joint_matrices[ji] * iroot;
+    }
+}
+
+void MeshInstance::exportBlendshapeWeights(float* dst) const
+{
+    m_blendshape_weights.copy_to(dst);
+}
+
 
 void Scene::setEnabled(bool v)
 {

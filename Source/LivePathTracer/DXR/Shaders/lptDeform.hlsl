@@ -2,21 +2,19 @@
 
 #define kThreadBlockSize 4
 
-RWStructuredBuffer<vertex_t>        g_dst_vertices  : register(u0);
-StructuredBuffer<vertex_t>          g_src_vertices  : register(t0);
+// per-instance data
+RWStructuredBuffer<vertex_t>            g_dst_vertices  : register(u0, space0);
+StructuredBuffer<float>                 g_bs_weights    : register(t0, space0);
+StructuredBuffer<float4x4>              g_joint_matrices: register(t1, space0);
 
-// blendshape data
-StructuredBuffer<vertex_t>          g_bs_delta      : register(t1);
-StructuredBuffer<BlendshapeFrame>   g_bs_frames     : register(t2);
-StructuredBuffer<BlendshapeInfo>    g_bs_info       : register(t3);
-StructuredBuffer<float>             g_bs_weights    : register(t4);
-
-// skinning data
-StructuredBuffer<JointCount>        g_joint_counts   : register(t5);
-StructuredBuffer<JointWeight>       g_joint_weights  : register(t6);
-StructuredBuffer<float4x4>          g_joint_matrices : register(t7);
-
-ConstantBuffer<MeshData>            g_mesh : register(b0);
+// per-mesh data
+StructuredBuffer<vertex_t>              g_src_vertices  : register(t0, space1);
+StructuredBuffer<vertex_t>              g_bs_delta      : register(t1, space1);
+StructuredBuffer<BlendshapeFrameData>   g_bs_frames     : register(t2, space1);
+StructuredBuffer<BlendshapeData>        g_bs_info       : register(t3, space1);
+StructuredBuffer<JointCount>            g_joint_counts  : register(t4, space1);
+StructuredBuffer<JointWeight>           g_joint_weights : register(t5, space1);
+ConstantBuffer<MeshData>                g_mesh          : register(b0, space1);
 
 
 uint VertexCount()
@@ -160,21 +158,31 @@ void ApplyBlendshape(uint vi, inout vertex_t v)
             result = add(result, lerp(p1, p2, s));
         }
     }
+    result.normal = normalize(result.normal);
+    result.tangent = normalize(result.tangent);
     v = result;
 }
 
 void ApplySkinning(uint vi, inout vertex_t v)
 {
     float4 pos_base = float4(v.position, 1.0f);
-    float3 pos_deformedeformed = 0.0f;
+    float4 normal_base = float4(v.normal, 0.0f);
+    float4 tangent_base = float4(v.tangent, 0.0f);
+    float3 pos_deformed = 0.0f;
+    float3 normal_deformed = 0.0f;
+    float3 tangent_deformed = 0.0f;
 
     uint joint_count = GetVertexJointCount(vi);
     for (uint bi = 0; bi < joint_count; ++bi) {
         float w = GetVertexJointWeight(vi, bi);
         float4x4 m = GetVertexJointMatrix(vi, bi);
-        pos_deformedeformed += mul(m, pos_base).xyz * w;
+        pos_deformed += mul(m, pos_base).xyz * w;
+        normal_deformed += mul(m, normal_base).xyz * w;
+        tangent_deformed += mul(m, tangent_base).xyz * w;
     }
-    v.position = pos_deformedeformed;
+    v.position = pos_deformed;
+    v.normal = normalize(normal_deformed);
+    v.tangent = normalize(tangent_deformed);
 }
 
 [numthreads(kThreadBlockSize, 1, 1)]

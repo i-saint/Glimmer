@@ -149,8 +149,8 @@ public:
 public:
     // deformation
     ID3D12ResourcePtr m_buf_vertices;
-    ID3D12ResourcePtr m_buf_bs_weights;
-    ID3D12ResourcePtr m_buf_joint_matrices;
+    ID3D12ResourcePtr m_buf_bs_weights, m_buf_bs_weights_staging;
+    ID3D12ResourcePtr m_buf_joint_matrices, m_buf_joint_matrices_staging;
     DescriptorHandleDXR m_uav_vertices;
     DescriptorHandleDXR m_srv_bs_weights;
     DescriptorHandleDXR m_srv_joint_matrices;

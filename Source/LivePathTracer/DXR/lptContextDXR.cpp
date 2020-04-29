@@ -604,6 +604,7 @@ void ContextDXR::updateResources()
 
 void ContextDXR::deform()
 {
+    //lptTimestampQuery(m_timestamp, m_cl, "Deform begin");
     //// todo
     //bool gpu_skinning = rd.hasFlag(RenderFlag::GPUSkinning) && m_deformer;
     //if (gpu_skinning) {
@@ -618,6 +619,7 @@ void ContextDXR::deform()
     //else {
         m_fv_deform = m_fv_upload;
     //}
+    //lptTimestampQuery(m_timestamp, m_cl, "Deform end");
 }
 
 void ContextDXR::updateBLAS()

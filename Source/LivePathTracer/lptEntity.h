@@ -538,6 +538,9 @@ public:
     void setJointMatrices(const float4x4* v) override;
     bool hasFlag(InstanceFlag flag) const;
 
+    void exportJointMatrices(float4x4* dst) const;
+    void exportBlendshapeWeights(float* dst) const;
+
 public:
     InstanceData m_data;
     MeshPtr m_mesh;
