@@ -609,15 +609,29 @@ void MeshInstance::setTransform(const float4x4& v)
 
 void MeshInstance::setJointMatrices(const float4x4* v)
 {
-    if (m_mesh && !m_mesh->m_joint_bindposes.empty()) {
-        m_joint_matrices.assign(v, v + m_mesh->m_joint_bindposes.size());
+    if (m_mesh->hasJoints()) {
+        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_matrices == MakeIArray(v, m_mesh->getJointCount()))
+            return;
+
+        m_joint_matrices.assign(v, v + m_mesh->getJointCount());
         markDirty(DirtyFlag::Joints);
+    }
+}
+
+void MeshInstance::setBlendshapeWeights(const float* v)
+{
+    if (m_mesh->hasBlendshapes()) {
+        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_blendshape_weights == MakeIArray(v, m_mesh->getBlendshapeCount()))
+            return;
+
+        m_blendshape_weights.assign(v, v + m_mesh->getBlendshapeCount());
+        markDirty(DirtyFlag::Blendshape);
     }
 }
 
 bool MeshInstance::hasFlag(InstanceFlag v) const
 {
-    return (m_instance_flags & (uint32_t)v) != 0;
+    return get_flag(m_instance_flags, v);
 }
 
 void MeshInstance::exportJointMatrices(float4x4* dst) const

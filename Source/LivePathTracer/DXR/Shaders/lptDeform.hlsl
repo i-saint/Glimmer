@@ -9,11 +9,11 @@ StructuredBuffer<float4x4>              g_joint_matrices: register(t1, space0);
 
 // per-mesh data
 StructuredBuffer<vertex_t>              g_src_vertices  : register(t0, space1);
-StructuredBuffer<vertex_t>              g_bs_delta      : register(t1, space1);
-StructuredBuffer<BlendshapeFrameData>   g_bs_frames     : register(t2, space1);
-StructuredBuffer<BlendshapeData>        g_bs_info       : register(t3, space1);
-StructuredBuffer<JointCount>            g_joint_counts  : register(t4, space1);
-StructuredBuffer<JointWeight>           g_joint_weights : register(t5, space1);
+StructuredBuffer<JointCount>            g_joint_counts  : register(t1, space1);
+StructuredBuffer<JointWeight>           g_joint_weights : register(t2, space1);
+StructuredBuffer<BlendshapeData>        g_bs            : register(t3, space1);
+StructuredBuffer<BlendshapeFrameData>   g_bs_frames     : register(t4, space1);
+StructuredBuffer<vertex_t>              g_bs_delta      : register(t5, space1);
 ConstantBuffer<MeshData>                g_mesh          : register(b0, space1);
 
 
@@ -27,7 +27,7 @@ uint VertexCount()
 uint BlendshapeCount()
 {
     uint n, s;
-    g_bs_info.GetDimensions(n, s);
+    g_bs.GetDimensions(n, s);
     return n;
 }
 
@@ -44,18 +44,18 @@ float GetBlendshapeWeight(uint bsi)
 
 uint GetBlendshapeFrameCount(uint bsi)
 {
-    return g_bs_info[bsi].frame_count;
+    return g_bs[bsi].frame_count;
 }
 
 float GetBlendshapeFrameWeight(uint bsi, uint fi)
 {
-    uint offset = g_bs_info[bsi].frame_offset;
+    uint offset = g_bs[bsi].frame_offset;
     return g_bs_frames[offset + fi].weight;
 }
 
 vertex_t GetBlendshapeDelta(uint bsi, uint fi, uint vi)
 {
-    uint offset = g_bs_frames[g_bs_info[bsi].frame_offset + fi].delta_offset;
+    uint offset = g_bs_frames[g_bs[bsi].frame_offset + fi].delta_offset;
     return g_bs_delta[offset + vi];
 }
 

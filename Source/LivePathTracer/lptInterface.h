@@ -258,6 +258,7 @@ public:
     virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
+    virtual void setBlendshapeWeights(const float* v) = 0;
 };
 using IMeshInstancePtr = ref_ptr<IMeshInstance>;
 

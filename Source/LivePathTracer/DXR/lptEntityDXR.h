@@ -117,14 +117,19 @@ public:
     DescriptorHandleDXR m_srv_vertices;
     DescriptorHandleDXR m_srv_faces;
 
+    // skinning data
+    ID3D12ResourcePtr m_buf_joint_counts, m_buf_joint_counts_staging;
+    ID3D12ResourcePtr m_buf_joint_weights, m_buf_joint_weights_staging;
+    DescriptorHandleDXR m_srv_joint_counts;
+    DescriptorHandleDXR m_srv_joint_weights;
+
     // blendshape data
     ID3D12ResourcePtr m_buf_bs, m_buf_bs_staging;
     ID3D12ResourcePtr m_buf_bs_frames, m_buf_bs_frames_staging;
     ID3D12ResourcePtr m_buf_bs_delta, m_buf_bs_delta_staging;
-
-    // skinning data
-    ID3D12ResourcePtr m_buf_joint_counts, m_buf_joint_counts_staging;
-    ID3D12ResourcePtr m_buf_joint_weights, m_buf_joint_weights_staging;
+    DescriptorHandleDXR m_srv_bs;
+    DescriptorHandleDXR m_srv_bs_frames;
+    DescriptorHandleDXR m_srv_bs_delta;
 
     // acceleration structure
     ID3D12ResourcePtr m_blas;

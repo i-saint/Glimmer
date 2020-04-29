@@ -536,6 +536,7 @@ public:
     void setMaterial(IMaterial* v, int slot) override;
     void setTransform(const float4x4& v) override;
     void setJointMatrices(const float4x4* v) override;
+    void setBlendshapeWeights(const float* v) override;
     bool hasFlag(InstanceFlag flag) const;
 
     void exportJointMatrices(float4x4* dst) const;
