@@ -123,7 +123,12 @@ inline bool get_flag(uint32_t src, T flag)
 template<class T, gptEnableIf(std::is_enum<T>::value)>
 inline bool get_flag(int src, T flag)
 {
-    return get_flag((uint32_t&)dst, flag);
+    return get_flag((uint32_t)dst, flag);
+}
+template<class T, gptEnableIf(std::is_enum<T>::value)>
+inline bool get_flag(T src, T flag)
+{
+    return get_flag((uint32_t)src, flag);
 }
 
 

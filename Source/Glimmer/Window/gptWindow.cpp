@@ -17,10 +17,10 @@ static Window* FindWindow(void* handle)
 }
 
 
-Window::Window(int width, int height)
+Window::Window(int width, int height, WindowFlag flags)
 {
     g_windows.push_back(this);
-    open(width, height);
+    open(width, height, flags);
 }
 
 Window::~Window()
@@ -102,14 +102,20 @@ static LRESULT CALLBACK gptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         return 0;
 }
 
-bool Window::open(int width, int height)
+bool Window::open(int width, int height, WindowFlag flags)
 {
     if (m_hwnd)
         return true; // already opened
 
     const CHAR* title = m_name.c_str();
     const CHAR* class_name = "Glimmer";
-    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    if (get_flag(flags, WindowFlag::MinimizeButton))
+        style |= WS_MINIMIZEBOX;
+    if (get_flag(flags, WindowFlag::MaximizeButton))
+        style |= WS_MAXIMIZEBOX;
+    if (get_flag(flags, WindowFlag::Resizable))
+        style |= WS_THICKFRAME;
 
     WNDCLASS wc{};
     wc.lpfnWndProc = &gptMsgProc;
@@ -250,8 +256,8 @@ void Window::onMouseUp(int button)
 
 } // namespace gpt
 
-gptAPI gpt::IWindow* gptCreateWindow_(int width, int height)
+gptAPI gpt::IWindow* gptCreateWindow_(int width, int height, gpt::WindowFlag flags)
 {
-    return new gpt::Window(width, height);
+    return new gpt::Window(width, height, flags);
 }
 

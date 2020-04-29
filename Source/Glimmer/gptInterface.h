@@ -21,6 +21,17 @@ enum class MaterialType : uint32_t
     Default,
 };
 
+enum class WindowFlag : uint32_t
+{
+    None            = 0x00000000,
+    Resizable       = 0x00000001,
+    MinimizeButton  = 0x00000002,
+    MaximizeButton  = 0x00000004,
+    Default = Resizable,
+};
+inline WindowFlag operator|(WindowFlag a, WindowFlag b) { return (WindowFlag)((uint32_t)a | (uint32_t)b); }
+inline WindowFlag operator&(WindowFlag a, WindowFlag b) { return (WindowFlag)((uint32_t)a & (uint32_t)b); }
+
 #ifndef gptImpl
 struct float2
 {
@@ -322,7 +333,6 @@ public:
 class IWindow : public IObject
 {
 public:
-    virtual bool open(int width, int height) = 0;
     virtual void close() = 0;
     virtual void processMessages() = 0;
 
@@ -349,14 +359,14 @@ using IWindowPtr = ref_ptr<IWindow>;
 
 gptAPI gpt::IGlobals* gptGetGlobals();
 gptAPI gpt::IContext* gptCreateContextDXR_();
-gptAPI gpt::IWindow* gptCreateWindow_(int width, int height);
+gptAPI gpt::IWindow* gptCreateWindow_(int width, int height, gpt::WindowFlag flags);
 
 inline gpt::IContextPtr gptCreateContextDXR()
 {
     return gpt::IContextPtr(gptCreateContextDXR_());
 }
 
-inline gpt::IWindowPtr gptCreateWindow(int width, int height)
+inline gpt::IWindowPtr gptCreateWindow(int width, int height, gpt::WindowFlag flags = gpt::WindowFlag::Default)
 {
-    return gpt::IWindowPtr(gptCreateWindow_(width, height));
+    return gpt::IWindowPtr(gptCreateWindow_(width, height, flags));
 }

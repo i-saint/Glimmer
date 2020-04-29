@@ -6,10 +6,10 @@ namespace gpt {
 class Window : public RefCount<IWindow>
 {
 public:
-    Window(int width, int height);
+    Window(int width, int height, WindowFlag flags);
     ~Window();
 
-    bool open(int width, int height) override;
+    bool open(int width, int height, WindowFlag flags);
     void close() override;
     void processMessages() override;
 
