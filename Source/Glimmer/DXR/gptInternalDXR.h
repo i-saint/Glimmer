@@ -56,6 +56,9 @@ const int lptAdaptiveCascades = 3;
 
 struct DescriptorHandleDXR
 {
+    // static because stride can be assumed to be constant
+    static UINT s_stride;
+
     D3D12_CPU_DESCRIPTOR_HANDLE hcpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE hgpu{};
 
@@ -74,12 +77,8 @@ public:
 
     void reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap);
     DescriptorHandleDXR allocate(size_t n = 1);
-    static UINT getStride();
 
 private:
-    // static because stride can be assumed to be constant
-    static UINT s_stride;
-
     D3D12_CPU_DESCRIPTOR_HANDLE m_hcpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE m_hgpu{};
     UINT m_capacity = 0;

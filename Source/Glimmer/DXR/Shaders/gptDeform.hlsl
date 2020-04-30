@@ -9,11 +9,12 @@ StructuredBuffer<float4x4>              g_joint_matrices: register(t1, space0);
 
 // per-mesh data
 StructuredBuffer<vertex_t>              g_src_vertices  : register(t0, space1);
-StructuredBuffer<JointCount>            g_joint_counts  : register(t1, space1);
-StructuredBuffer<JointWeight>           g_joint_weights : register(t2, space1);
-StructuredBuffer<BlendshapeData>        g_bs            : register(t3, space1);
-StructuredBuffer<BlendshapeFrameData>   g_bs_frames     : register(t4, space1);
-StructuredBuffer<vertex_t>              g_bs_delta      : register(t5, space1);
+StructuredBuffer<face_t>                g_src_faces     : register(t1, space1);
+StructuredBuffer<JointCount>            g_joint_counts  : register(t2, space1);
+StructuredBuffer<JointWeight>           g_joint_weights : register(t3, space1);
+StructuredBuffer<BlendshapeData>        g_bs            : register(t4, space1);
+StructuredBuffer<BlendshapeFrameData>   g_bs_frames     : register(t5, space1);
+StructuredBuffer<vertex_t>              g_bs_delta      : register(t6, space1);
 ConstantBuffer<MeshData>                g_mesh          : register(b0, space1);
 
 

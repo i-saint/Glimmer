@@ -6,6 +6,8 @@
 
 namespace gpt {
 
+UINT DescriptorHandleDXR::s_stride = 0;
+
 DescriptorHandleDXR::operator bool() const
 {
     return hcpu.ptr != 0 && hgpu.ptr != 0;
@@ -30,13 +32,11 @@ DescriptorHandleDXR DescriptorHandleDXR::operator+(size_t n) const
 
 DescriptorHandleDXR& DescriptorHandleDXR::operator+=(size_t n)
 {
-    UINT offset = DescriptorHeapAllocatorDXR::getStride() * UINT(n);
+    UINT offset = s_stride * UINT(n);
     hcpu.ptr += offset;
     hgpu.ptr += offset;
     return *this;
 }
-
-UINT DescriptorHeapAllocatorDXR::s_stride = 0;
 
 DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR()
 {
@@ -49,8 +49,8 @@ DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR(ID3D12DevicePtr device, I
 
 void DescriptorHeapAllocatorDXR::reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap)
 {
-    if (s_stride == 0)
-        s_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
+    if (DescriptorHandleDXR::s_stride == 0)
+        DescriptorHandleDXR::s_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
     m_hcpu = heap->GetCPUDescriptorHandleForHeapStart();
     m_hgpu = heap->GetGPUDescriptorHandleForHeapStart();
     m_capacity = heap->GetDesc().NumDescriptors;
@@ -67,11 +67,6 @@ DescriptorHandleDXR DescriptorHeapAllocatorDXR::allocate(size_t n)
     ret += m_count;
     m_count += (UINT)n;
     return ret;
-}
-
-UINT DescriptorHeapAllocatorDXR::getStride()
-{
-    return s_stride;
 }
 
 

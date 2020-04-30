@@ -11,8 +11,9 @@ StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
 StructuredBuffer<MeshData>      g_meshes        : register(t1, space1);
 StructuredBuffer<MaterialData>  g_materials     : register(t2, space1);
 StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space2);
-StructuredBuffer<face_t>        g_faces[]       : register(t0, space3);
-Texture2D<float4>               g_textures[]    : register(t0, space4);
+StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space3);
+StructuredBuffer<face_t>        g_faces[]       : register(t0, space4);
+Texture2D<float4>               g_textures[]    : register(t0, space5);
 
 
 float3 CameraPosition()     { return g_scene.camera.position.xyz; }
@@ -32,18 +33,28 @@ float3 BackgroundColor()    { return g_scene.bg_color; }
 int LightCount()            { return g_scene.light_count; }
 LightData GetLight(int i)   { return g_scene.lights[i]; }
 
-uint InstanceFlags() { return g_instances[InstanceID()].instance_flags; }
-uint InstanceLayerMask() { return g_instances[InstanceID()].layer_mask; }
-int  MeshID() { return g_instances[InstanceID()].mesh_id; }
+uint InstanceFlags()        { return g_instances[InstanceID()].instance_flags; }
+uint InstanceLayerMask()    { return g_instances[InstanceID()].layer_mask; }
+int  MeshID()               { return g_instances[InstanceID()].mesh_id; }
+int  DeformID()             { return g_instances[InstanceID()].deform_id; }
 
 float3 FaceNormal(int instance_id, int face_id)
 {
-    // todo: handle skinned mesh
     int mesh_id = g_instances[instance_id].mesh_id;
-    face_t face = g_faces[mesh_id][face_id];
-    float3 p0 = g_vertices[mesh_id][face.indices[0]].position;
-    float3 p1 = g_vertices[mesh_id][face.indices[1]].position;
-    float3 p2 = g_vertices[mesh_id][face.indices[2]].position;
+    int deform_id = g_instances[instance_id].deform_id;
+    int3 indices = g_faces[mesh_id][face_id].indices;
+
+    float3 p0, p1, p2;
+    if (deform_id != -1) {
+        p0 = g_vertices_d[deform_id][indices[0]].position;
+        p1 = g_vertices_d[deform_id][indices[1]].position;
+        p2 = g_vertices_d[deform_id][indices[2]].position;
+    }
+    else {
+        p0 = g_vertices[mesh_id][indices[0]].position;
+        p1 = g_vertices[mesh_id][indices[1]].position;
+        p2 = g_vertices[mesh_id][indices[2]].position;
+    }
     return normalize(cross(p1 - p0, p2 - p0));
 }
 float3 FaceNormal()

@@ -320,11 +320,13 @@ bool ContextDXR::initializeDevice()
             // instance / mesh / material info
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // vertex buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount,          0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            // deformed vertex buffers
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxDeformInstanceCount,0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // face buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount, 0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount,          0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // textures
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount, 0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount,       0, 5, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         D3D12_ROOT_PARAMETER params[3]{};
@@ -421,6 +423,29 @@ bool ContextDXR::initializeDevice()
             gptSetName(m_pipeline_state, L"Shadow Pipeline State");
         }
     }
+    
+    // desc heap
+    if (!m_desc_heap) {
+        D3D12_DESCRIPTOR_HEAP_DESC desc{};
+        desc.NumDescriptors = gptDXRMaxDescriptorCount;
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
+        gptSetName(m_desc_heap, "Global Desc Heap");
+
+        m_desc_alloc.reset(m_device, m_desc_heap);
+        m_srv_instances = m_desc_alloc.allocate();
+        m_srv_meshes    = m_desc_alloc.allocate();
+        m_srv_materials = m_desc_alloc.allocate();
+        m_srv_vertices  = m_desc_alloc.allocate(gptDXRMaxMeshCount);
+        m_srv_vertices_d= m_desc_alloc.allocate(gptDXRMaxDeformInstanceCount);
+        m_srv_faces     = m_desc_alloc.allocate(gptDXRMaxMeshCount);
+        m_srv_textures  = m_desc_alloc.allocate(gptDXRMaxTextureCount);
+
+        // need to figure out better way...
+        m_srv_deform_meshes = m_desc_alloc.allocate(gptDXRMaxDeformMeshCount * 6);
+        m_srv_deform_instances = m_desc_alloc.allocate(gptDXRMaxDeformInstanceCount * 3);
+    }
 
     m_deformer = std::make_shared<DeformerDXR>(this);
     if (!m_deformer->valid()) {
@@ -503,28 +528,6 @@ void ContextDXR::updateResources()
                 add_shader_record(name);
         });
         gptSetName(m_buf_shader_table, L"PathTracer Shader Table");
-    }
-
-    // desc heap
-    if (!m_desc_heap) {
-        D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = gptDXRMaxDescriptorCount;
-        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
-        gptSetName(m_desc_heap, "Global Desc Heap");
-
-        m_desc_alloc.reset(m_device, m_desc_heap);
-        m_srv_instances = m_desc_alloc.allocate();
-        m_srv_meshes = m_desc_alloc.allocate();
-        m_srv_materials = m_desc_alloc.allocate();
-        m_srv_vertices = m_desc_alloc.allocate(gptDXRMaxMeshCount);
-        m_srv_faces = m_desc_alloc.allocate(gptDXRMaxMeshCount);
-        m_srv_textures = m_desc_alloc.allocate(gptDXRMaxTextureCount);
-
-        // need to figure out better way...
-        m_srv_deform_meshes = m_desc_alloc.allocate(gptDXRMaxDeformMeshCount * 6);
-        m_srv_deform_instances = m_desc_alloc.allocate(gptDXRMaxDeformInstanceCount * 3);
     }
 
     // render targets
@@ -1014,6 +1017,21 @@ void ContextDXR::createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* re
     desc.Buffer.StructureByteStride = UINT(stride);
     desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
+}
+
+void ContextDXR::createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride)
+{
+    if (!res)
+        return;
+    uint64_t capacity = GetSize(res);
+    D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
+    desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    desc.Format = DXGI_FORMAT_UNKNOWN;
+    desc.Buffer.FirstElement = 0;
+    desc.Buffer.NumElements = UINT(capacity / stride);
+    desc.Buffer.StructureByteStride = UINT(stride);
+    desc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+    m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);
 }
 
 void ContextDXR::createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res)

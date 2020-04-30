@@ -7,7 +7,7 @@
 namespace gpt {
 
 #define gptDXRMaxTraceRecursionLevel  2
-#define gptDXRMaxDescriptorCount 16384
+#define gptDXRMaxDescriptorCount 65536
 #define gptDXRMaxMeshCount 2048
 #define gptDXRMaxInstanceCount 65536
 #define gptDXRMaxDeformMeshCount 512
@@ -82,6 +82,7 @@ public:
     void readbackTexture(void* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
 
     void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride);
+    void createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride);
     void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size, size_t offset = 0);
@@ -131,6 +132,7 @@ public:
     DescriptorHandleDXR m_srv_meshes;
     DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_vertices;
+    DescriptorHandleDXR m_srv_vertices_d;
     DescriptorHandleDXR m_srv_faces;
     DescriptorHandleDXR m_srv_textures;
     DescriptorHandleDXR m_srv_deform_meshes;
