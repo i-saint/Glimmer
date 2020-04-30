@@ -263,7 +263,6 @@ int Blendshape::addFrame()
 {
     int ret = (int)m_frames.size();
     m_frames.push_back(std::make_unique<Frame>());
-    m_mesh->markDirty(DirtyFlag::Blendshape);
     return ret;
 }
 void Blendshape::setWeight(int frame, float v)

@@ -81,8 +81,8 @@ public:
     void copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format);
     void readbackTexture(void* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
 
-    void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride);
-    void createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride);
+    void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset = 0);
+    void createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset = 0);
     void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size, size_t offset = 0);

@@ -25,11 +25,13 @@ DeformerDXR::DeformerDXR(ContextDXR* ctx)
 
         // per-mesh data
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
-            { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+        };
+        D3D12_DESCRIPTOR_RANGE ranges2[] = {
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 1, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
-        D3D12_ROOT_PARAMETER params[2]{};
+        D3D12_ROOT_PARAMETER params[3]{};
         auto append = [&params](const int i, auto& range) {
             params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[i].DescriptorTable.NumDescriptorRanges = _countof(range);
@@ -38,6 +40,7 @@ DeformerDXR::DeformerDXR(ContextDXR* ctx)
 #define Append(I) static_assert(I < _countof(params), "param size exceeded"); append(I, ranges##I)
         Append(0);
         Append(1);
+        Append(2);
 #undef Append
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
@@ -100,6 +103,7 @@ int DeformerDXR::deform(ID3D12GraphicsCommandList4Ptr& cl)
         if (mesh.hasJoints() || mesh.hasBlendshapes()) {
             cl->SetComputeRootDescriptorTable(0, inst.m_uav_vertices.hgpu);
             cl->SetComputeRootDescriptorTable(1, mesh.m_srv_vertices.hgpu);
+            cl->SetComputeRootDescriptorTable(2, mesh.m_srv_joint_counts.hgpu);
             cl->Dispatch((UINT)mesh.getVertexCount(), 1, 1);
             ++ret;
         }

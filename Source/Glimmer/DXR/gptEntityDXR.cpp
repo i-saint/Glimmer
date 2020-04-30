@@ -131,9 +131,9 @@ void MeshDXR::updateResources()
         m_srv_bs            = base + size_t(2);
         m_srv_bs_frames     = base + size_t(3);
         m_srv_bs_delta      = base + size_t(4);
-        m_cbv_mesh          = base + size_t(5);
+        m_srv_mesh          = base + size_t(5);
 
-        ctx->createCBV(m_cbv_mesh, ctx->m_buf_meshes, sizeof(MeshData), sizeof(MeshData) * m_id);
+        ctx->createBufferSRV(m_srv_mesh, ctx->m_buf_meshes, sizeof(MeshData), sizeof(MeshData) * m_id);
     }
 
     // update joint buffers

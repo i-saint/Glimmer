@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Test.h"
 #include "MeshGenerator.h"
+#define gptImpl
 #include "gptInterface.h"
 
 TestCase(TestMath)
@@ -50,13 +51,70 @@ TestCase(TestMinimum)
         static const int indices[]{
             0, 1, 2,
         };
+
         auto triangle = ctx->createMesh();
-        triangle->setPoints((const gpt::float3*)points, _countof(points));
+        triangle->setName("Triangle");
+        triangle->setPoints(points, _countof(points));
         triangle->setIndices(indices, _countof(indices));
 
         // add a instance with default transform (identity matrix)
         auto instance = ctx->createMeshInstance(triangle);
         instance->setMaterial(material);
+        scene->addMesh(instance);
+    }
+    {
+        // deformable triangle
+        static const float3 points[]{
+            {-1.0f, 0.0f, 0.0f},
+            { 1.0f, 0.0f, 0.0f},
+            { 0.0f, 2.0f, 0.0f},
+        };
+        static const int indices[]{
+            0, 1, 2,
+        };
+
+        static const int joint_counts[]{
+            1, 1, 1,
+        };
+        static const gpt::JointWeight joint_weights[]{
+            {1.0f, 0},
+            {1.0f, 0},
+            {1.0f, 0},
+        };
+        static const float4x4 joint_bindposes[]{
+            float4x4::identity(),
+        };
+
+        static const float3 delta_points[]{
+            {-1.0f, 0.0f, 0.0f},
+            {-1.0f, 0.0f, 0.0f},
+            {-1.0f, 0.0f, 0.0f},
+        };
+
+        auto triangle = ctx->createMesh();
+        triangle->setName("Deformable Triangle");
+        triangle->setPoints(points, _countof(points));
+        triangle->setIndices(indices, _countof(indices));
+        triangle->setJointCounts(joint_counts, _countof(joint_counts));
+        triangle->setJointWeights(joint_weights, _countof(joint_weights));
+        triangle->setJointBindposes(joint_bindposes, _countof(joint_bindposes));
+        {
+            auto bs = triangle->addBlendshape();
+            int f = bs->addFrame();
+            bs->setDeltaPoints(f, delta_points, _countof(delta_points));
+        }
+
+        static const float4x4 joint_matrices[]{
+            mu::translate(float3{0.0f, 0.0f, -10.0f}),
+        };
+        static const float bs_weights[]{
+            1.0f,
+        };
+
+        auto instance = ctx->createMeshInstance(triangle);
+        instance->setMaterial(material);
+        instance->setJointMatrices(joint_matrices);
+        instance->setBlendshapeWeights(bs_weights);
         scene->addMesh(instance);
     }
     {
@@ -71,7 +129,7 @@ TestCase(TestMinimum)
             0, 1, 2, 0, 2, 3,
         };
         auto quad = ctx->createMesh();
-        quad->setPoints((const gpt::float3*)points, _countof(points));
+        quad->setPoints(points, _countof(points));
         quad->setIndices(indices, _countof(indices));
 
         // add a instance with default transform

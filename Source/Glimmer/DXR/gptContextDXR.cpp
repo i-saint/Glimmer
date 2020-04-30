@@ -802,7 +802,7 @@ ID3D12ResourcePtr ContextDXR::createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS f
 
 ID3D12ResourcePtr ContextDXR::createBuffer(uint64_t size)
 {
-    return createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
+    return createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
 }
 
 ID3D12ResourcePtr ContextDXR::createUploadBuffer(uint64_t size)
@@ -1003,7 +1003,7 @@ void ContextDXR::readbackTexture(void* dst_, ID3D12Resource* staging, UINT width
 }
 
 
-void ContextDXR::createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride)
+void ContextDXR::createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset)
 {
     if (!res)
         return;
@@ -1012,14 +1012,14 @@ void ContextDXR::createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* re
     desc.Format = DXGI_FORMAT_UNKNOWN;
     desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    desc.Buffer.FirstElement = 0;
-    desc.Buffer.NumElements = UINT(capacity / stride);
+    desc.Buffer.FirstElement = UINT(offset / stride);
+    desc.Buffer.NumElements = UINT((capacity - offset) / stride);
     desc.Buffer.StructureByteStride = UINT(stride);
     desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
 }
 
-void ContextDXR::createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride)
+void ContextDXR::createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset)
 {
     if (!res)
         return;
@@ -1027,8 +1027,8 @@ void ContextDXR::createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* re
     D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
     desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     desc.Format = DXGI_FORMAT_UNKNOWN;
-    desc.Buffer.FirstElement = 0;
-    desc.Buffer.NumElements = UINT(capacity / stride);
+    desc.Buffer.FirstElement = UINT(offset / stride);
+    desc.Buffer.NumElements = UINT((capacity - offset) / stride);
     desc.Buffer.StructureByteStride = UINT(stride);
     desc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);

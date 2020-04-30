@@ -4,6 +4,7 @@
 using mu::float2;
 using mu::float3;
 using mu::float4;
+using mu::float4x4;
 
 void GenerateIcoSphereMesh(
     std::vector<int>& counts,

@@ -130,7 +130,7 @@ public:
     DescriptorHandleDXR m_srv_bs;
     DescriptorHandleDXR m_srv_bs_frames;
     DescriptorHandleDXR m_srv_bs_delta;
-    DescriptorHandleDXR m_cbv_mesh;
+    DescriptorHandleDXR m_srv_mesh;
 
     // acceleration structure
     ID3D12ResourcePtr m_blas;
