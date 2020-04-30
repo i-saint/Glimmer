@@ -287,7 +287,7 @@ void MeshInstanceDXR::updateResources()
 
             m_srv_vertices = ctx->m_srv_vertices_d + size_t(m_data.deform_id);
 
-            auto base = ctx->m_srv_deform_meshes + size_t(m_data.deform_id * 3);
+            auto base = ctx->m_srv_deform_instances + size_t(m_data.deform_id * 3);
             m_uav_vertices      = base + size_t(0);
             m_srv_joint_matrices= base + size_t(1);
             m_srv_bs_weights    = base + size_t(2);

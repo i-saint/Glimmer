@@ -196,23 +196,8 @@ void main(uint3 tid : SV_DispatchThreadID, uint3 gtid : SV_GroupThreadID, uint3 
     uint deform_flags = DeformFlags();
     if (deform_flags & MF_HAS_BLENDSHAPES)
         ApplyBlendshape(vi, v);
-    //if (deform_flags & MF_HAS_JOINTS)
-    //    ApplySkinning(vi, v);
+    if (deform_flags & MF_HAS_JOINTS)
+        ApplySkinning(vi, v);
 
-    if (vi == 0) {
-        v.position.x = g_bs[0].frame_count;
-        v.position.y = g_bs[0].frame_offset;
-        v.position.z = 0.0f;
-    }
-    if (vi == 1) {
-        v.position.x = g_joint_counts[0].weight_count;
-        v.position.y = g_joint_counts[0].weight_offset;
-        v.position.z = g_joint_counts[1].weight_count;
-    }
-    if (vi == 2) {
-        v.position.x = g_joint_counts[1].weight_offset;
-        v.position.y = g_joint_counts[2].weight_count;
-        v.position.z = g_joint_counts[2].weight_offset;
-    }
     g_dst_vertices[vi] = v;
 }
