@@ -151,12 +151,13 @@ void CommandListManagerDXR::reset()
 
 
 
-TimestampDXR::TimestampDXR(ID3D12DevicePtr device, int max_sample)
+TimestampDXR::TimestampDXR(ID3D12DevicePtr device, ID3D12CommandQueuePtr cq, int max_sample)
 {
-    m_max_sample = max_sample;
-    if (!device)
+    if (!device || !cq)
         return;
 
+    cq->GetTimestampFrequency(&m_frequency);
+    m_max_sample = max_sample;
     m_messages.resize(m_max_sample);
     {
         D3D12_QUERY_HEAP_DESC  desc{};
@@ -238,9 +239,9 @@ std::vector<std::tuple<uint64_t, std::string*>> TimestampDXR::getSamples()
     return ret;
 }
 
-void TimestampDXR::updateLog(ID3D12CommandQueuePtr cq)
+void TimestampDXR::updateLog()
 {
-    if (!valid() || !m_enabled || !cq)
+    if (!valid() || !m_enabled)
         return;
 
     std::unique_lock<std::mutex> lock(m_mutex);
@@ -250,9 +251,6 @@ void TimestampDXR::updateLog(ID3D12CommandQueuePtr cq)
     char buf[256];
     auto time_samples = getSamples();
     if (!time_samples.empty()) {
-        uint64_t freq = 0;
-        cq->GetTimestampFrequency(&freq);
-
         size_t n = time_samples.size();
         auto base = time_samples[0];
         for (size_t si = 0; si < n; ++si) {
@@ -278,7 +276,7 @@ void TimestampDXR::updateLog(ID3D12CommandQueuePtr cq)
                     std::strncpy(name, name1->c_str(), pos1);
                     name[pos1] = '\0';
                     auto epalsed = std::get<0>(s2) - std::get<0>(s1);
-                    auto epalsed_ms = float(double(epalsed * 1000) / double(freq));
+                    auto epalsed_ms = float(double(epalsed * 1000) / double(m_frequency));
                     sprintf(buf, "%s: %.2fms\n", name, epalsed_ms);
                     m_log += buf;
                     continue;
@@ -288,7 +286,7 @@ void TimestampDXR::updateLog(ID3D12CommandQueuePtr cq)
             auto end_pos = name1->find(" end");
             if (pos1 == std::string::npos && end_pos == std::string::npos) {
                 auto epalsed = std::get<0>(s1);
-                auto epalsed_ms = float(double(epalsed * 1000) / double(freq));
+                auto epalsed_ms = float(double(epalsed * 1000) / double(m_frequency));
                 sprintf(buf, "%s: %.2fms\n", name1->c_str(), epalsed_ms);
                 m_log += buf;
             }

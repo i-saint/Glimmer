@@ -125,15 +125,15 @@ struct MaterialData
     gptDefCompare(MaterialData);
 };
 
-struct BlendshapeFrameData
-{
-    int delta_offset = 0;
-    float weight = 0;
-};
 struct BlendshapeData
 {
     int frame_count = 0;
     int frame_offset = 0;
+};
+struct BlendshapeFrameData
+{
+    float weight = 0;
+    int delta_offset = 0;
 };
 struct JointCount
 {

@@ -77,7 +77,11 @@ DeformerDXR::DeformerDXR(ContextDXR* ctx)
 
     if (m_pipeline_state) {
         gptSetName(m_pipeline_state, L"Deform Pipeline State");
-        m_clm_deform = std::make_shared<CommandListManagerDXR>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_pipeline_state, L"Deforms");
+
+        device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_cmd_allocator));
+        device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_cmd_allocator, m_pipeline_state, IID_PPV_ARGS(&m_cmd_list));
+        gptSetName(m_cmd_allocator, L"Deform Command Allocator");
+        gptSetName(m_cmd_list, L"Deform Command List");
     }
 }
 
@@ -90,14 +94,16 @@ bool DeformerDXR::valid() const
     return m_rootsig && m_pipeline_state;
 }
 
-int DeformerDXR::deform(ID3D12GraphicsCommandList4Ptr& cl)
+int DeformerDXR::deform()
 {
     auto ctx = m_context;
-    int ret = 0;
+    auto& cl = m_cmd_list;
 
     ID3D12DescriptorHeap* heaps[] = { ctx->m_desc_heap };
     cl->SetDescriptorHeaps(_countof(heaps), heaps);
     cl->SetComputeRootSignature(m_rootsig);
+
+    int ret = 0;
     each_ref(ctx->m_mesh_instances, [&](auto& inst) {
         auto& mesh = dxr_t(*inst.m_mesh);
         if (mesh.hasJoints() || mesh.hasBlendshapes()) {
@@ -109,6 +115,12 @@ int DeformerDXR::deform(ID3D12GraphicsCommandList4Ptr& cl)
         }
     });
     return ret;
+}
+
+void DeformerDXR::reset()
+{
+    m_cmd_allocator->Reset();
+    m_cmd_list->Reset(m_cmd_allocator, m_pipeline_state);
 }
 
 } // namespace gpt

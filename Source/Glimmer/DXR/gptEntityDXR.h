@@ -159,8 +159,8 @@ public:
     ID3D12ResourcePtr m_buf_joint_matrices, m_buf_joint_matrices_staging;
     DescriptorHandleDXR m_srv_vertices;
     DescriptorHandleDXR m_uav_vertices;
-    DescriptorHandleDXR m_srv_bs_weights;
     DescriptorHandleDXR m_srv_joint_matrices;
+    DescriptorHandleDXR m_srv_bs_weights;
 
     // acceleration structure
     ID3D12ResourcePtr m_blas;

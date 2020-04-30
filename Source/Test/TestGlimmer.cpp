@@ -78,27 +78,33 @@ TestCase(TestMinimum)
         };
         static const gpt::JointWeight joint_weights[]{
             {1.0f, 0},
-            {1.0f, 0},
-            {1.0f, 0},
+            {1.0f, 1},
+            {1.0f, 2},
         };
         static const float4x4 joint_bindposes[]{
+            float4x4::identity(),
+            float4x4::identity(),
             float4x4::identity(),
         };
 
         static const float3 delta_points[]{
-            {-1.0f, 0.0f, 0.0f},
-            {-1.0f, 0.0f, 0.0f},
-            {-1.0f, 0.0f, 0.0f},
+            {-10.0f, 0.0f, 0.0f},
+            {-20.0f, 0.0f, 0.0f},
+            {-30.0f, 0.0f, 0.0f},
         };
 
         auto triangle = ctx->createMesh();
         triangle->setName("Deformable Triangle");
         triangle->setPoints(points, _countof(points));
         triangle->setIndices(indices, _countof(indices));
-        triangle->setJointCounts(joint_counts, _countof(joint_counts));
-        triangle->setJointWeights(joint_weights, _countof(joint_weights));
-        triangle->setJointBindposes(joint_bindposes, _countof(joint_bindposes));
         {
+            // joints
+            triangle->setJointCounts(joint_counts, _countof(joint_counts));
+            triangle->setJointWeights(joint_weights, _countof(joint_weights));
+            triangle->setJointBindposes(joint_bindposes, _countof(joint_bindposes));
+        }
+        {
+            // bllendshapes
             auto bs = triangle->addBlendshape();
             int f = bs->addFrame();
             bs->setDeltaPoints(f, delta_points, _countof(delta_points));
@@ -106,6 +112,8 @@ TestCase(TestMinimum)
 
         static const float4x4 joint_matrices[]{
             mu::translate(float3{0.0f, 0.0f, -10.0f}),
+            mu::translate(float3{0.0f, 0.0f, -20.0f}),
+            mu::translate(float3{0.0f, 0.0f, -30.0f}),
         };
         static const float bs_weights[]{
             1.0f,

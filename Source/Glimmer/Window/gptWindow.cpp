@@ -107,8 +107,8 @@ bool Window::open(int width, int height, WindowFlag flags)
     if (m_hwnd)
         return true; // already opened
 
-    const CHAR* title = m_name.c_str();
-    const CHAR* class_name = "Glimmer";
+    const CHAR* title = "Glimmer Path Tracer";
+    const CHAR* class_name = "GlimmerPathTracer";
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
     if (get_flag(flags, WindowFlag::MinimizeButton))
         style |= WS_MINIMIZEBOX;

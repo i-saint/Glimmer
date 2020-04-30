@@ -119,6 +119,7 @@ private:
     using CommandPtr = std::shared_ptr<Record>;
 
     ID3D12DevicePtr m_device;
+    ID3D12CommandQueuePtr m_queue;
     D3D12_COMMAND_LIST_TYPE m_type;
     ID3D12PipelineStatePtr m_state;
     std::vector<CommandPtr> m_available, m_in_use;
@@ -130,7 +131,7 @@ using CommandListManagerDXRPtr = std::shared_ptr<CommandListManagerDXR>;
 class TimestampDXR
 {
 public:
-    TimestampDXR(ID3D12DevicePtr device, int max_sample = 64);
+    TimestampDXR(ID3D12DevicePtr device, ID3D12CommandQueuePtr cq, int max_sample = 64);
 
     bool valid() const;
     bool isEnabled() const;
@@ -140,12 +141,13 @@ public:
     bool resolve(ID3D12GraphicsCommandList4Ptr cl);
 
     std::vector<std::tuple<uint64_t, std::string*>> getSamples();
-    void updateLog(ID3D12CommandQueuePtr cq);
+    void updateLog();
     std::string getLog(); // returns copy. it is intended
 
 private:
     ID3D12QueryHeapPtr m_query_heap;
     ID3D12ResourcePtr m_timestamp_buffer;
+    uint64_t m_frequency = 0;
     bool m_enabled = true;
     int m_max_sample = 0;
     int m_sample_index = 0;
@@ -156,19 +158,19 @@ private:
 using TimestampDXRPtr = std::shared_ptr<TimestampDXR>;
 
 #ifdef gptEnableTimestamp
-#define gptTimestampInitialize(q, d)   if (!q) { q = std::make_shared<TimestampDXR>(d); }
-#define gptTimestampSetEnable(q, e)    q->setEnabled(e)
-#define gptTimestampReset(q)           q->reset()
-#define gptTimestampQuery(q, cl, m)    q->query(cl, m)
-#define gptTimestampResolve(q, cl)     q->resolve(cl)
-#define gptTimestampUpdateLog(q, cq)   q->updateLog(cq)
+    #define gptTimestampInitialize(q, ...)  if (!q) { q = std::make_shared<TimestampDXR>(__VA_ARGS__); }
+    #define gptTimestampSetEnable(q, e)     q->setEnabled(e)
+    #define gptTimestampReset(q)            q->reset()
+    #define gptTimestampQuery(q, cl, m)     q->query(cl, m)
+    #define gptTimestampResolve(q, cl)      q->resolve(cl)
+    #define gptTimestampUpdateLog(q)        q->updateLog()
 #else gptEnableTimestamp
-#define gptTimestampInitialize(...)
-#define gptTimestampSetEnable(...)
-#define gptTimestampReset(...)
-#define gptTimestampQuery(...)
-#define gptTimestampResolve(...)
-#define gptTimestampUpdateLog(...)
+    #define gptTimestampInitialize(...)
+    #define gptTimestampSetEnable(...)
+    #define gptTimestampReset(...)
+    #define gptTimestampQuery(...)
+    #define gptTimestampResolve(...)
+    #define gptTimestampUpdateLog(...)
 #endif gptEnableTimestamp
 
 void SetNameImpl(ID3D12Object* obj, LPCSTR name);
@@ -176,9 +178,9 @@ void SetNameImpl(ID3D12Object* obj, LPCWSTR name);
 void SetNameImpl(ID3D12Object* obj, const std::string& name);
 void SetNameImpl(ID3D12Object* obj, const std::wstring& name);
 #ifdef gptEnableResourceName
-#define gptSetName(res, name) SetNameImpl(res, name)
+    #define gptSetName(res, name) SetNameImpl(res, name)
 #else
-#define gptSetName(...)
+    #define gptSetName(...)
 #endif
 
 

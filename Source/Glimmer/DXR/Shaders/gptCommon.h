@@ -72,15 +72,15 @@ struct MaterialData
     int emissive_tex;
 };
 
-struct BlendshapeFrameData
-{
-    int delta_offset;
-    float weight;
-};
 struct BlendshapeData
 {
     int frame_count;
     int frame_offset;
+};
+struct BlendshapeFrameData
+{
+    float weight;
+    int delta_offset;
 };
 struct JointCount
 {

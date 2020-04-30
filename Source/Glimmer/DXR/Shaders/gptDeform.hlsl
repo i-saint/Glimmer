@@ -4,8 +4,8 @@
 
 // per-instance data
 RWStructuredBuffer<vertex_t>            g_dst_vertices  : register(u0, space0);
-StructuredBuffer<float>                 g_bs_weights    : register(t0, space0);
-StructuredBuffer<float4x4>              g_joint_matrices: register(t1, space0);
+StructuredBuffer<float4x4>              g_joint_matrices: register(t0, space0);
+StructuredBuffer<float>                 g_bs_weights    : register(t1, space0);
 
 // per-mesh data
 StructuredBuffer<vertex_t>              g_src_vertices  : register(t0, space1);
@@ -65,14 +65,16 @@ uint GetVertexJointCount(uint vi)
     return g_joint_counts[vi].weight_count;
 }
 
-float GetVertexJointWeight(uint vi, uint bi)
+float GetVertexJointWeight(uint vi, uint ji)
 {
-    return g_joint_weights[g_joint_counts[vi].weight_offset + bi].weight;
+    int offset = g_joint_counts[vi].weight_offset;
+    return g_joint_weights[ji + offset].weight;
 }
 
-float4x4 GetVertexJointMatrix(uint vi, uint bi)
+float4x4 GetVertexJointMatrix(uint vi, uint ji)
 {
-    uint i = g_joint_weights[g_joint_counts[vi].weight_offset + bi].joint_index;
+    int offset = g_joint_counts[vi].weight_offset;
+    uint i = g_joint_weights[ji + offset].joint_index;
     return g_joint_matrices[i];
 }
 
@@ -173,9 +175,9 @@ void ApplySkinning(uint vi, inout vertex_t v)
     float3 tangent_deformed = 0.0f;
 
     uint joint_count = GetVertexJointCount(vi);
-    for (uint bi = 0; bi < joint_count; ++bi) {
-        float w = GetVertexJointWeight(vi, bi);
-        float4x4 m = GetVertexJointMatrix(vi, bi);
+    for (uint ji = 0; ji < joint_count; ++ji) {
+        float w = GetVertexJointWeight(vi, ji);
+        float4x4 m = GetVertexJointMatrix(vi, ji);
         pos_deformed += mul(m, pos_base).xyz * w;
         normal_deformed += mul(m, normal_base).xyz * w;
         tangent_deformed += mul(m, tangent_base).xyz * w;
@@ -194,8 +196,23 @@ void main(uint3 tid : SV_DispatchThreadID, uint3 gtid : SV_GroupThreadID, uint3 
     uint deform_flags = DeformFlags();
     if (deform_flags & MF_HAS_BLENDSHAPES)
         ApplyBlendshape(vi, v);
-    if (deform_flags & MF_HAS_JOINTS)
-        ApplySkinning(vi, v);
+    //if (deform_flags & MF_HAS_JOINTS)
+    //    ApplySkinning(vi, v);
 
+    if (vi == 0) {
+        v.position.x = g_bs[0].frame_count;
+        v.position.y = g_bs[0].frame_offset;
+        v.position.z = 0.0f;
+    }
+    if (vi == 1) {
+        v.position.x = g_joint_counts[0].weight_count;
+        v.position.y = g_joint_counts[0].weight_offset;
+        v.position.z = g_joint_counts[1].weight_count;
+    }
+    if (vi == 2) {
+        v.position.x = g_joint_counts[1].weight_offset;
+        v.position.y = g_joint_counts[2].weight_count;
+        v.position.z = g_joint_counts[2].weight_offset;
+    }
     g_dst_vertices[vi] = v;
 }

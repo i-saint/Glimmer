@@ -297,8 +297,9 @@ bool ContextDXR::initializeDevice()
         m_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&dst));
         gptSetName(dst, name);
     };
-    create_command_queue(m_cmd_queue_direct, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct Queue");
-    m_clm_direct = std::make_shared<CommandListManagerDXR>(m_device, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct List");
+    create_command_queue(m_cmd_queue_direct, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct Command Queue");
+    create_command_queue(m_cmd_queue_compute, D3D12_COMMAND_LIST_TYPE_COMPUTE, L"Compute Command Queue");
+    m_clm_direct = std::make_shared<CommandListManagerDXR>(m_device, D3D12_COMMAND_LIST_TYPE_DIRECT, L"Direct Command List");
 
 
     // root signature
@@ -366,7 +367,7 @@ bool ContextDXR::initializeDevice()
     // setup pipeline state
     {
         std::vector<D3D12_STATE_SUBOBJECT> subobjects;
-        // keep elements' address to use D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION::pSubobjectToAssociate
+        // prevent re-allocate
         subobjects.reserve(32);
 
         auto add_subobject = [&subobjects](D3D12_STATE_SUBOBJECT_TYPE type, auto* ptr) {
@@ -393,7 +394,7 @@ bool ContextDXR::initializeDevice()
         }
 
         D3D12_RAYTRACING_SHADER_CONFIG rt_shader_desc{};
-        rt_shader_desc.MaxPayloadSizeInBytes = sizeof(float) * 4;
+        rt_shader_desc.MaxPayloadSizeInBytes = gptDXRMaxPayloadSize;
         rt_shader_desc.MaxAttributeSizeInBytes = sizeof(float) * 2; // size of BuiltInTriangleIntersectionAttributes
         add_subobject(D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &rt_shader_desc);
 
@@ -453,7 +454,7 @@ bool ContextDXR::initializeDevice()
         return false;
     }
 
-    gptTimestampInitialize(m_timestamp, m_device);
+    gptTimestampInitialize(m_timestamp, m_device, m_cmd_queue_direct);
     return true;
 }
 
@@ -621,11 +622,13 @@ void ContextDXR::updateResources()
 
 void ContextDXR::deform()
 {
-    //gptTimestampQuery(m_timestamp, m_cl, "Deform begin");
-    // todo:
-    //m_deformer->deform();
-    m_fv_deform = m_fv_upload;
-    //gptTimestampQuery(m_timestamp, m_cl, "Deform end");
+    auto& cl = m_deformer->m_cmd_list;
+
+    gptTimestampQuery(m_timestamp, cl, "Deform begin");
+    m_deformer->deform();
+    gptTimestampQuery(m_timestamp, cl, "Deform end");
+
+    m_fv_deform = submit(m_cmd_queue_compute, cl, m_fv_upload);
 }
 
 void ContextDXR::updateBLAS()
@@ -738,11 +741,12 @@ void ContextDXR::finish()
     if (m_fv_rays != 0) {
         m_fence->SetEventOnCompletion(m_fv_rays, m_fence_event);
         ::WaitForSingleObject(m_fence_event, kTimeoutMS);
-        gptTimestampUpdateLog(m_timestamp, m_cmd_queue_direct);
+        gptTimestampUpdateLog(m_timestamp);
     }
 
     // reset state
     m_clm_direct->reset();
+    m_deformer->reset();
 
     // clear dirty flags
     m_scenes.clearDirty();
@@ -802,7 +806,7 @@ ID3D12ResourcePtr ContextDXR::createBuffer(uint64_t size, D3D12_RESOURCE_FLAGS f
 
 ID3D12ResourcePtr ContextDXR::createBuffer(uint64_t size)
 {
-    return createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
+    return createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, kDefaultHeapProps);
 }
 
 ID3D12ResourcePtr ContextDXR::createUploadBuffer(uint64_t size)
@@ -848,25 +852,30 @@ ID3D12ResourcePtr ContextDXR::createTextureReadbackBuffer(int width, int height,
 }
 
 
-uint64_t ContextDXR::submit(uint64_t preceding_fv)
+uint64_t ContextDXR::submit(ID3D12CommandQueuePtr& queue, ID3D12GraphicsCommandList4Ptr& cl, uint64_t preceding_fv)
 {
     // insert wait if preceding_fv is valid
     if (preceding_fv != 0) {
-        m_cmd_queue_direct->Wait(m_fence, preceding_fv);
+        queue->Wait(m_fence, preceding_fv);
     }
 
     // close command list and submit
-    m_cl->Close();
+    cl->Close();
     checkError();
-    ID3D12CommandList* cmd_list[]{ m_cl };
-    m_cmd_queue_direct->ExecuteCommandLists(_countof(cmd_list), cmd_list);
-    m_cl = nullptr;
-
+    ID3D12CommandList* cmd_list[]{ cl };
+    queue->ExecuteCommandLists(_countof(cmd_list), cmd_list);
 
     // insert signal
     auto fence_value = incrementFenceValue();
-    m_cmd_queue_direct->Signal(m_fence, fence_value);
+    queue->Signal(m_fence, fence_value);
     return fence_value;
+}
+
+uint64_t ContextDXR::submit(uint64_t preceding_fv)
+{
+    auto ret = submit(m_cmd_queue_direct, m_cl, preceding_fv);
+    m_cl = nullptr;
+    return ret;
 }
 
 void ContextDXR::addResourceBarrier(ID3D12ResourcePtr resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after)
@@ -1007,13 +1016,13 @@ void ContextDXR::createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* re
 {
     if (!res)
         return;
-    uint64_t capacity = GetSize(res);
+    uint64_t size = GetSize(res) - offset;
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
     desc.Format = DXGI_FORMAT_UNKNOWN;
     desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     desc.Buffer.FirstElement = UINT(offset / stride);
-    desc.Buffer.NumElements = UINT((capacity - offset) / stride);
+    desc.Buffer.NumElements = UINT(size / stride);
     desc.Buffer.StructureByteStride = UINT(stride);
     desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
@@ -1023,12 +1032,12 @@ void ContextDXR::createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* re
 {
     if (!res)
         return;
-    uint64_t capacity = GetSize(res);
+    uint64_t size = GetSize(res) - offset;
     D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
     desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     desc.Format = DXGI_FORMAT_UNKNOWN;
     desc.Buffer.FirstElement = UINT(offset / stride);
-    desc.Buffer.NumElements = UINT((capacity - offset) / stride);
+    desc.Buffer.NumElements = UINT(size / stride);
     desc.Buffer.StructureByteStride = UINT(stride);
     desc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);

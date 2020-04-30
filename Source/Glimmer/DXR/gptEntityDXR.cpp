@@ -178,7 +178,7 @@ void MeshDXR::updateResources()
                 exportBlendshapeFrames(dst);
             });
             if (allocated) {
-                gptSetName(m_buf_joint_weights, m_name + " Blendshape Frames");
+                gptSetName(m_buf_bs_frames, m_name + " Blendshape Frames");
                 ctx->createBufferSRV(m_srv_bs_frames, m_buf_bs_frames, sizeof(BlendshapeFrameData));
             }
 
@@ -289,13 +289,13 @@ void MeshInstanceDXR::updateResources()
 
             auto base = ctx->m_srv_deform_meshes + size_t(m_data.deform_id * 3);
             m_uav_vertices      = base + size_t(0);
-            m_srv_bs_weights    = base + size_t(1);
-            m_srv_joint_matrices= base + size_t(2);
+            m_srv_joint_matrices= base + size_t(1);
+            m_srv_bs_weights    = base + size_t(2);
         }
 
         // vertex buffer for deformation
         if (mesh.isDirty(DirtyFlag::Vertices)) {
-            m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t));
+            m_buf_vertices = ctx->createBuffer(mesh.getVertexCount() * sizeof(vertex_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
             gptSetName(m_buf_vertices, m_name + " Deformed Vertices");
             ctx->createBufferSRV(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
             ctx->createBufferUAV(m_uav_vertices, m_buf_vertices, sizeof(vertex_t));

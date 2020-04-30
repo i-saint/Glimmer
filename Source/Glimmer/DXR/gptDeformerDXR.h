@@ -11,14 +11,16 @@ public:
     DeformerDXR(ContextDXR* ctx);
     ~DeformerDXR();
     bool valid() const;
-    int deform(ID3D12GraphicsCommandList4Ptr& cl);
+    int deform();
+    void reset();
 
-private:
+public:
     ContextDXR* m_context = nullptr;
 
     ID3D12RootSignaturePtr m_rootsig;
     ID3D12PipelineStatePtr m_pipeline_state;
-    CommandListManagerDXRPtr m_clm_deform;
+    ID3D12CommandAllocatorPtr m_cmd_allocator;
+    ID3D12GraphicsCommandList4Ptr m_cmd_list;
 };
 using DeformerDXRPtr = std::shared_ptr<DeformerDXR>;
 

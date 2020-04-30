@@ -15,6 +15,7 @@ namespace gpt {
 #define gptDXRMaxTextureCount 2048
 #define gptDXRMaxShaderRecords 64
 #define gptDXRSwapChainBuffers 2
+#define gptDXRMaxPayloadSize 16
 
 
 class ContextDXR : public DXREntity<Context>
@@ -62,6 +63,7 @@ public:
 
 
     uint64_t submit(uint64_t preceding_fv = 0);
+    uint64_t submit(ID3D12CommandQueuePtr& queue, ID3D12GraphicsCommandList4Ptr& cl, uint64_t preceding_fv = 0);
     void addResourceBarrier(ID3D12ResourcePtr resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after);
 
     template<class Body>
@@ -105,6 +107,7 @@ public:
     IDXGIFactory4Ptr m_dxgi_factory;
     ID3D12Device5Ptr m_device;
     ID3D12CommandQueuePtr m_cmd_queue_direct;
+    ID3D12CommandQueuePtr m_cmd_queue_compute;
     CommandListManagerDXRPtr m_clm_direct;
     ID3D12GraphicsCommandList4Ptr m_cl;
     DeformerDXRPtr m_deformer;
