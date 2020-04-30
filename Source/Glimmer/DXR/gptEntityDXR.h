@@ -32,16 +32,32 @@ class RenderTargetDXR : public DXREntity<RenderTarget>
 using super = DXREntity<RenderTarget>;
 friend class ContextDXR;
 public:
-    RenderTargetDXR(Format format, int width, int height);
+    RenderTargetDXR(int width, int height, Format format);
+    RenderTargetDXR(IWindow* window, Format format);
     bool readback(void* dst) override;
     void* getDeviceObject() override;
 
     void updateResources();
 
 public:
+    class WindowCallback : public IWindowCallback
+    {
+    public:
+        void onResize(int w, int h) override;
+
+        RenderTargetDXR* m_self = nullptr;
+    };
+
     ID3D12ResourcePtr m_frame_buffer;
     ID3D12ResourcePtr m_accum_buffer;
     ID3D12ResourcePtr m_buf_readback;
+
+    DescriptorHandleDXR m_uav_frame_buffer;
+    DescriptorHandleDXR m_uav_accum_buffer;
+
+    WindowPtr m_window;
+    WindowCallback m_callback;
+    SwapchainDXRPtr m_swapchain;
 };
 gptDefRefPtr(RenderTargetDXR);
 gptDefDXRT(RenderTargetDXR, IRenderTarget)
@@ -52,7 +68,7 @@ class TextureDXR : public DXREntity<Texture>
 using super = DXREntity<Texture>;
 friend class ContextDXR;
 public:
-    TextureDXR(Format format, int width, int height);
+    TextureDXR(int width, int height, Format format);
     void* getDeviceObject() override;
 
     void updateResources();
@@ -181,8 +197,6 @@ public:
 
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
-    DescriptorHandleDXR m_uav_frame_buffer;
-    DescriptorHandleDXR m_uav_accum_buffer;
     DescriptorHandleDXR m_srv_tlas;
     DescriptorHandleDXR m_srv_prev_buffer;
     DescriptorHandleDXR m_cbv_scene;

@@ -339,13 +339,13 @@ private:
 class Texture : public EntityBase<ITexture>
 {
 public:
-    Texture(Format format, int width, int height);
+    Texture(int width, int height, Format format);
     void upload(const void* src) override;
 
 public:
-    Format m_format = Format::RGBAu8;
     int m_width = 0;
     int m_height = 0;
+    Format m_format = Format::RGBAu8;
     RawVector<char> m_data;
 };
 gptDefRefPtr(Texture);
@@ -355,13 +355,13 @@ gptDefBaseT(Texture, ITexture)
 class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
-    RenderTarget(Format format, int width, int height);
+    RenderTarget(int width, int height, Format format);
     void enableReadback(bool v) override;
 
 public:
-    Format m_format = Format::RGBAu8;
     int m_width = 0;
     int m_height = 0;
+    Format m_format = Format::RGBAu8;
     bool m_readback_enabled = false;
 };
 gptDefRefPtr(RenderTarget);
@@ -543,8 +543,8 @@ public:
     void setBlendshapeWeights(const float* v) override;
     bool hasFlag(InstanceFlag flag) const;
 
-    void exportJointMatrices(float4x4* dst) const;
-    void exportBlendshapeWeights(float* dst) const;
+    void exportJointMatrices(float4x4* dst);
+    void exportBlendshapeWeights(float* dst);
 
 public:
     InstanceData m_data;

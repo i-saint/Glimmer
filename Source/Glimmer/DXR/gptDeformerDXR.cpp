@@ -91,7 +91,7 @@ DeformerDXR::~DeformerDXR()
 
 bool DeformerDXR::valid() const
 {
-    return m_rootsig && m_pipeline_state;
+    return m_rootsig && m_pipeline_state && m_cmd_allocator && m_cmd_list;
 }
 
 int DeformerDXR::deform()

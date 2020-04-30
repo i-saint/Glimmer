@@ -6,9 +6,28 @@
 
 namespace gpt {
 
-RenderTargetDXR::RenderTargetDXR(Format format, int width, int height)
-    : super(format, width, height)
+void RenderTargetDXR::WindowCallback::onResize(int w, int h)
 {
+    m_self->m_width = w;
+    m_self->m_height = h;
+    m_self->markDirty(DirtyFlag::RenderTarget);
+}
+
+RenderTargetDXR::RenderTargetDXR(int width, int height, Format format)
+    : super(width, height, format)
+{
+}
+
+RenderTargetDXR::RenderTargetDXR(IWindow* window, Format format)
+    : super(((Window*)window)->m_width, ((Window*)window)->m_height, format)
+{
+    m_callback.m_self = this;
+
+    m_window = base_t(window);
+    m_window->addCallback(&m_callback);
+    m_format = format;
+    m_width = m_window->m_width;
+    m_height = m_window->m_height;
 }
 
 bool RenderTargetDXR::readback(void* dst)
@@ -30,10 +49,34 @@ void* RenderTargetDXR::getDeviceObject()
 void RenderTargetDXR::updateResources()
 {
     ContextDXR* ctx = m_context;
+
+    if (!m_uav_frame_buffer) {
+        auto& desc_alloc = ctx->m_desc_alloc;
+        m_uav_frame_buffer = desc_alloc.allocate();
+        m_uav_accum_buffer = desc_alloc.allocate();
+    }
+
+    if (isDirty(DirtyFlag::RenderTarget)) {
+        m_swapchain = nullptr;
+        m_frame_buffer = nullptr;
+        m_accum_buffer = nullptr;
+        m_buf_readback = nullptr;
+    }
+
+    if (m_window) {
+        if (!m_swapchain) {
+            m_swapchain = std::make_shared<SwapchainDXR>(m_context, m_window, DXGI_FORMAT_R8G8B8A8_UNORM);
+        }
+    }
+
     if (!m_frame_buffer) {
         m_frame_buffer = ctx->createTexture(m_width, m_height, GetDXGIFormat(m_format));
-        m_accum_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
+        ctx->createTextureUAV(m_uav_frame_buffer, m_frame_buffer);
         gptSetName(m_frame_buffer, m_name + " Frame Buffer");
+    }
+    if (!m_accum_buffer) {
+        m_accum_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
+        ctx->createTextureUAV(m_uav_accum_buffer, m_accum_buffer);
         gptSetName(m_accum_buffer, m_name + " Accum Buffer");
     }
     if (m_readback_enabled && !m_buf_readback) {
@@ -43,8 +86,8 @@ void RenderTargetDXR::updateResources()
 }
 
 
-TextureDXR::TextureDXR(Format format, int width, int height)
-    : super(format, width, height)
+TextureDXR::TextureDXR(int width, int height, Format format)
+    : super(width, height, format)
 {
 }
 
@@ -321,6 +364,14 @@ void MeshInstanceDXR::updateResources()
             }
         }
     }
+    else {
+        if (m_buf_vertices) {
+            m_buf_vertices = nullptr;
+            m_buf_joint_matrices = m_buf_joint_matrices_staging = nullptr;
+            m_buf_bs_weights = m_buf_bs_weights_staging = nullptr;
+            m_blas = m_blas_scratch = nullptr;
+        }
+    }
 }
 
 void MeshInstanceDXR::updateBLAS()
@@ -405,10 +456,8 @@ void SceneDXR::updateResources()
     ContextDXR* ctx = m_context;
 
     // desc heap
-    if (!m_uav_frame_buffer) {
+    if (!m_srv_tlas) {
         auto& desc_alloc = ctx->m_desc_alloc;
-        m_uav_frame_buffer  = desc_alloc.allocate();
-        m_uav_accum_buffer  = desc_alloc.allocate();
         m_srv_tlas          = desc_alloc.allocate();
         m_srv_prev_buffer   = desc_alloc.allocate();
         m_cbv_scene         = desc_alloc.allocate();
@@ -424,14 +473,6 @@ void SceneDXR::updateResources()
     if (allocated) {
         gptSetName(m_buf_scene, m_name + " Scene Buffer");
         ctx->createCBV(m_cbv_scene, m_buf_scene, cb_size);
-    }
-
-    if (isDirty(DirtyFlag::RenderTarget)) {
-        if (m_render_target) {
-            auto& rt = dxr_t(*m_render_target);
-            ctx->createTextureUAV(m_uav_frame_buffer, rt.m_frame_buffer);
-            ctx->createTextureUAV(m_uav_accum_buffer, rt.m_accum_buffer);
-        }
     }
 }
 

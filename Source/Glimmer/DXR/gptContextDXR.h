@@ -6,18 +6,6 @@
 
 namespace gpt {
 
-#define gptDXRMaxTraceRecursionLevel  2
-#define gptDXRMaxDescriptorCount 65536
-#define gptDXRMaxMeshCount 2048
-#define gptDXRMaxInstanceCount 65536
-#define gptDXRMaxDeformMeshCount 512
-#define gptDXRMaxDeformInstanceCount 2048
-#define gptDXRMaxTextureCount 2048
-#define gptDXRMaxShaderRecords 64
-#define gptDXRSwapChainBuffers 2
-#define gptDXRMaxPayloadSize 16
-
-
 class ContextDXR : public DXREntity<Context>
 {
 using super = DXREntity<Context>;
@@ -27,8 +15,9 @@ public:
 
     ICameraPtr       createCamera() override;
     ILightPtr        createLight() override;
-    IRenderTargetPtr createRenderTarget(Format format, int width, int height) override;
-    ITexturePtr      createTexture(Format format, int width, int height) override;
+    IRenderTargetPtr createRenderTarget(int width, int height, Format format) override;
+    IRenderTargetPtr createRenderTarget(IWindow* window, Format format) override;
+    ITexturePtr      createTexture(int width, int height, Format format) override;
     IMaterialPtr     createMaterial() override;
     IMeshPtr         createMesh() override;
     IMeshInstancePtr createMeshInstance(IMesh* v) override;

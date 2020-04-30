@@ -304,14 +304,16 @@ public:
 };
 using IScenePtr = ref_ptr<IScene>;
 
+class IWindow;
 
 class IContext : public IObject
 {
 public:
     virtual ICameraPtr       createCamera() = 0;
     virtual ILightPtr        createLight() = 0;
-    virtual IRenderTargetPtr createRenderTarget(Format format, int width, int height) = 0;
-    virtual ITexturePtr      createTexture(Format format, int width, int height) = 0;
+    virtual IRenderTargetPtr createRenderTarget(int width, int height, Format format) = 0;
+    virtual IRenderTargetPtr createRenderTarget(IWindow* window, Format format) = 0;
+    virtual ITexturePtr      createTexture(int width, int height, Format format) = 0;
     virtual IMaterialPtr     createMaterial() = 0;
     virtual IMeshPtr         createMesh() = 0;
     virtual IMeshInstancePtr createMeshInstance(IMesh* v) = 0;

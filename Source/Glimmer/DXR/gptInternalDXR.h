@@ -3,6 +3,19 @@
 #include "gptEntity.h"
 #include "gptWindow.h"
 
+
+#define gptDXRMaxTraceRecursionLevel  2
+#define gptDXRMaxDescriptorCount 65536
+#define gptDXRMaxMeshCount 2048
+#define gptDXRMaxInstanceCount 65536
+#define gptDXRMaxDeformMeshCount 512
+#define gptDXRMaxDeformInstanceCount 2048
+#define gptDXRMaxTextureCount 2048
+#define gptDXRMaxShaderRecords 64
+#define gptDXRSwapChainBuffers 2
+#define gptDXRMaxPayloadSize 16
+
+
 namespace gpt {
 
 #define DefPtr(_a) _COM_SMARTPTR_TYPEDEF(_a, __uuidof(_a))
@@ -189,22 +202,17 @@ class ContextDXR;
 class SwapchainDXR
 {
 public:
-    struct FrameBufferData
-    {
-        ID3D12ResourcePtr m_buffer;
-        DescriptorHandleDXR m_uav;
-        DescriptorHandleDXR m_rtv;
-    };
-
     SwapchainDXR(ContextDXR* ctx, IWindow *window, DXGI_FORMAT format);
-    FrameBufferData& getCurrentBuffer();
+    int getCurrentBufferIndex();
+    ID3D12ResourcePtr& getCurrentBuffer();
 
 public:
     ContextDXR* m_context;
     WindowPtr m_window;
     IDXGISwapChain3Ptr m_swapchain;
-    std::vector<FrameBufferData> m_buffers;
+    std::vector<ID3D12ResourcePtr> m_buffers;
 };
+using SwapchainDXRPtr = std::shared_ptr<SwapchainDXR>;
 
 
 extern const D3D12_HEAP_PROPERTIES kDefaultHeapProps;

@@ -334,7 +334,7 @@ static IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr& factory, HWND hwnd, 
     desc.BufferCount = gptDXRSwapChainBuffers;
     desc.Width = width;
     desc.Height = height;
-    desc.Format = format;
+    desc.Format = GetFloatFormat(format);
     desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     desc.SampleDesc.Count = 1;
@@ -356,18 +356,17 @@ SwapchainDXR::SwapchainDXR(ContextDXR* ctx, IWindow* window, DXGI_FORMAT format)
     m_swapchain = CreateSwapChain(ctx->m_dxgi_factory, (HWND)window->getHandle(), m_window->m_width, m_window->m_height, format, ctx->m_cmd_queue_direct);
     if (m_swapchain) {
         m_buffers.resize(gptDXRSwapChainBuffers);
-        for (int i = 0; i < gptDXRSwapChainBuffers; ++i) {
-            auto& dst = m_buffers[i];
-            m_swapchain->GetBuffer(i, IID_PPV_ARGS(&dst.m_buffer));
-            dst.m_rtv = ctx->m_desc_alloc.allocate();
-            dst.m_uav = ctx->m_desc_alloc.allocate();
-            ctx->createTextureRTV(dst.m_rtv, dst.m_buffer, format);
-            ctx->createTextureUAV(dst.m_uav, dst.m_buffer);
-        }
+        for (int i = 0; i < gptDXRSwapChainBuffers; ++i)
+            m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_buffers[i]));
     }
 }
 
-SwapchainDXR::FrameBufferData& SwapchainDXR::getCurrentBuffer()
+int SwapchainDXR::getCurrentBufferIndex()
+{
+    return m_swapchain->GetCurrentBackBufferIndex();
+}
+
+ID3D12ResourcePtr& SwapchainDXR::getCurrentBuffer()
 {
     return m_buffers[m_swapchain->GetCurrentBackBufferIndex()];
 }

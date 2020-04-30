@@ -94,11 +94,11 @@ int Globals::getMaxTraceDepth() const
     return m_max_trace_depth;
 }
 
-Texture::Texture(Format format, int width, int height)
+Texture::Texture(int width, int height, Format format)
 {
-    m_format = format;
     m_width = width;
     m_height = height;
+    m_format = format;
     markDirty(DirtyFlag::Texture);
 }
 
@@ -111,11 +111,11 @@ void Texture::upload(const void* src)
 }
 
 
-RenderTarget::RenderTarget(Format format, int width, int height)
+RenderTarget::RenderTarget(int width, int height, Format format)
 {
-    m_format = format;
     m_width = width;
     m_height = height;
+    m_format = format;
     markDirty(DirtyFlag::Texture);
 }
 
@@ -632,23 +632,37 @@ bool MeshInstance::hasFlag(InstanceFlag v) const
     return get_flag(m_instance_flags, v);
 }
 
-void MeshInstance::exportJointMatrices(float4x4* dst) const
+void MeshInstance::exportJointMatrices(float4x4* dst)
 {
+    auto& mesh = *m_mesh;
+    if (!mesh.hasJoints())
+        return;
+
+    int n = mesh.getJointCount();
+    if (m_joint_matrices.size() != n)
+        m_joint_matrices.resize(n, float4x4::identity());
+
     // note:
     // object space skinning is recommended for better BLAS building. ( http://intro-to-dxr.cwyman.org/presentations/IntroDXR_RaytracingAPI.pdf )
     // so, try to convert bone matrices to root bone space.
     // on skinned meshes, inst.transform is root bone's transform or identity if root bone is not assigned.
     // both cases work, but identity matrix means world space skinning that is not optimal.
-    auto& mesh = *m_mesh;
+
     auto iroot = mu::invert(m_data.local_to_world);
-    int joint_count = (int)m_joint_matrices.size();
-    for (int ji = 0; ji < joint_count; ++ji) {
+    for (int ji = 0; ji < n; ++ji)
         *dst++ = mesh.m_joint_bindposes[ji] * m_joint_matrices[ji] * iroot;
-    }
 }
 
-void MeshInstance::exportBlendshapeWeights(float* dst) const
+void MeshInstance::exportBlendshapeWeights(float* dst)
 {
+    auto& mesh = *m_mesh;
+    if (!mesh.hasBlendshapes())
+        return;
+
+    int n = mesh.getBlendshapeCount();
+    if (m_blendshape_weights.size() != n)
+        m_blendshape_weights.resize(n, 0.0f);
+
     m_blendshape_weights.copy_to(dst);
 }
 

@@ -97,17 +97,25 @@ ILightPtr ContextDXR::createLight()
     return r;
 }
 
-IRenderTargetPtr ContextDXR::createRenderTarget(Format format, int width, int height)
+IRenderTargetPtr ContextDXR::createRenderTarget(int width, int height, Format format)
 {
-    auto r = new RenderTargetDXR(format, width, height);
+    auto r = new RenderTargetDXR(width, height, format);
     r->m_context = this;
     m_render_targets.insert(r);
     return r;
 }
 
-ITexturePtr ContextDXR::createTexture(Format format, int width, int height)
+IRenderTargetPtr ContextDXR::createRenderTarget(IWindow* window, Format format)
 {
-    auto r = new TextureDXR(format, width, height);
+    auto r = new RenderTargetDXR(window, format);
+    r->m_context = this;
+    m_render_targets.insert(r);
+    return r;
+}
+
+ITexturePtr ContextDXR::createTexture(int width, int height, Format format)
+{
+    auto r = new TextureDXR(width, height, format);
     r->m_context = this;
     m_textures.insert(r);
     return r;
@@ -306,12 +314,11 @@ bool ContextDXR::initializeDevice()
     {
         // frame buffer
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         // scene data
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
@@ -714,8 +721,8 @@ void ContextDXR::dispatchRays()
             return;
 
         auto& rt = dxr_t(*scene.m_render_target);
-        cl_rays->SetComputeRootDescriptorTable(0, scene.m_uav_frame_buffer.hgpu);
-        cl_rays->SetComputeRootDescriptorTable(1, scene.m_uav_accum_buffer.hgpu);
+        cl_rays->SetComputeRootDescriptorTable(0, rt.m_uav_frame_buffer.hgpu);
+        cl_rays->SetComputeRootDescriptorTable(1, scene.m_srv_tlas.hgpu);
         do_dispatch(rt.m_frame_buffer, RayGenType::Default);
     });
     gptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
