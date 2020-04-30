@@ -95,8 +95,8 @@ struct JointWeight
 struct MeshData
 {
     int face_count;
-    int index_count;
     int vertex_count;
+    int deform_id;
     int flags; // MeshFlag
 };
 

@@ -2,6 +2,12 @@
 
 namespace gpt {
 
+enum class DeviceType : uint32_t
+{
+    CPU,
+    DXR,
+};
+
 enum class Format : uint32_t
 {
     Unknown,
@@ -366,12 +372,12 @@ using IWindowPtr = ref_ptr<IWindow>;
 #endif
 
 gptAPI gpt::IGlobals* gptGetGlobals();
-gptAPI gpt::IContext* gptCreateContextDXR_();
+gptAPI gpt::IContext* gptCreateContext_(gpt::DeviceType type);
 gptAPI gpt::IWindow* gptCreateWindow_(int width, int height, gpt::WindowFlag flags);
 
-inline gpt::IContextPtr gptCreateContextDXR()
+inline gpt::IContextPtr gptCreateContext(gpt::DeviceType type)
 {
-    return gpt::IContextPtr(gptCreateContextDXR_());
+    return gpt::IContextPtr(gptCreateContext_(type));
 }
 
 inline gpt::IWindowPtr gptCreateWindow(int width, int height, gpt::WindowFlag flags = gpt::WindowFlag::Default)

@@ -7,8 +7,14 @@ namespace gpt {
 int GetTexelSize(Format v)
 {
     switch (v) {
+    case Format::Ru8: return 1;
+    case Format::RGu8: return 2;
     case Format::RGBAu8: return 4;
+    case Format::Rf16: return 2;
+    case Format::RGf16: return 4;
     case Format::RGBAf16: return 8;
+    case Format::Rf32: return 4;
+    case Format::RGf32: return 8;
     case Format::RGBAf32: return 16;
     default: return 0;
     }
@@ -22,12 +28,10 @@ Globals& Globals::getInstance()
 
 Globals::Globals()
 {
-
 }
 
 Globals::~Globals()
 {
-
 }
 
 void Globals::setFlag(GlobalFlag f, bool v)
@@ -320,7 +324,6 @@ void Mesh::setIndices(const int* v, size_t n)
 
     m_indices.assign(v, v + n);
     m_data.face_count = (uint32_t)m_indices.size() / 3;
-    m_data.index_count = (uint32_t)m_indices.size();
     markDirty(DirtyFlag::Indices);
 }
 
@@ -728,4 +731,16 @@ void Scene::updateData()
 gptAPI gpt::IGlobals* gptGetGlobals()
 {
     return &gpt::Globals::getInstance();
+}
+
+gpt::IContext* gptCreateContextCPU();
+gpt::IContext* gptCreateContextDXR();
+
+gptAPI gpt::IContext* gptCreateContext_(gpt::DeviceType type)
+{
+    switch (type) {
+    //case gpt::DeviceType::CPU: return gptCreateContextCPU();
+    case gpt::DeviceType::DXR: return gptCreateContextDXR();
+    default: return nullptr;
+    }
 }

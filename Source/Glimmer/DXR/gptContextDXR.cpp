@@ -422,8 +422,13 @@ bool ContextDXR::initializeDevice()
         }
     }
 
-    gptTimestampInitialize(m_timestamp, m_device);
+    m_deformer = std::make_shared<DeformerDXR>(this);
+    if (!m_deformer->valid()) {
+        SetErrorLog("failed to create deformer\n");
+        return false;
+    }
 
+    gptTimestampInitialize(m_timestamp, m_device);
     return true;
 }
 
@@ -496,8 +501,7 @@ void ContextDXR::updateResources()
             // hit
             for (auto name : kHitGroups)
                 add_shader_record(name);
-
-            });
+        });
         gptSetName(m_buf_shader_table, L"PathTracer Shader Table");
     }
 
@@ -517,6 +521,10 @@ void ContextDXR::updateResources()
         m_srv_vertices = m_desc_alloc.allocate(gptDXRMaxMeshCount);
         m_srv_faces = m_desc_alloc.allocate(gptDXRMaxMeshCount);
         m_srv_textures = m_desc_alloc.allocate(gptDXRMaxTextureCount);
+
+        // need to figure out better way...
+        m_srv_deform_meshes = m_desc_alloc.allocate(gptDXRMaxDeformMeshCount * 6);
+        m_srv_deform_instances = m_desc_alloc.allocate(gptDXRMaxDeformInstanceCount * 3);
     }
 
     // render targets
@@ -554,43 +562,49 @@ void ContextDXR::updateResources()
 
     // mesh
     {
-        bool dirty_meshes = false;
+        if (!m_buf_meshes) {
+            size_t size = sizeof(MeshData) * gptDXRMaxMeshCount;
+            m_buf_meshes = createBuffer(size);
+            m_buf_meshes_staging = createUploadBuffer(size);
+            gptSetName(m_buf_meshes, "Mesh Buffer");
+            createBufferSRV(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
+        }
+
+        bool dirty = false;
         each_ref(m_meshes, [&](auto& mesh) {
             mesh.updateResources();
             if (mesh.isDirty())
-                dirty_meshes = true;
+                dirty = true;
         });
-
-        if (dirty_meshes) {
-            bool allocated = updateBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
+        if (dirty) {
+            writeBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
                 for (auto& pmesh : m_meshes)
                     dst[pmesh->m_id] = pmesh->m_data;
             });
-            if (allocated) {
-                gptSetName(m_buf_meshes, "Mesh Buffer");
-                createBufferSRV(m_srv_meshes, m_buf_meshes, sizeof(MeshData));
-            }
         }
     }
 
     // instance
     {
-        bool dirty_instances = false;
+        if (!m_buf_instances) {
+            size_t size = sizeof(InstanceData) * gptDXRMaxInstanceCount;
+            m_buf_instances = createBuffer(size);
+            m_buf_instances_staging = createUploadBuffer(size);
+            gptSetName(m_buf_instances, "Instance Buffer");
+            createBufferSRV(m_srv_instances, m_buf_instances, sizeof(InstanceData));
+        }
+
+        bool dirty = false;
         each_ref(m_mesh_instances, [&](auto& inst) {
             inst.updateResources();
             if (inst.isDirty() || inst.m_mesh->isDirty())
-                dirty_instances = true;
+                dirty = true;
         });
-
-        if (dirty_instances) {
-            bool allocated = updateBuffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](InstanceData* dst) {
+        if (dirty) {
+            writeBuffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](InstanceData* dst) {
                 for (auto& pinst : m_mesh_instances)
                     dst[pinst->m_id] = pinst->m_data;
             });
-            if (allocated) {
-                gptSetName(m_buf_instances, "Instance Buffer");
-                createBufferSRV(m_srv_instances, m_buf_instances, sizeof(InstanceData));
-            }
         }
     }
 
@@ -605,20 +619,9 @@ void ContextDXR::updateResources()
 void ContextDXR::deform()
 {
     //gptTimestampQuery(m_timestamp, m_cl, "Deform begin");
-    //// todo
-    //bool gpu_skinning = rd.hasFlag(RenderFlag::GPUSkinning) && m_deformer;
-    //if (gpu_skinning) {
-    //    int deform_count = 0;
-    //    m_deformer->prepare(rd);
-    //    for (auto& inst_dxr : rd.instances) {
-    //        if (m_deformer->deform(rd, *inst_dxr))
-    //            ++deform_count;
-    //    }
-    //    m_deformer->flush(rd);
-    //}
-    //else {
-        m_fv_deform = m_fv_upload;
-    //}
+    // todo:
+    //m_deformer->deform();
+    m_fv_deform = m_fv_upload;
     //gptTimestampQuery(m_timestamp, m_cl, "Deform end");
 }
 
@@ -1036,12 +1039,12 @@ void ContextDXR::createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* r
     m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);
 }
 
-void ContextDXR::createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size)
+void ContextDXR::createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size, size_t offset)
 {
     if (!res)
         return;
     D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
-    desc.BufferLocation = res->GetGPUVirtualAddress();
+    desc.BufferLocation = res->GetGPUVirtualAddress() + offset;
     desc.SizeInBytes = UINT(size);
     m_device->CreateConstantBufferView(&desc, handle.hcpu);
 }
@@ -1057,7 +1060,7 @@ void ContextDXR::createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* r
 
 } // namespace gpt
 
-gptAPI gpt::IContext* gptCreateContextDXR_()
+gpt::IContext* gptCreateContextDXR()
 {
     auto ret = new gpt::ContextDXR();
     if (!ret->valid()) {
@@ -1071,7 +1074,7 @@ gptAPI gpt::IContext* gptCreateContextDXR_()
 
 #include "gptInterface.h"
 
-gptAPI gpt::IContext* gptCreateContextDXR_()
+gpt::IContext* gptCreateContextDXR()
 {
     return nullptr;
 }

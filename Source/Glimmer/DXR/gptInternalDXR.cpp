@@ -30,10 +30,13 @@ DescriptorHandleDXR DescriptorHandleDXR::operator+(size_t n) const
 
 DescriptorHandleDXR& DescriptorHandleDXR::operator+=(size_t n)
 {
-    hcpu.ptr += n;
-    hgpu.ptr += n;
+    UINT offset = DescriptorHeapAllocatorDXR::getStride() * UINT(n);
+    hcpu.ptr += offset;
+    hgpu.ptr += offset;
     return *this;
 }
+
+UINT DescriptorHeapAllocatorDXR::s_stride = 0;
 
 DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR()
 {
@@ -46,9 +49,10 @@ DescriptorHeapAllocatorDXR::DescriptorHeapAllocatorDXR(ID3D12DevicePtr device, I
 
 void DescriptorHeapAllocatorDXR::reset(ID3D12DevicePtr device, ID3D12DescriptorHeapPtr heap)
 {
+    if (s_stride == 0)
+        s_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
     m_hcpu = heap->GetCPUDescriptorHandleForHeapStart();
     m_hgpu = heap->GetGPUDescriptorHandleForHeapStart();
-    m_stride = device->GetDescriptorHandleIncrementSize(heap->GetDesc().Type);
     m_capacity = heap->GetDesc().NumDescriptors;
     m_count = 0;
 }
@@ -60,14 +64,14 @@ DescriptorHandleDXR DescriptorHeapAllocatorDXR::allocate(size_t n)
         mu::DbgBreak();
     }
     DescriptorHandleDXR ret{ m_hcpu, m_hgpu };
-    ret += m_stride * m_count;
+    ret += m_count;
     m_count += (UINT)n;
     return ret;
 }
 
-UINT DescriptorHeapAllocatorDXR::getStride() const
+UINT DescriptorHeapAllocatorDXR::getStride()
 {
-    return m_stride;
+    return s_stride;
 }
 
 

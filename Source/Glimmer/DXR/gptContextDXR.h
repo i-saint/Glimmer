@@ -7,8 +7,11 @@
 namespace gpt {
 
 #define gptDXRMaxTraceRecursionLevel  2
-#define gptDXRMaxDescriptorCount 8192
+#define gptDXRMaxDescriptorCount 16384
 #define gptDXRMaxMeshCount 2048
+#define gptDXRMaxInstanceCount 65536
+#define gptDXRMaxDeformMeshCount 512
+#define gptDXRMaxDeformInstanceCount 2048
 #define gptDXRMaxTextureCount 2048
 #define gptDXRMaxShaderRecords 64
 #define gptDXRSwapChainBuffers 2
@@ -81,7 +84,7 @@ public:
     void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride);
     void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res);
     void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res);
-    void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size);
+    void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size, size_t offset = 0);
     void createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format);
 
 public:
@@ -93,7 +96,8 @@ public:
     EntityList<MeshDXR>         m_meshes;
     EntityList<MeshInstanceDXR> m_mesh_instances;
     EntityList<SceneDXR>        m_scenes;
-    IndexAllocator m_deform_index_alloc;
+    IndexAllocator m_deform_mesh_indices;
+    IndexAllocator m_deform_instance_indices;
 
 
     std::string m_device_name;
@@ -102,6 +106,7 @@ public:
     ID3D12CommandQueuePtr m_cmd_queue_direct;
     CommandListManagerDXRPtr m_clm_direct;
     ID3D12GraphicsCommandList4Ptr m_cl;
+    DeformerDXRPtr m_deformer;
     ID3D12FencePtr m_fence;
     uint64_t m_fence_value = 0;
     uint64_t m_fv_upload = 0;
@@ -126,9 +131,10 @@ public:
     DescriptorHandleDXR m_srv_meshes;
     DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_vertices;
-    DescriptorHandleDXR m_srv_vertices_deformed;
     DescriptorHandleDXR m_srv_faces;
     DescriptorHandleDXR m_srv_textures;
+    DescriptorHandleDXR m_srv_deform_meshes;
+    DescriptorHandleDXR m_srv_deform_instances;
 
 #ifdef gptEnableTimestamp
     TimestampDXRPtr m_timestamp;

@@ -8,6 +8,7 @@ TestCase(TestMath)
     mu::ONBf onb(float3::up());
     float3 p = mu::cosine_sample_hemisphere(0.5f, 0.5f);
     float3 r = onb.inverse_transform(p);
+    printf("p: {%f, %f, %f}\n", p.x, p.y, p.z);
     printf("r: {%f, %f, %f}\n", r.x, r.y, r.z);
 }
 
@@ -16,7 +17,7 @@ TestCase(TestMinimum)
     gptGetGlobals()->enableTimestamp(true);
     gptGetGlobals()->enableStrictUpdateCheck(true);
 
-    auto ctx = gptCreateContextDXR();
+    auto ctx = gptCreateContext(gpt::DeviceType::DXR);
     if (!ctx) {
         printf("DXR is not supported on this system.\n");
         return;

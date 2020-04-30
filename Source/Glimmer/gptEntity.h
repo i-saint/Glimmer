@@ -144,8 +144,8 @@ struct JointCount
 struct MeshData
 {
     int face_count = 0;
-    int index_count = 0;
     int vertex_count = 0;
+    int deform_id = -1;
     int flags = 0;
 };
 
@@ -209,6 +209,12 @@ template<class T>
 class RefCount : public T
 {
 public:
+    // forbid copy
+    RefCount(const RefCount& v) = delete;
+    RefCount& operator=(const RefCount& v) = delete;
+
+    RefCount() {}
+
     int getID() const override
     {
         return m_id;

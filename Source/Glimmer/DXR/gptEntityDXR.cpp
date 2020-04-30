@@ -63,7 +63,7 @@ void TextureDXR::updateResources()
         gptSetName(m_texture, m_name + " Texture");
         gptSetName(m_buf_upload, m_name + " Upload Buffer");
 
-        m_srv = ctx->m_srv_textures + size_t(ctx->m_desc_alloc.getStride() * m_id);
+        m_srv = ctx->m_srv_textures + size_t(m_id);
         ctx->createTextureSRV(m_srv, m_texture);
     }
     if (isDirty(DirtyFlag::TextureData)) {
@@ -72,6 +72,15 @@ void TextureDXR::updateResources()
     }
 }
 
+
+MeshDXR::MeshDXR()
+{
+}
+
+MeshDXR::~MeshDXR()
+{
+    m_context->m_deform_mesh_indices.free(m_data.deform_id);
+}
 
 void MeshDXR::updateResources()
 {
@@ -96,7 +105,7 @@ void MeshDXR::updateResources()
         });
         if (allocated) {
             gptSetName(m_buf_vertices, m_name + " Vertex Buffer");
-            m_srv_vertices = ctx->m_srv_vertices + size_t(ctx->m_desc_alloc.getStride() * m_id);
+            m_srv_vertices = ctx->m_srv_vertices + size_t(m_id);
             ctx->createBufferSRV(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
         }
     }
@@ -108,18 +117,23 @@ void MeshDXR::updateResources()
         });
         if (allocated) {
             gptSetName(m_buf_faces, m_name + " Face Buffer");
-            m_srv_faces = ctx->m_srv_faces + size_t(ctx->m_desc_alloc.getStride() * m_id);
+            m_srv_faces = ctx->m_srv_faces + size_t(m_id);
             ctx->createBufferSRV(m_srv_faces, m_buf_faces, sizeof(face_t));
         }
     }
 
-    if (!m_srv_joint_counts && (isDirty(DirtyFlag::Joints) || isDirty(DirtyFlag::Blendshape))) {
-        auto& desc_alloc    = ctx->m_desc_alloc;
-        m_srv_joint_counts  = desc_alloc.allocate();
-        m_srv_joint_weights = desc_alloc.allocate();
-        m_srv_bs            = desc_alloc.allocate();
-        m_srv_bs_frames     = desc_alloc.allocate();
-        m_srv_bs_delta      = desc_alloc.allocate();
+    if ((isDirty(DirtyFlag::Joints) || isDirty(DirtyFlag::Blendshape)) && m_data.deform_id == -1) {
+        m_data.deform_id = ctx->m_deform_mesh_indices.allocate();
+
+        auto base = ctx->m_srv_deform_meshes + size_t(m_data.deform_id * 6);
+        m_srv_joint_counts  = base + size_t(0);
+        m_srv_joint_weights = base + size_t(1);
+        m_srv_bs            = base + size_t(2);
+        m_srv_bs_frames     = base + size_t(3);
+        m_srv_bs_delta      = base + size_t(4);
+        m_cbv_mesh          = base + size_t(5);
+
+        ctx->createCBV(m_cbv_mesh, ctx->m_buf_meshes, sizeof(MeshData), sizeof(MeshData) * m_id);
     }
 
     // update joint buffers
@@ -260,7 +274,7 @@ MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
 
 MeshInstanceDXR::~MeshInstanceDXR()
 {
-    m_context->m_deform_index_alloc.free(m_data.deform_id);
+    m_context->m_deform_instance_indices.free(m_data.deform_id);
 }
 
 void MeshInstanceDXR::updateResources()
@@ -268,8 +282,14 @@ void MeshInstanceDXR::updateResources()
     ContextDXR* ctx = m_context;
     auto& mesh = dxr_t(*m_mesh);
     if (mesh.hasJoints() || mesh.hasBlendshapes()) {
-        if (m_data.deform_id == -1)
-            m_data.deform_id = m_context->m_deform_index_alloc.allocate();
+        if (m_data.deform_id == -1) {
+            m_data.deform_id = m_context->m_deform_instance_indices.allocate();
+
+            auto base = ctx->m_srv_deform_meshes + size_t(m_data.deform_id * 3);
+            m_uav_vertices      = base + size_t(0);
+            m_srv_bs_weights    = base + size_t(1);
+            m_srv_joint_matrices= base + size_t(2);
+        }
 
         // vertex buffer for deformation
         if (mesh.isDirty(DirtyFlag::Vertices)) {

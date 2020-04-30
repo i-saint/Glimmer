@@ -1,4 +1,5 @@
 #pragma once
+
 #ifdef _WIN32
 namespace gpt {
 
@@ -10,7 +11,7 @@ public:
     DeformerDXR(ContextDXR* ctx);
     ~DeformerDXR();
     bool valid() const;
-    void deform(ID3D12GraphicsCommandList4Ptr& cl, MeshInstanceDXR& inst);
+    int deform(ID3D12GraphicsCommandList4Ptr& cl);
 
 private:
     ContextDXR* m_context = nullptr;

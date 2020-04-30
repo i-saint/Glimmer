@@ -87,17 +87,24 @@ bool DeformerDXR::valid() const
     return m_rootsig && m_pipeline_state;
 }
 
-void DeformerDXR::deform(ID3D12GraphicsCommandList4Ptr& cl, MeshInstanceDXR& inst)
+int DeformerDXR::deform(ID3D12GraphicsCommandList4Ptr& cl)
 {
     auto ctx = m_context;
-    auto& mesh = dxr_t(*inst.m_mesh);
+    int ret = 0;
 
     ID3D12DescriptorHeap* heaps[] = { ctx->m_desc_heap };
     cl->SetDescriptorHeaps(_countof(heaps), heaps);
     cl->SetComputeRootSignature(m_rootsig);
-    cl->SetComputeRootDescriptorTable(0, inst.m_uav_vertices.hgpu);
-    cl->SetComputeRootDescriptorTable(1, mesh.m_srv_vertices.hgpu);
-    cl->Dispatch((UINT)mesh.getVertexCount(), 1, 1);
+    each_ref(ctx->m_mesh_instances, [&](auto& inst) {
+        auto& mesh = dxr_t(*inst.m_mesh);
+        if (mesh.hasJoints() || mesh.hasBlendshapes()) {
+            cl->SetComputeRootDescriptorTable(0, inst.m_uav_vertices.hgpu);
+            cl->SetComputeRootDescriptorTable(1, mesh.m_srv_vertices.hgpu);
+            cl->Dispatch((UINT)mesh.getVertexCount(), 1, 1);
+            ++ret;
+        }
+    });
+    return ret;
 }
 
 } // namespace gpt
