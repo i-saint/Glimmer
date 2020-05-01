@@ -5,7 +5,7 @@
 
 namespace mu {
 
-bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const IArray<float3> points, const IArray<int> indices_, bool flip)
+bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const Span<float3> points, const Span<int> indices_, bool flip)
 {
     const size_t num_faces = indices_.size() / 3;
     const int* indices = indices_.data();
@@ -26,7 +26,7 @@ bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const IArray<float3> po
 }
 
 bool GenerateNormalsPoly(RawVector<float3>& dst,
-    const IArray<float3> points, const IArray<int> counts, const IArray<int> indices, bool flip)
+    const Span<float3> points, const Span<int> counts, const Span<int> indices, bool flip)
 {
     const size_t num_faces = counts.size();
     const int i1 = flip ? 2 : 1;
@@ -55,7 +55,7 @@ bool GenerateNormalsPoly(RawVector<float3>& dst,
 }
 
 void GenerateNormalsWithSmoothAngle(RawVector<float3>& dst,
-    const IArray<float3> points, const IArray<int> counts, const IArray<int> indices, float smooth_angle, bool flip)
+    const Span<float3> points, const Span<int> counts, const Span<int> indices, float smooth_angle, bool flip)
 {
     MeshConnectionInfo connection;
     connection.buildConnection(indices, counts, points);
@@ -117,7 +117,7 @@ void GenerateNormalsWithSmoothAngle(RawVector<float3>& dst,
 
 
 
-void QuadifyTriangles(const IArray<float3> points, const IArray<int> indices, bool full_search, float threshold_angle,
+void QuadifyTriangles(const Span<float3> points, const Span<int> indices, bool full_search, float threshold_angle,
     RawVector<int>& dst_indices, RawVector<int>& dst_counts)
 {
     struct Connection

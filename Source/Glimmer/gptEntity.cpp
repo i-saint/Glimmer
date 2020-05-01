@@ -375,7 +375,7 @@ void Blendshape::exportDelta(int frame, vertex_t* dst) const
 
 void Mesh::setIndices(const int* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_indices == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_indices == MakeSpan(v, n))
         return;
 
     m_indices.assign(v, v + n);
@@ -385,7 +385,7 @@ void Mesh::setIndices(const int* v, size_t n)
 
 void Mesh::setPoints(const float3* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_points == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_points == MakeSpan(v, n))
         return;
 
     m_points.assign(v, v + n);
@@ -395,7 +395,7 @@ void Mesh::setPoints(const float3* v, size_t n)
 
 void Mesh::setNormals(const float3* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_normals == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_normals == MakeSpan(v, n))
         return;
 
     m_normals.assign(v, v + n);
@@ -404,7 +404,7 @@ void Mesh::setNormals(const float3* v, size_t n)
 
 void Mesh::setTangents(const float3* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_tangents == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_tangents == MakeSpan(v, n))
         return;
 
     m_tangents.assign(v, v + n);
@@ -413,7 +413,7 @@ void Mesh::setTangents(const float3* v, size_t n)
 
 void Mesh::setUV(const float2* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_uv == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_uv == MakeSpan(v, n))
         return;
 
     m_uv.assign(v, v + n);
@@ -422,7 +422,7 @@ void Mesh::setUV(const float2* v, size_t n)
 
 void Mesh::setMaterialIDs(const int* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_material_ids == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_material_ids == MakeSpan(v, n))
         return;
 
     m_material_ids.assign(v, v + n);
@@ -431,7 +431,7 @@ void Mesh::setMaterialIDs(const int* v, size_t n)
 
 void Mesh::setJointBindposes(const float4x4* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_bindposes == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_bindposes == MakeSpan(v, n))
         return;
 
     m_joint_bindposes.assign(v, v + n);
@@ -441,7 +441,7 @@ void Mesh::setJointBindposes(const float4x4* v, size_t n)
 
 void Mesh::setJointWeights(const JointWeight* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_weights == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_weights == MakeSpan(v, n))
         return;
 
     m_joint_weights.assign(v, v + n);
@@ -451,7 +451,7 @@ void Mesh::setJointWeights(const JointWeight* v, size_t n)
 
 void Mesh::setJointCounts(const int* v, size_t n)
 {
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_counts == MakeIArray(v, n))
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_counts == MakeSpan(v, n))
         return;
 
     m_joint_counts.assign(v, v + n);
@@ -678,7 +678,7 @@ void MeshInstance::setTransform(const float4x4& v)
 void MeshInstance::setJointMatrices(const float4x4* v)
 {
     if (m_mesh->hasJoints()) {
-        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_matrices == MakeIArray(v, m_mesh->getJointCount()))
+        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_matrices == MakeSpan(v, m_mesh->getJointCount()))
             return;
 
         m_joint_matrices.assign(v, v + m_mesh->getJointCount());
@@ -689,7 +689,7 @@ void MeshInstance::setJointMatrices(const float4x4* v)
 void MeshInstance::setBlendshapeWeights(const float* v)
 {
     if (m_mesh->hasBlendshapes()) {
-        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_blendshape_weights == MakeIArray(v, m_mesh->getBlendshapeCount()))
+        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_blendshape_weights == MakeSpan(v, m_mesh->getBlendshapeCount()))
             return;
 
         m_blendshape_weights.assign(v, v + m_mesh->getBlendshapeCount());

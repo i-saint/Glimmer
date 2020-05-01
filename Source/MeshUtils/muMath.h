@@ -4,7 +4,6 @@
 #include <cstring>
 #include <algorithm>
 #include <limits>
-#include "muIntrusiveArray.h"
 #include "muHalf.h"
 
 #define muEpsilon 1e-4f

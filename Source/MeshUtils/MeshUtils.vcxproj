@@ -29,7 +29,6 @@
     <ClInclude Include="muConfig.h" />
     <ClInclude Include="muDebugTimer.h" />
     <ClInclude Include="muHalf.h" />
-    <ClInclude Include="muIntrusiveArray.h" />
     <ClInclude Include="ispcmath.h" />
     <ClInclude Include="muIterator.h" />
     <ClInclude Include="muLimits.h" />
@@ -37,6 +36,7 @@
     <ClInclude Include="muMisc.h" />
     <ClInclude Include="muQuat32.h" />
     <ClInclude Include="muSIMDConfig.h" />
+    <ClInclude Include="muSpan.h" />
     <ClInclude Include="muStream.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="MeshUtils.h" />

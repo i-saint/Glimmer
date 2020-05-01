@@ -4,7 +4,7 @@
 #include <cstring>
 #include <algorithm>
 #include <initializer_list>
-#include "muIntrusiveArray.h"
+#include "muSpan.h"
 
 template<class T, int Align = 0x40> class RawVector;
 template<class T, int Align = 0x40> class SharedVector;
@@ -294,11 +294,11 @@ public:
         return !(*this == v);
     }
 
-    bool operator==(const IArray<T>& v) const
+    bool operator==(const Span<T>& v) const
     {
         return m_size == v.size() && (m_data == v.data() || memcmp(m_data, v.data(), sizeof(T) * m_size) == 0);
     }
-    bool operator!=(const IArray<T>& v) const
+    bool operator!=(const Span<T>& v) const
     {
         return !(*this == v);
     }
@@ -651,11 +651,11 @@ public:
         return !(*this == v);
     }
 
-    bool operator==(const IArray<T>& v) const
+    bool operator==(const Span<T>& v) const
     {
         return m_size == v.size() && (m_data == v.data() || memcmp(m_data, v.data(), sizeof(T) * m_size) == 0);
     }
-    bool operator!=(const IArray<T>& v) const
+    bool operator!=(const Span<T>& v) const
     {
         return !(*this == v);
     }

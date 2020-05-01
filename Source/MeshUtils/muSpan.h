@@ -3,7 +3,7 @@
 #include "muIterator.h"
 
 template<class T>
-class IntrusiveArray
+class Span
 {
 public:
     using value_type = T;
@@ -14,12 +14,12 @@ public:
     using iterator = pointer;
     using const_iterator = const_pointer;
 
-    IntrusiveArray() : m_data(nullptr), m_size(0) {}
-    template<size_t N> IntrusiveArray(const T (&d)[N]) : m_data(const_cast<T*>(d)), m_size(N) {}
-    IntrusiveArray(const T *d, size_t s) : m_data(const_cast<T*>(d)), m_size(s) {}
-    IntrusiveArray(const IntrusiveArray& v) : m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
-    template<class Container> IntrusiveArray(const Container& v) : m_data(const_cast<T*>(v.data())), m_size(v.size()) {}
-    IntrusiveArray& operator=(const IntrusiveArray& v) { m_data = const_cast<T*>(v.m_data); m_size = v.m_size; return *this; }
+    Span() : m_data(nullptr), m_size(0) {}
+    template<size_t N> Span(const T (&d)[N]) : m_data(const_cast<T*>(d)), m_size(N) {}
+    Span(const T *d, size_t s) : m_data(const_cast<T*>(d)), m_size(s) {}
+    Span(const Span& v) : m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
+    template<class Container> Span(const Container& v) : m_data(const_cast<T*>(v.data())), m_size(v.size()) {}
+    Span& operator=(const Span& v) { m_data = const_cast<T*>(v.m_data); m_size = v.m_size; return *this; }
 
     void reset()
     {
@@ -73,7 +73,7 @@ private:
 
 
 template<class I, class T>
-class IntrusiveIndexedArray
+class IndexedSpan
 {
 public:
     using value_type = T;
@@ -84,12 +84,12 @@ public:
     using iterator = indexed_iterator<T*, const I*>;
     using const_iterator = indexed_iterator<const T*, const I*>;
 
-    IntrusiveIndexedArray() {}
-    IntrusiveIndexedArray(const I *i, const T *d, size_t s) : m_indices(const_cast<I*>(i)), m_data(const_cast<T*>(d)), m_size(s) {}
-    IntrusiveIndexedArray(const IntrusiveIndexedArray& v) : m_indices(const_cast<I*>(v.m_indices)), m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
+    IndexedSpan() {}
+    IndexedSpan(const I *i, const T *d, size_t s) : m_indices(const_cast<I*>(i)), m_data(const_cast<T*>(d)), m_size(s) {}
+    IndexedSpan(const IndexedSpan& v) : m_indices(const_cast<I*>(v.m_indices)), m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
     template<class IContainer, class VContainer>
-    IntrusiveIndexedArray(const IContainer& i, const VContainer& v) : m_indices(const_cast<I*>(i.data())), m_data(const_cast<T*>(v.data())), m_size(i.size()) {}
-    IntrusiveIndexedArray& operator=(const IntrusiveIndexedArray& v)
+    IndexedSpan(const IContainer& i, const VContainer& v) : m_indices(const_cast<I*>(i.data())), m_data(const_cast<T*>(v.data())), m_size(i.size()) {}
+    IndexedSpan& operator=(const IndexedSpan& v)
     {
         m_indices = const_cast<I*>(v.m_indices);
         m_data = const_cast<T*>(v.m_data);
@@ -127,29 +127,28 @@ private:
     size_t m_size = 0;
 };
 
-template<class T> using IArray = IntrusiveArray<T>;
-template<class I, class T> using IIArray = IntrusiveIndexedArray<I, T>;
+template<class I, class T> using ISpan = IndexedSpan<I, T>;
 
 template<class T>
-inline IArray<T> MakeIArray(const T* v, size_t s)
+inline Span<T> MakeSpan(const T* v, size_t s)
 {
-    return IArray<T>(v, s);
+    return Span<T>(v, s);
 }
 
 template<class Data>
-inline IArray<typename Data::value_type> MakeIArray(const Data& v)
+inline Span<typename Data::value_type> MakeSpan(const Data& v)
 {
-    return IArray<typename Data::value_type>(v.data(), s.size());
+    return Span<typename Data::value_type>(v.data(), s.size());
 }
 
 template<class I, class T>
-inline IIArray<I, T> MakeIIArray(const I* i, const T* v, size_t s)
+inline ISpan<I, T> MakeISpan(const I* i, const T* v, size_t s)
 {
-    return IIArray<I, T>(i, v, s);
+    return ISpan<I, T>(i, v, s);
 }
 
 template<class Indices, class Data>
-inline IIArray<typename Indices::value_type, typename Data::value_type> MakeIIArray(const Indices& i, const Data& v)
+inline ISpan<typename Indices::value_type, typename Data::value_type> MakeISpan(const Indices& i, const Data& v)
 {
-    return IArray<typename Indices::value_type, typename Data::value_type>(i.data(), v.data(), i.size());
+    return ISpan<typename Indices::value_type, typename Data::value_type>(i.data(), v.data(), i.size());
 }

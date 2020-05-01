@@ -4,7 +4,6 @@
 #include <vector>
 #include <memory>
 #include "muRawVector.h"
-#include "muIntrusiveArray.h"
 #include "muHalf.h"
 #include "muMath.h"
 #include "muQuat32.h"
@@ -24,14 +23,14 @@ namespace mu {
 
 struct MeshConnectionInfo;
 
-bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const IArray<float3> points, const IArray<int> indices, bool flip);
+bool GenerateTriangleFaceNormals(RawVector<float3>& dst, const Span<float3> points, const Span<int> indices, bool flip);
 
 bool GenerateNormalsPoly(RawVector<float3>& dst,
-    const IArray<float3> points, const IArray<int> counts, const IArray<int> indices, bool flip);
+    const Span<float3> points, const Span<int> counts, const Span<int> indices, bool flip);
 
 void GenerateNormalsWithSmoothAngle(RawVector<float3>& dst,
-    const IArray<float3> points,
-    const IArray<int> counts, const IArray<int> indices,
+    const Span<float3> points,
+    const Span<int> counts, const Span<int> indices,
     float smooth_angle, bool flip);
 
 
@@ -49,29 +48,29 @@ void GenerateTangentsPoly(float4 *dst,
     const int *counts, const int *offsets, const int *indices,
     int num_faces, int num_vertices);
 
-void QuadifyTriangles(const IArray<float3> vertices, const IArray<int> triangle_indices, bool full_search, float threshold_angle,
+void QuadifyTriangles(const Span<float3> vertices, const Span<int> triangle_indices, bool full_search, float threshold_angle,
     RawVector<int>& dst_indices, RawVector<int>& dst_counts);
 
 template<class Handler>
-void SelectEdge(const IArray<int>& indices, int ngon, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler);
+void SelectEdge(const Span<int>& indices, int ngon, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler);
 template<class Handler>
-void SelectEdge(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler);
+void SelectEdge(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler);
 
 template<class Handler>
-void SelectHole(const IArray<int>& indices, int ngon, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler);
+void SelectHole(const Span<int>& indices, int ngon, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler);
 template<class Handler>
-void SelectHole(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler);
+void SelectHole(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler);
 
 template<class Handler>
-void SelectConnected(const IArray<int>& indices, int ngon, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler);
+void SelectConnected(const Span<int>& indices, int ngon, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler);
 template<class Handler>
-void SelectConnected(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler);
+void SelectConnected(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler);
 
 
 // ------------------------------------------------------------
@@ -174,7 +173,7 @@ inline void MirrorVectors(float4 *dst, size_t n, float3 plane_n)
         (float3&)dst[i] = plane_mirror((float3&)dst[i], plane_n);
 }
 
-inline void MirrorTopology(int *dst_counts, int *dst_indices, const IArray<int>& counts, const IArray<int>& indices, int offset)
+inline void MirrorTopology(int *dst_counts, int *dst_indices, const Span<int>& counts, const Span<int>& indices, int offset)
 {
     if (!dst_counts || !dst_indices)
         return;
@@ -185,7 +184,7 @@ inline void MirrorTopology(int *dst_counts, int *dst_indices, const IArray<int>&
     });
 }
 
-inline void MirrorTopology(int *dst_counts, int *dst_indices, const IArray<int>& counts, const IArray<int>& indices, const IArray<int>& indirect)
+inline void MirrorTopology(int *dst_counts, int *dst_indices, const Span<int>& counts, const Span<int>& indices, const Span<int>& indirect)
 {
     if (!dst_counts || !dst_indices)
         return;

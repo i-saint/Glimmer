@@ -8,8 +8,8 @@ namespace impl {
 // "welded" indices
 struct IndicesW
 {
-    IArray<int> m_indices;
-    IArray<int> m_weld_map;
+    Span<int> m_indices;
+    Span<int> m_weld_map;
 
     size_t size() const { return m_indices.size(); }
     int operator[](size_t i) const { return m_weld_map[m_indices[i]]; }
@@ -36,7 +36,7 @@ struct OffsetsC
 
 template<class Indices, class Counts>
 inline void BuildConnection(
-    MeshConnectionInfo& connection, const Indices& indices, const Counts& counts, const IArray<float3>& vertices)
+    MeshConnectionInfo& connection, const Indices& indices, const Counts& counts, const Span<float3>& vertices)
 {
     size_t num_points = vertices.size();
     size_t num_faces = counts.size();
@@ -81,7 +81,7 @@ inline void BuildConnection(
 }
 
 inline void BuildWeldMap(
-    MeshConnectionInfo& connection, const IArray<float3>& vertices)
+    MeshConnectionInfo& connection, const Span<float3>& vertices)
 {
     auto& weld_map = connection.weld_map;
     auto& weld_counts = connection.weld_counts;
@@ -126,7 +126,7 @@ inline void BuildWeldMap(
 }
 
 template<class Indices, class Counts, class Offsets>
-inline bool OnEdgeImpl(const Indices& indices, const Counts& counts, const Offsets& offsets, const IArray<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index)
+inline bool OnEdgeImpl(const Indices& indices, const Counts& counts, const Offsets& offsets, const Span<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index)
 {
     int num_shared = connection.v2f_counts[vertex_index];
     int offset = connection.v2f_offsets[vertex_index];
@@ -183,7 +183,7 @@ template<class Indices, class Counts, class Offsets>
 class SelectEdgeImpl
 {
 public:
-    SelectEdgeImpl(const Indices& indices_, const Counts& counts_, const Offsets& offsets_, const IArray<float3>& vertices_,
+    SelectEdgeImpl(const Indices& indices_, const Counts& counts_, const Offsets& offsets_, const Span<float3>& vertices_,
         const MeshConnectionInfo& connection_)
         : indices(indices_)
         , counts(counts_)
@@ -293,8 +293,8 @@ private:
 
 
 template<class Handler>
-inline void SelectEdge(const IArray<int>& indices, int ngon, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler)
+inline void SelectEdge(const Span<int>& indices, int ngon, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler)
 {
     impl::CountsC counts{ ngon, indices.size() / ngon };
     impl::OffsetsC offsets{ ngon, indices.size() / ngon };
@@ -311,8 +311,8 @@ inline void SelectEdge(const IArray<int>& indices, int ngon, const IArray<float3
 }
 
 template<class Handler>
-inline void SelectEdge(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler)
+inline void SelectEdge(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler)
 {
     MeshConnectionInfo connection;
     impl::BuildConnection(connection, indices, counts, vertices);
@@ -327,8 +327,8 @@ inline void SelectEdge(const IArray<int>& indices, const IArray<int>& counts, co
 
 
 template<class Handler>
-inline void SelectHole(const IArray<int>& indices_, int ngon, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler)
+inline void SelectHole(const Span<int>& indices_, int ngon, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler)
 {
     impl::CountsC counts{ ngon, indices_.size() / ngon };
     impl::OffsetsC offsets{ ngon, indices_.size() / ngon };
@@ -348,8 +348,8 @@ inline void SelectHole(const IArray<int>& indices_, int ngon, const IArray<float
 }
 
 template<class Handler>
-inline void SelectHole(const IArray<int>& indices_, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler)
+inline void SelectHole(const Span<int>& indices_, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler)
 {
     MeshConnectionInfo connection;
     impl::BuildWeldMap(connection, vertices);
@@ -367,8 +367,8 @@ inline void SelectHole(const IArray<int>& indices_, const IArray<int>& counts, c
 
 
 template<class Handler>
-inline void SelectConnected(const IArray<int>& indices, int ngon, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler)
+inline void SelectConnected(const Span<int>& indices, int ngon, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler)
 {
     impl::CountsC counts{ ngon, indices.size() / ngon };
     impl::OffsetsC offsets{ ngon, indices.size() / ngon };
@@ -385,8 +385,8 @@ inline void SelectConnected(const IArray<int>& indices, int ngon, const IArray<f
 }
 
 template<class Handler>
-inline void SelectConnected(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices,
-    const IArray<int>& vertex_indices, const Handler& handler)
+inline void SelectConnected(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices,
+    const Span<int>& vertex_indices, const Handler& handler)
 {
     MeshConnectionInfo connection;
     impl::BuildConnection(connection, indices, counts, vertices);

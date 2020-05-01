@@ -19,7 +19,7 @@ void MeshConnectionInfo::clear()
 }
 
 void MeshConnectionInfo::buildConnection(
-    const IArray<int>& indices_, int ngon_, const IArray<float3>& vertices_, bool welding)
+    const Span<int>& indices_, int ngon_, const Span<float3>& vertices_, bool welding)
 {
     if (welding) {
         impl::BuildWeldMap(*this, vertices_);
@@ -35,7 +35,7 @@ void MeshConnectionInfo::buildConnection(
 }
 
 void MeshConnectionInfo::buildConnection(
-    const IArray<int>& indices_, const IArray<int>& counts_, const IArray<float3>& vertices_, bool welding)
+    const Span<int>& indices_, const Span<int>& counts_, const Span<float3>& vertices_, bool welding)
 {
     if (welding) {
         impl::BuildWeldMap(*this, vertices_);
@@ -49,27 +49,27 @@ void MeshConnectionInfo::buildConnection(
 }
 
 
-bool OnEdge(const IArray<int>& indices, int ngon, const IArray<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index)
+bool OnEdge(const Span<int>& indices, int ngon, const Span<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index)
 {
     impl::CountsC counts{ ngon, indices.size() / ngon };
     impl::OffsetsC offsets{ ngon, indices.size() / ngon };
     return impl::OnEdgeImpl(indices, counts, offsets, vertices, connection, vertex_index);
 }
 
-bool OnEdge(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index)
+bool OnEdge(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index)
 {
     return impl::OnEdgeImpl(indices, counts, offsets, vertices, connection, vertex_index);
 }
 
 
-bool IsEdgeOpened(const IArray<int>& indices, int ngon, const MeshConnectionInfo& connection, int i0, int i1)
+bool IsEdgeOpened(const Span<int>& indices, int ngon, const MeshConnectionInfo& connection, int i0, int i1)
 {
     impl::CountsC counts{ ngon, indices.size() / ngon };
     impl::OffsetsC offsets{ ngon, indices.size() / ngon };
     return IsEdgeOpenedImpl(indices, counts, offsets, connection, i0, i1);
 }
 
-bool IsEdgeOpened(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const MeshConnectionInfo& connection, int i0, int i1)
+bool IsEdgeOpened(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const MeshConnectionInfo& connection, int i0, int i1)
 {
     return impl::IsEdgeOpenedImpl(indices, counts, offsets, connection, i0, i1);
 }
@@ -139,7 +139,7 @@ void MeshRefiner::retopology(bool flip_faces)
     }
 }
 
-void MeshRefiner::genSubmeshes(const IArray<int>& material_ids, bool has_face_group)
+void MeshRefiner::genSubmeshes(const Span<int>& material_ids, bool has_face_group)
 {
     if (material_ids.empty()) {
         genSubmeshes();

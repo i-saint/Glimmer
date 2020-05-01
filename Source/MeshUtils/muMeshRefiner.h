@@ -2,7 +2,6 @@
 
 #include "muMath.h"
 #include "muRawVector.h"
-#include "muIntrusiveArray.h"
 
 namespace mu {
 
@@ -21,9 +20,9 @@ struct MeshConnectionInfo
 
     void clear();
     void buildConnection(
-        const IArray<int>& indices, int ngon, const IArray<float3>& vertices, bool welding = false);
+        const Span<int>& indices, int ngon, const Span<float3>& vertices, bool welding = false);
     void buildConnection(
-        const IArray<int>& indices, const IArray<int>& counts, const IArray<float3>& vertices, bool welding = false);
+        const Span<int>& indices, const Span<int>& counts, const Span<float3>& vertices, bool welding = false);
 
     // Body: [](int face_index, int index_index) -> void
     template<class Body>
@@ -48,11 +47,11 @@ struct MeshConnectionInfo
     }
 };
 
-bool OnEdge(const IArray<int>& indices, int ngon, const IArray<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index);
-bool OnEdge(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const IArray<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index);
+bool OnEdge(const Span<int>& indices, int ngon, const Span<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index);
+bool OnEdge(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const Span<float3>& vertices, const MeshConnectionInfo& connection, int vertex_index);
 
-bool IsEdgeOpened(const IArray<int>& indices, int ngon, const MeshConnectionInfo& connection, int i0, int i1);
-bool IsEdgeOpened(const IArray<int>& indices, const IArray<int>& counts, const IArray<int>& offsets, const MeshConnectionInfo& connection, int i0, int i1);
+bool IsEdgeOpened(const Span<int>& indices, int ngon, const MeshConnectionInfo& connection, int i0, int i1);
+bool IsEdgeOpened(const Span<int>& indices, const Span<int>& counts, const Span<int>& offsets, const MeshConnectionInfo& connection, int i0, int i1);
 
 
 
@@ -99,9 +98,9 @@ struct MeshRefiner
     bool gen_lines = true;
     bool gen_triangles = true;
 
-    IArray<int> counts;
-    IArray<int> indices;
-    IArray<float3> points;
+    Span<int> counts;
+    Span<int> indices;
+    Span<float3> points;
 
     // outputs
     RawVector<int> old2new_indices; // old index to new index
@@ -119,7 +118,7 @@ struct MeshRefiner
 
     // attributes
     template<class T>
-    void addIndexedAttribute(const IArray<T>& values, const IArray<int>& indices, RawVector<T>& new_values, RawVector<int>& new2old)
+    void addIndexedAttribute(const Span<T>& values, const Span<int>& indices, RawVector<T>& new_values, RawVector<int>& new2old)
     {
         auto attr = newAttribute<IndexedAttribute<T>>();
         attr->values = values;
@@ -129,7 +128,7 @@ struct MeshRefiner
     }
 
     template<class T>
-    void addExpandedAttribute(const IArray<T>& values, RawVector<T>& new_values, RawVector<int>& new2old)
+    void addExpandedAttribute(const Span<T>& values, RawVector<T>& new_values, RawVector<int>& new2old)
     {
         auto attr = newAttribute<ExpandedAttribute<T>>();
         attr->values = values;
@@ -141,7 +140,7 @@ struct MeshRefiner
     void buildConnection();
     void retopology(bool flip_faces);
     // has_face_group: use upper 16 bit of material id as face groups
-    void genSubmeshes(const IArray<int>& material_ids, bool has_face_group = false);
+    void genSubmeshes(const Span<int>& material_ids, bool has_face_group = false);
     void genSubmeshes();
     void clear();
 
@@ -189,8 +188,8 @@ private:
             new2old->clear();
         }
 
-        IArray<T> values;
-        IArray<int> indices;
+        Span<T> values;
+        Span<int> indices;
         RawVector<T> *new_values = nullptr;
         RawVector<int> *new2old = nullptr;
     };
@@ -220,7 +219,7 @@ private:
             new_values->clear();
         }
 
-        IArray<T> values;
+        Span<T> values;
         RawVector<T> *new_values = nullptr;
         RawVector<int> *new2old = nullptr;
     };
