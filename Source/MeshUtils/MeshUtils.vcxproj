@@ -32,6 +32,7 @@
     <ClInclude Include="ispcmath.h" />
     <ClInclude Include="muIterator.h" />
     <ClInclude Include="muLimits.h" />
+    <ClInclude Include="muMemory.h" />
     <ClInclude Include="muMeshRefiner.h" />
     <ClInclude Include="muMisc.h" />
     <ClInclude Include="muQuat32.h" />
@@ -49,9 +50,9 @@
   <ItemGroup>
     <ClCompile Include="muCompression.cpp" />
     <ClCompile Include="muDebugTimer.cpp" />
+    <ClCompile Include="muMemory.cpp" />
     <ClCompile Include="muMeshRefiner.cpp" />
     <ClCompile Include="muMisc.cpp" />
-    <ClCompile Include="muRawVector.cpp" />
     <ClCompile Include="muStream.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

@@ -5,17 +5,11 @@
 #include <algorithm>
 #include <initializer_list>
 #include "muSpan.h"
+#include "muMemory.h"
 
 template<class T, int Align = 0x40> class RawVector;
 template<class T, int Align = 0x40> class SharedVector;
 
-void* muMalloc(size_t size, size_t alignment);
-void  muFree(void* addr);
-
-void muvgInitialize();
-bool muvgEnabled();
-void muvgReportError();
-void muvgPrintRecords();
 
 // simpler version of std::vector.
 // T must be POD types because its constructor and destructor are never called.
@@ -92,8 +86,8 @@ public:
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
     size_t capacity() const { return m_capacity; }
-    size_t size_in_byte() const { return sizeof(T)*m_size; }
-    size_t capacity_in_byte() const { return sizeof(T)*m_capacity; }
+    size_t size_bytes() const { return sizeof(T)*m_size; }
+    size_t capacity_bytes() const { return sizeof(T)*m_capacity; }
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
@@ -404,8 +398,8 @@ public:
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
     size_t capacity() const { return m_capacity; }
-    size_t size_in_byte() const { return sizeof(T) * m_size; }
-    size_t capacity_in_byte() const { return sizeof(T) * m_capacity; }
+    size_t size_bytes() const { return sizeof(T) * m_size; }
+    size_t capacity_bytes() const { return sizeof(T) * m_capacity; }
 
     T* data() { detach(); return m_data; }
     const T* data() const { return m_data; }

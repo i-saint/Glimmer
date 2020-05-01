@@ -2,6 +2,8 @@
 
 #include "muIterator.h"
 
+// intrusive array
+// similar to std::span in C++20
 template<class T>
 class Span
 {
@@ -35,7 +37,7 @@ public:
 
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
-    size_t size_in_byte() const { return sizeof(T) * m_size; }
+    size_t size_bytes() const { return sizeof(T) * m_size; }
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
@@ -72,6 +74,7 @@ private:
 };
 
 
+// indexed version of Span
 template<class I, class T>
 class IndexedSpan
 {
