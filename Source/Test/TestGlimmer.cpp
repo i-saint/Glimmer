@@ -27,13 +27,15 @@ TestCase(TestMinimum)
 
     const int rt_width = 1024;
     const int rt_height = 1024;
-    const auto rt_format = gpt::Format::RGBAf32;
+    //const auto rt_format = gpt::Format::RGBAf32;
+    const auto rt_format = gpt::Format::RGBAu8;
+    auto window = gptCreateWindow(rt_width, rt_height);
 
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();
     auto light = ctx->createLight();
     auto material = ctx->createMaterial();
-    auto render_target = ctx->createRenderTarget(rt_format, rt_width, rt_height);
+    auto render_target = ctx->createRenderTarget(window, rt_format);
 
     render_target->enableReadback(true);
     scene->setRenderTarget(render_target);
@@ -148,19 +150,15 @@ TestCase(TestMinimum)
 
     // render!
     RawVector<float4> readback_buffer;
-    readback_buffer.resize(rt_width * rt_height, mu::nan<float4>());
-    for (int i = 0; i < 10;++i) {
+    while (!window->isClosed()) {
+        window->processMessages();
+
         ctx->render();
         ctx->finish();
 
+        readback_buffer.resize(window->getWidth() * window->getHeight(), mu::nan<float4>());
         render_target->readback(readback_buffer.data());
         printf("%s\n", ctx->getTimestampLog());
-    }
-
-
-    auto window = gptCreateWindow(512, 512);
-    while (!window->isClosed()) {
-        window->processMessages();
     }
 }
 

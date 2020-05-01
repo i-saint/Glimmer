@@ -355,7 +355,9 @@ public:
     virtual void addCallback(IWindowCallback* cb) = 0;
     virtual void removeCallback(IWindowCallback* cb) = 0;
 
-    virtual bool isClosed() = 0;
+    virtual bool isClosed() const = 0;
+    virtual int getWidth() const = 0;
+    virtual int getHeight() const = 0;
     virtual void* getHandle() = 0;
 };
 using IWindowPtr = ref_ptr<IWindow>;

@@ -16,7 +16,9 @@ public:
     void addCallback(IWindowCallback* cb) override;
     void removeCallback(IWindowCallback* cb) override;
 
-    bool isClosed() override;
+    bool isClosed() const override;
+    int getWidth() const override;
+    int getHeight() const override;
     void* getHandle() override;
     void onRefCountZero() override;
 

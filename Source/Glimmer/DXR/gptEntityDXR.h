@@ -38,6 +38,8 @@ public:
     void* getDeviceObject() override;
 
     void updateResources();
+    void readback();
+    void present();
 
 public:
     class WindowCallback : public IWindowCallback

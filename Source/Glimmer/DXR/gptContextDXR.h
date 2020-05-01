@@ -39,6 +39,7 @@ public:
     void updateBLAS();
     void updateTLAS();
     void dispatchRays();
+    void wait();
 
     uint64_t incrementFenceValue();
 
@@ -71,6 +72,7 @@ public:
     void uploadTexture(ID3D12Resource* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
     void copyTexture(ID3D12Resource* dst, ID3D12Resource* src, UINT width, UINT height, DXGI_FORMAT format);
     void readbackTexture(void* dst, ID3D12Resource* staging, UINT width, UINT height, DXGI_FORMAT format);
+    void copyResource(ID3D12Resource* dst, ID3D12Resource* src);
 
     void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset = 0);
     void createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset = 0);

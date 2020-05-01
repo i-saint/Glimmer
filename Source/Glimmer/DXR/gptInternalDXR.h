@@ -203,14 +203,16 @@ class SwapchainDXR
 {
 public:
     SwapchainDXR(ContextDXR* ctx, IWindow *window, DXGI_FORMAT format);
+    int getBufferCount() const;
     int getCurrentBufferIndex();
-    ID3D12ResourcePtr& getCurrentBuffer();
+    ID3D12ResourcePtr getBuffer(int i);
+    void resize(int w, int h);
+    void present();
 
 public:
     ContextDXR* m_context;
     WindowPtr m_window;
     IDXGISwapChain3Ptr m_swapchain;
-    std::vector<ID3D12ResourcePtr> m_buffers;
 };
 using SwapchainDXRPtr = std::shared_ptr<SwapchainDXR>;
 
@@ -221,7 +223,8 @@ extern const D3D12_HEAP_PROPERTIES kReadbackHeapProps;
 static const DWORD kTimeoutMS = 3000;
 
 UINT GetTexelSize(DXGI_FORMAT rtf);
-DXGI_FORMAT GetDXGIFormat(Format format);
+DXGI_FORMAT GetDXGIFormatTyped(Format format);
+DXGI_FORMAT GetDXGIFormatTypeless(Format format);
 DXGI_FORMAT GetFloatFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetUIntFormat(DXGI_FORMAT format);
 DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);

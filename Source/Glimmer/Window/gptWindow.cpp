@@ -173,9 +173,19 @@ void Window::removeCallback(IWindowCallback* cb)
     erase(m_callbacks, cb);
 }
 
-bool Window::isClosed()
+bool Window::isClosed() const
 {
     return m_hwnd == nullptr;
+}
+
+int Window::getWidth() const
+{
+    return m_width;
+}
+
+int Window::getHeight() const
+{
+    return m_height;
 }
 
 void Window::onRefCountZero()

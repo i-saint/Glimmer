@@ -478,13 +478,10 @@ void ContextDXR::prepare()
     m_lights.eraseUnreferenced();
 
     // clear states
-    for (auto& pmesh : m_meshes) {
+    for (auto& pmesh : m_meshes)
         pmesh->m_blas_updated = false;
-    }
-    for (auto& pinst : m_mesh_instances) {
+    for (auto& pinst : m_mesh_instances)
         pinst->m_blas_updated = false;
-    }
-    m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
 }
 
 void ContextDXR::updateResources()
@@ -731,8 +728,7 @@ void ContextDXR::dispatchRays()
     // handle render target readback
     gptTimestampQuery(m_timestamp, cl_rays, "Readback begin");
     each_ref(m_render_targets, [&](auto& rt) {
-        if (rt.m_readback_enabled)
-            copyTexture(rt.m_buf_readback, rt.m_frame_buffer, rt.m_width, rt.m_height, GetDXGIFormat(rt.m_format));
+        rt.readback();
     });
     gptTimestampQuery(m_timestamp, cl_rays, "Readback end");
 
@@ -742,6 +738,16 @@ void ContextDXR::dispatchRays()
     m_fv_rays = submit(m_fv_tlas);
 }
 
+void ContextDXR::wait()
+{
+    auto& queue = m_cmd_queue_direct;
+    auto fv = incrementFenceValue();
+    queue->Signal(m_fence, fv);
+    queue->Wait(m_fence, fv);
+    m_fence->SetEventOnCompletion(fv, m_fence_event);
+    ::WaitForSingleObject(m_fence_event, kTimeoutMS);
+}
+
 void ContextDXR::finish()
 {
     // wait for complete
@@ -749,21 +755,27 @@ void ContextDXR::finish()
         m_fence->SetEventOnCompletion(m_fv_rays, m_fence_event);
         ::WaitForSingleObject(m_fence_event, kTimeoutMS);
         gptTimestampUpdateLog(m_timestamp);
+
+        each_ref(m_render_targets, [&](auto& rt) {
+            rt.present();
+        });
+
+        // reset state
+        m_clm_direct->reset();
+        m_deformer->reset();
+
+        // clear dirty flags
+        m_scenes.clearDirty();
+        m_mesh_instances.clearDirty();
+        m_meshes.clearDirty();
+        m_materials.clearDirty();
+        m_textures.clearDirty();
+        m_render_targets.clearDirty();
+        m_cameras.clearDirty();
+        m_lights.clearDirty();
+
+        m_fv_upload = m_fv_deform = m_fv_blas = m_fv_tlas = m_fv_rays = 0;
     }
-
-    // reset state
-    m_clm_direct->reset();
-    m_deformer->reset();
-
-    // clear dirty flags
-    m_scenes.clearDirty();
-    m_mesh_instances.clearDirty();
-    m_meshes.clearDirty();
-    m_materials.clearDirty();
-    m_textures.clearDirty();
-    m_render_targets.clearDirty();
-    m_cameras.clearDirty();
-    m_lights.clearDirty();
 }
 
 void* ContextDXR::getDevice()
@@ -1016,6 +1028,13 @@ void ContextDXR::readbackTexture(void* dst_, ID3D12Resource* staging, UINT width
             mapped += width_a * texel_size;
         }
     });
+}
+
+void ContextDXR::copyResource(ID3D12Resource* dst, ID3D12Resource* src)
+{
+    if (!dst || !src)
+        return;
+    m_cl->CopyResource(dst, src);
 }
 
 

@@ -354,11 +354,13 @@ SwapchainDXR::SwapchainDXR(ContextDXR* ctx, IWindow* window, DXGI_FORMAT format)
     , m_window(base_t(window))
 {
     m_swapchain = CreateSwapChain(ctx->m_dxgi_factory, (HWND)window->getHandle(), m_window->m_width, m_window->m_height, format, ctx->m_cmd_queue_direct);
-    if (m_swapchain) {
-        m_buffers.resize(gptDXRSwapChainBuffers);
-        for (int i = 0; i < gptDXRSwapChainBuffers; ++i)
-            m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_buffers[i]));
-    }
+}
+
+int SwapchainDXR::getBufferCount() const
+{
+    DXGI_SWAP_CHAIN_DESC1 desc;
+    m_swapchain->GetDesc1(&desc);
+    return (int)desc.BufferCount;
 }
 
 int SwapchainDXR::getCurrentBufferIndex()
@@ -366,9 +368,23 @@ int SwapchainDXR::getCurrentBufferIndex()
     return m_swapchain->GetCurrentBackBufferIndex();
 }
 
-ID3D12ResourcePtr& SwapchainDXR::getCurrentBuffer()
+ID3D12ResourcePtr SwapchainDXR::getBuffer(int i)
 {
-    return m_buffers[m_swapchain->GetCurrentBackBufferIndex()];
+    ID3D12ResourcePtr ret;
+    m_swapchain->GetBuffer(i, IID_PPV_ARGS(&ret));
+    return ret;
+}
+
+void SwapchainDXR::resize(int w, int h)
+{
+    DXGI_SWAP_CHAIN_DESC1 desc;
+    m_swapchain->GetDesc1(&desc);
+    m_swapchain->ResizeBuffers(desc.BufferCount, w, h, desc.Format, desc.Flags);
+}
+
+void SwapchainDXR::present()
+{
+    m_swapchain->Present(0, 0);
 }
 
 
@@ -435,7 +451,25 @@ UINT GetTexelSize(DXGI_FORMAT rtf)
     return 0;
 }
 
-DXGI_FORMAT GetDXGIFormat(Format format)
+DXGI_FORMAT GetDXGIFormatTyped(Format format)
+{
+    switch (format) {
+    case Format::Ru8: return DXGI_FORMAT_R8_UNORM;
+    case Format::RGu8: return DXGI_FORMAT_R8G8_UNORM;
+    case Format::RGBAu8: return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+    case Format::Rf16: return DXGI_FORMAT_R16_FLOAT;
+    case Format::RGf16: return DXGI_FORMAT_R16G16_FLOAT;
+    case Format::RGBAf16: return DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+    case Format::Rf32: return DXGI_FORMAT_R32_FLOAT;
+    case Format::RGf32: return DXGI_FORMAT_R32G32_FLOAT;
+    case Format::RGBAf32: return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+    default: return DXGI_FORMAT_UNKNOWN;
+    }
+}
+DXGI_FORMAT GetDXGIFormatTypeless(Format format)
 {
     switch (format) {
     case Format::Ru8: return DXGI_FORMAT_R8_TYPELESS;

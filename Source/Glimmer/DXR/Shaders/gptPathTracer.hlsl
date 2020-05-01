@@ -141,13 +141,16 @@ void RayGenRadiance()
     Payload payload = ShootRadianceRay();
     g_frame_buffer[screen_idx] = float4(payload.color, payload.t);
 
-    //uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, FrameCount());
-    //g_frame_buffer[screen_idx] = float4(
-    //    rnd(seed) - 0.5f,
-    //    rnd(seed) - 0.5f,
-    //    rnd(seed) - 0.5f,
-    //    rnd(seed) - 0.5f
-    //);
+    uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, FrameCount());
+    g_frame_buffer[screen_idx] = float4(
+        rnd(seed) - 0.5f,
+        rnd(seed) - 0.5f,
+        rnd(seed) - 0.5f,
+        rnd(seed) - 0.5f
+    );
+    //if (screen_idx.x < 3 && screen_idx.y == 0) {
+    //    g_frame_buffer[screen_idx].xyz = g_vertices_d[0][screen_idx.x].position;
+    //}
 }
 
 [shader("miss")]

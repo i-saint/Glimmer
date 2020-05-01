@@ -19,21 +19,18 @@ RenderTargetDXR::RenderTargetDXR(int width, int height, Format format)
 }
 
 RenderTargetDXR::RenderTargetDXR(IWindow* window, Format format)
-    : super(((Window*)window)->m_width, ((Window*)window)->m_height, format)
+    : super(window->getWidth(), window->getHeight(), format)
 {
     m_callback.m_self = this;
 
     m_window = base_t(window);
     m_window->addCallback(&m_callback);
-    m_format = format;
-    m_width = m_window->m_width;
-    m_height = m_window->m_height;
 }
 
 bool RenderTargetDXR::readback(void* dst)
 {
     if (m_readback_enabled && m_buf_readback && dst) {
-        m_context->readbackTexture(dst, m_buf_readback, m_width, m_height, GetDXGIFormat(m_format));
+        m_context->readbackTexture(dst, m_buf_readback, m_width, m_height, GetDXGIFormatTyped(m_format));
         return true;
     }
     else {
@@ -56,21 +53,23 @@ void RenderTargetDXR::updateResources()
         m_uav_accum_buffer = desc_alloc.allocate();
     }
 
-    if (isDirty(DirtyFlag::RenderTarget)) {
-        m_swapchain = nullptr;
-        m_frame_buffer = nullptr;
-        m_accum_buffer = nullptr;
-        m_buf_readback = nullptr;
-    }
-
     if (m_window) {
+        bool update_srvs = false;
         if (!m_swapchain) {
             m_swapchain = std::make_shared<SwapchainDXR>(m_context, m_window, DXGI_FORMAT_R8G8B8A8_UNORM);
+        }
+        else if (isDirty(DirtyFlag::RenderTarget)) {
+            // window resized
+            m_context->wait();
+            m_swapchain->resize(m_width, m_height);
+            m_frame_buffer = nullptr;
+            m_accum_buffer = nullptr;
+            m_buf_readback = nullptr;
         }
     }
 
     if (!m_frame_buffer) {
-        m_frame_buffer = ctx->createTexture(m_width, m_height, GetDXGIFormat(m_format));
+        m_frame_buffer = ctx->createTexture(m_width, m_height, GetDXGIFormatTyped(m_format));
         ctx->createTextureUAV(m_uav_frame_buffer, m_frame_buffer);
         gptSetName(m_frame_buffer, m_name + " Frame Buffer");
     }
@@ -80,8 +79,30 @@ void RenderTargetDXR::updateResources()
         gptSetName(m_accum_buffer, m_name + " Accum Buffer");
     }
     if (m_readback_enabled && !m_buf_readback) {
-        m_buf_readback = ctx->createTextureReadbackBuffer(m_width, m_height, GetDXGIFormat(m_format));
+        m_buf_readback = ctx->createTextureReadbackBuffer(m_width, m_height, GetDXGIFormatTyped(m_format));
         gptSetName(m_buf_readback, m_name + " Readback Buffer");
+    }
+}
+
+void RenderTargetDXR::readback()
+{
+    ContextDXR* ctx = m_context;
+    if (m_swapchain) {
+        auto buffer = m_swapchain->getBuffer(m_swapchain->getCurrentBufferIndex());
+        ctx->addResourceBarrier(buffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST);
+        ctx->copyResource(buffer, m_frame_buffer);
+        ctx->addResourceBarrier(buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+
+    }
+    if (m_readback_enabled) {
+        ctx->copyTexture(m_buf_readback, m_frame_buffer, m_width, m_height, GetDXGIFormatTyped(m_format));
+    }
+}
+
+void RenderTargetDXR::present()
+{
+    if (m_swapchain) {
+        m_swapchain->present();
     }
 }
 
@@ -100,7 +121,7 @@ void TextureDXR::updateResources()
 {
     ContextDXR* ctx = m_context;
     if (!m_texture) {
-        auto format = GetDXGIFormat(m_format);
+        auto format = GetDXGIFormatTyped(m_format);
         m_texture = ctx->createTexture(m_width, m_height, format);
         m_buf_upload = ctx->createTextureUploadBuffer(m_width, m_height, format);
         gptSetName(m_texture, m_name + " Texture");
@@ -110,7 +131,7 @@ void TextureDXR::updateResources()
         ctx->createTextureSRV(m_srv, m_texture);
     }
     if (isDirty(DirtyFlag::TextureData)) {
-        ctx->uploadTexture(m_texture, m_buf_upload, m_data.cdata(), m_width, m_height, GetDXGIFormat(m_format));
+        ctx->uploadTexture(m_texture, m_buf_upload, m_data.cdata(), m_width, m_height, GetDXGIFormatTyped(m_format));
         ctx->addResourceBarrier(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON);
     }
 }
