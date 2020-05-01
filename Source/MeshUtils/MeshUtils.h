@@ -10,7 +10,6 @@
 #include "muLimits.h"
 #include "muSIMD.h"
 #include "muAlgorithm.h"
-#include "muVertex.h"
 #include "muColor.h"
 #include "muTLS.h"
 #include "muMisc.h"

@@ -45,7 +45,6 @@
     <ClInclude Include="muSIMD.h" />
     <ClInclude Include="muTLS.h" />
     <ClInclude Include="muMath.h" />
-    <ClInclude Include="muVertex.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="muCompression.cpp" />
@@ -60,7 +59,6 @@
     <ClCompile Include="MeshUtils.cpp" />
     <ClCompile Include="muSIMD.cpp" />
     <ClCompile Include="muMath.cpp" />
-    <ClCompile Include="muVertex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="MeshUtilsCore.ispc">
