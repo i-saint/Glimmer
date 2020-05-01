@@ -1326,7 +1326,7 @@ template<class T>
 inline tmat3x3<T> look33(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
 {
     auto f = normalize(forward);
-    auto r = normalize(cross(up, f));
+    auto r = normalize(cross(f, up));
     auto u = cross(f, r);
     return{ {
         { r.x, u.x, f.x },
@@ -1338,7 +1338,7 @@ template<class T>
 inline tmat4x4<T> look44(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
 {
     auto f = normalize(forward);
-    auto r = normalize(cross(up, f));
+    auto r = normalize(cross(f, up));
     auto u = cross(f, r);
     return{ {
         { r.x, u.x, f.x, T(0) },
@@ -1356,7 +1356,7 @@ inline tquat<T> look_quat(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>
 template <typename T>
 inline tmat4x4<T> look_at(const tvec3<T>& eye, const tvec3<T>& target, const tvec3<T>& up = tvec3<T>::up())
 {
-    auto f = -normalize(target - eye);
+    auto f = normalize(target - eye);
     auto r = normalize(cross(f, up));
     auto u = cross(r, f);
     auto p = tvec3<T>{ -dot(r, eye), -dot(u, eye), dot(f, eye) };

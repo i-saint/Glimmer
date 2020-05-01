@@ -252,7 +252,7 @@ class ICamera : public IObject
 {
 public:
     virtual void setPosition(float3 v) = 0;
-    virtual void setDirection(float3 v, float3 up = float3::up()) = 0;
+    virtual void setDirection(float3 dir, float3 up = float3::up()) = 0;
     virtual void setFOV(float v) = 0;
     virtual void setNear(float v) = 0;
     virtual void setFar(float v) = 0;

@@ -100,6 +100,9 @@ struct MeshData
     int vertex_count;
     int deform_id;
     int flags; // MeshFlag
+    float3 bb_min;
+    float3 bb_max;
+    float2 pad;
 };
 
 struct InstanceData

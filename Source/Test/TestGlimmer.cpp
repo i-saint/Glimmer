@@ -41,13 +41,16 @@ TestCase(TestMinimum)
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();
     auto light = ctx->createLight();
-    auto material = ctx->createMaterial();
+    auto material1 = ctx->createMaterial();
+    auto material2 = ctx->createMaterial();
 
     render_target->enableReadback(true);
     camera->setRenderTarget(render_target);
     scene->setCamera(camera);
     scene->addLight(light);
 
+    material1->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
+    material2->setDiffuse(float3{ 0.5f, 0.5f, 0.5f });
     {
         float3 pos{ 0.0f, 2.0f, -8.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
@@ -74,7 +77,7 @@ TestCase(TestMinimum)
 
         // add a instance with default transform (identity matrix)
         auto instance = ctx->createMeshInstance(triangle);
-        instance->setMaterial(material);
+        instance->setMaterial(material1);
         scene->addMesh(instance);
     }
     {
@@ -135,7 +138,7 @@ TestCase(TestMinimum)
         };
 
         auto instance = ctx->createMeshInstance(triangle);
-        instance->setMaterial(material);
+        instance->setMaterial(material1);
         instance->setJointMatrices(joint_matrices);
         instance->setBlendshapeWeights(bs_weights);
         scene->addMesh(instance);
@@ -157,18 +160,27 @@ TestCase(TestMinimum)
 
         // add a instance with default transform
         auto instance = ctx->createMeshInstance(quad);
-        instance->setMaterial(material);
+        instance->setMaterial(material2);
         scene->addMesh(instance);
     }
 
     // render!
 #ifdef EnableWindow
     {
+        int frame = 0;
         while (!window->isClosed()) {
             window->processMessages();
             ctx->render();
             ctx->finish();
+
+            float3 pos{ 0.0f, 2.0f, -8.0f };
+            float3 target{ 0.0f, 0.0f, 0.0f };
+            pos = mu::to_mat3x3(mu::rotate_y((float)frame * 0.001f)) * pos;
+            camera->setPosition(pos);
+            camera->setDirection(mu::normalize(target - pos));
+
             printf("%s\n", ctx->getTimestampLog());
+            ++frame;
         }
     }
 #else

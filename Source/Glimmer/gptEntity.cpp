@@ -205,9 +205,9 @@ void Camera::setPosition(float3 v)
     m_data.position = v;
     markDirty(DirtyFlag::Camera);
 }
-void Camera::setDirection(float3 v, float3 up)
+void Camera::setDirection(float3 dir, float3 up)
 {
-    m_data.rotation = mu::look_quat(v, up);
+    m_data.rotation = mu::look_quat(dir, up);
     markDirty(DirtyFlag::Camera);
 }
 void Camera::setFOV(float v)
@@ -240,11 +240,13 @@ RenderTarget* Camera::getRenderTarget()
 
 const CameraData& Camera::getData()
 {
-    if (isDirty(DirtyFlag::Camera)) {
-        float aspect = (float)m_render_target->getWidth() / (float)m_render_target->getHeight();
+    if (isDirty() || (m_render_target && m_render_target->isDirty())) {
+        float aspect = 1.0f;
+        if (m_render_target)
+            aspect = (float)m_render_target->getWidth() / (float)m_render_target->getHeight();
         m_data.proj = mu::perspective(m_data.fov, aspect, m_data.near_plane, m_data.far_plane);
 
-        auto view = mu::transpose(mu::to_mat4x4(m_data.rotation));
+        auto view = mu::to_mat4x4(m_data.rotation);
         (float3&)view[3] = -m_data.position;
         m_data.view = view;
     }
@@ -639,6 +641,9 @@ void Mesh::exportBlendshapeDelta(vertex_t* dst) const
 
 const MeshData& Mesh::getData()
 {
+    if (isDirty(DirtyFlag::Points)) {
+        mu::MinMax(m_points.data(), m_points.size(), m_data.bb_min, m_data.bb_max);
+    }
     return m_data;
 }
 

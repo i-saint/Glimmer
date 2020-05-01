@@ -65,10 +65,9 @@ float3 FaceNormal()
 
 MaterialData FaceMaterial(int instance_id, int face_id)
 {
-    InstanceData instance = g_instances[instance_id];
-    int mesh_id = instance.mesh_id;
+    int mesh_id = g_instances[instance_id].mesh_id;
     face_t face = g_faces[mesh_id][face_id];
-    return g_materials[instance.material_ids[face.material_index]];
+    return g_materials[g_instances[instance_id].material_ids[face.material_index]];
 }
 MaterialData FaceMaterial()
 {
@@ -147,32 +146,6 @@ void RayGenRadiance()
     //    rnd(seed) - 0.5f,
     //    rnd(seed) - 0.5f
     //);
-
-    //if (screen_idx.y == 0) {
-    //    RayDesc rd = GetCameraRay();
-    //    if (screen_idx.x == 0)
-    //        g_frame_buffer[screen_idx].xyz = rd.Origin;
-    //    if (screen_idx.x == 1)
-    //        g_frame_buffer[screen_idx].xyz = rd.Direction;
-    //    if (screen_idx.x == 2)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.view[0];
-    //    if (screen_idx.x == 3)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.view[1];
-    //    if (screen_idx.x == 4)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.view[2];
-    //    if (screen_idx.x == 5)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.view[3];
-    //    if (screen_idx.x == 6)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[0];
-    //    if (screen_idx.x == 7)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[1];
-    //    if (screen_idx.x == 8)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[2];
-    //    if (screen_idx.x == 9)
-    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[3];
-    //    if (screen_idx.x == 10)
-    //        g_frame_buffer[screen_idx] = float4(9, 99, 999, 9999);
-    //}
 }
 
 [shader("miss")]
@@ -190,7 +163,8 @@ bool ShootOcclusionRay(uint flags, in RayDesc ray, inout Payload payload)
 [shader("closesthit")]
 void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    // shoot shadow ray (hit position -> light)
+    MaterialData md = FaceMaterial();
+    payload.color = md.diffuse;
 
     uint render_flags = RenderFlags();
     uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
@@ -244,10 +218,6 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
             else
                 continue;
         }
-
-        if (!hit) {
-            payload.color += light.color;
-        }
     }
 }
 
@@ -255,7 +225,6 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
 [shader("miss")]
 void MissOcclusion(inout Payload payload : SV_RayPayload)
 {
-    payload.color = float3(0.4f, 0.4f, 0.4f);
 }
 
 [shader("closesthit")]

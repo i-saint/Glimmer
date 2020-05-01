@@ -557,7 +557,7 @@ void ContextDXR::updateResources()
         if (dirty_materials) {
             bool allocated = updateBuffer(m_buf_materials, m_buf_materials_staging, sizeof(MaterialData) * m_materials.capacity(), [this](MaterialData* dst) {
                 for (auto& pmat : m_materials)
-                    dst[pmat->m_id] = pmat->m_data;
+                    dst[pmat->getID()] = pmat->getData();
             });
             if (allocated) {
                 gptSetName(m_buf_materials, "Material Buffer");
@@ -585,7 +585,7 @@ void ContextDXR::updateResources()
         if (dirty) {
             writeBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
                 for (auto& pmesh : m_meshes)
-                    dst[pmesh->m_id] = pmesh->getData();
+                    dst[pmesh->getID()] = pmesh->getData();
             });
         }
     }
@@ -609,7 +609,7 @@ void ContextDXR::updateResources()
         if (dirty) {
             writeBuffer(m_buf_instances, m_buf_instances_staging, sizeof(InstanceData) * m_mesh_instances.capacity(), [this](InstanceData* dst) {
                 for (auto& pinst : m_mesh_instances)
-                    dst[pinst->m_id] = pinst->m_data;
+                    dst[pinst->getID()] = pinst->getData();
             });
         }
     }

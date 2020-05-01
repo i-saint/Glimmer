@@ -147,6 +147,9 @@ struct MeshData
     int vertex_count = 0;
     int deform_id = -1;
     int flags = 0;
+    float3 bb_min{};
+    float3 bb_max{};
+    float2 pad;
 };
 
 struct InstanceData
