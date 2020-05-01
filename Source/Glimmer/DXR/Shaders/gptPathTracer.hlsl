@@ -17,7 +17,7 @@ Texture2D<float4>               g_textures[]    : register(t0, space5);
 
 float3 CameraPosition()     { return g_scene.camera.position.xyz; }
 float3 CameraRight()        { return g_scene.camera.view[0].xyz; }
-float3 CameraUp()           { return g_scene.camera.view[1].xyz; }
+float3 CameraUp()           { return -g_scene.camera.view[1].xyz; }
 float3 CameraForward()      { return g_scene.camera.view[2].xyz; }
 float CameraFocalLength()   { return abs(g_scene.camera.proj[1][1]); }
 float CameraNearPlane()     { return g_scene.camera.near_plane; }

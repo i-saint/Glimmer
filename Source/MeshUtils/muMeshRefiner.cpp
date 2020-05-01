@@ -320,9 +320,9 @@ void MeshRefiner::setupSubmeshes()
 void MeshRefiner::clear()
 {
     split_unit = 0;
-    counts.reset();
-    indices.reset();
-    points.reset();
+    counts = {};
+    indices = {};
+    points = {};
     for (auto& attr : attributes) {
         attr->clear();
         // attributes are placement new-ed, so need to call destructor manually

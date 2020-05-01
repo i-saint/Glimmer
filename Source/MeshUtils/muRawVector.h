@@ -108,8 +108,8 @@ public:
     const_iterator begin() const { return m_data; }
     const_iterator end() const   { return m_data + m_size; }
 
-    static void* allocate(size_t size) { return muMalloc(size, alignment); }
-    static void deallocate(void *addr, size_t /*size*/) { muFree(addr); }
+    static T* allocate(size_t size) { return (T*)muMalloc(size, alignment); }
+    static void deallocate(T *addr, size_t /*size*/) { muFree(addr); }
 
     void reserve(size_t s)
     {
@@ -118,7 +118,7 @@ public:
             size_t newsize = sizeof(T) * s;
             size_t oldsize = sizeof(T) * m_size;
 
-            T *newdata = (T*)allocate(newsize);
+            T* newdata = allocate(newsize);
             memcpy(newdata, m_data, oldsize);
             deallocate(m_data, oldsize);
             m_data = newdata;
@@ -134,7 +134,7 @@ public:
             size_t oldsize = sizeof(T) * m_size;
 
             deallocate(m_data, oldsize);
-            m_data = (T*)allocate(newsize);
+            m_data = allocate(newsize);
             m_capacity = s;
         }
     }
@@ -153,7 +153,7 @@ public:
         else {
             size_t newsize = sizeof(T) * m_size;
             size_t oldsize = sizeof(T) * m_capacity;
-            T *newdata = (T*)allocate(newsize);
+            T* newdata = allocate(newsize);
             memcpy(newdata, m_data, newsize);
             deallocate(m_data, oldsize);
             m_data = newdata;
@@ -327,13 +327,13 @@ class SharedVector
 {
 template<class _T, int _A> friend class RawVector;
 public:
-    using value_type = T;
-    using reference = T & ;
-    using const_reference = const T&;
-    using pointer = T * ;
-    using const_pointer = const T*;
-    using iterator = pointer;
-    using const_iterator = const_pointer;
+    using value_type        = T;
+    using reference         = T& ;
+    using const_reference   = const T&;
+    using pointer           = T*;
+    using const_pointer     = const T*;
+    using iterator          = pointer;
+    using const_iterator    = const_pointer;
     static const int alignment = Align;
 
     SharedVector() {}

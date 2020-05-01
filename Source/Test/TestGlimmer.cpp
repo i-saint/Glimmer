@@ -6,11 +6,21 @@
 
 TestCase(TestMath)
 {
-    mu::ONBf onb(float3::up());
-    float3 p = mu::cosine_sample_hemisphere(0.5f, 0.5f);
-    float3 r = onb.inverse_transform(p);
-    printf("p: {%f, %f, %f}\n", p.x, p.y, p.z);
-    printf("r: {%f, %f, %f}\n", r.x, r.y, r.z);
+    {
+        mu::ONBf onb(float3::up());
+        float3 p = mu::cosine_sample_hemisphere(0.5f, 0.5f);
+        float3 r = onb.inverse_transform(p);
+        printf("p: {%f, %f, %f}\n", p.x, p.y, p.z);
+        printf("r: {%f, %f, %f}\n", r.x, r.y, r.z);
+    }
+    {
+        auto dir = mu::normalize(float3{ 1.0f, -1.0f, -1.0f });
+        auto rot = mu::look_quat(dir);
+        auto mat = mu::to_mat3x3(rot);
+        auto dir2 = mat * float3{ 0.0f, 0.0f, 1.0f };
+        printf("dir: {%f, %f, %f}\n", dir.x, dir.y, dir.z);
+        printf("dir2: {%f, %f, %f}\n", dir2.x, dir2.y, dir2.z);
+    }
 }
 
 #define EnableWindow
@@ -176,6 +186,7 @@ TestCase(TestMinimum)
             float3 pos{ 0.0f, 2.0f, -8.0f };
             float3 target{ 0.0f, 0.0f, 0.0f };
             pos = mu::to_mat3x3(mu::rotate_y((float)frame * 0.001f)) * pos;
+            pos.y += sin((float)frame * 0.002f) * 1.0f;
             camera->setPosition(pos);
             camera->setDirection(mu::normalize(target - pos));
 

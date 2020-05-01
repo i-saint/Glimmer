@@ -23,24 +23,13 @@ public:
     template<class Container> Span(const Container& v) : m_data(const_cast<T*>(v.data())), m_size(v.size()) {}
     Span& operator=(const Span& v) { m_data = const_cast<T*>(v.m_data); m_size = v.m_size; return *this; }
 
-    void reset()
-    {
-        m_data = nullptr;
-        m_size = 0;
-    }
-
-    void reset(const T *d, size_t s)
-    {
-        m_data = const_cast<T*>(d);
-        m_size = s;
-    }
-
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
     size_t size_bytes() const { return sizeof(T) * m_size; }
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
+    const T* cdata() const { return m_data; }
 
     T& operator[](size_t i) { return m_data[i]; }
     const T& operator[](size_t i) const { return m_data[i]; }
@@ -63,9 +52,9 @@ public:
     {
         memcpy(dst, m_data, sizeof(value_type) * m_size);
     }
-    void copy_to(pointer dst, size_t num_elements) const
+    void copy_to(pointer dst, size_t length, size_t offset = 0) const
     {
-        memcpy(dst, m_data, sizeof(value_type) * num_elements);
+        memcpy(dst, m_data + offset, sizeof(value_type) * length);
     }
 
 private:

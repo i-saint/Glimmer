@@ -1071,18 +1071,16 @@ inline tquat<typename TMat::scalar_t> to_quat_impl(const TMat& m_)
     T root;
     tquat<T> q;
 
-    if (trace > 0.0f)
-    {
+    if (trace > T(0)) {
         // |w| > 1/2, may as well choose w > 1/2
-        root = sqrt(trace + 1.0f);   // 2w
+        root = sqrt(trace + T(1));   // 2w
         q.w = 0.5f * root;
         root = 0.5f / root;  // 1/(4w)
         q.x = (m[2][1] - m[1][2]) * root;
         q.y = (m[0][2] - m[2][0]) * root;
         q.z = (m[1][0] - m[0][1]) * root;
     }
-    else
-    {
+    else {
         // |w| <= 1/2
         int next[3] = { 1, 2, 0 };
         int i = 0;
@@ -1093,7 +1091,7 @@ inline tquat<typename TMat::scalar_t> to_quat_impl(const TMat& m_)
         int j = next[i];
         int k = next[j];
 
-        root = sqrt(m[i][i] - m[j][j] - m[k][k] + T(1.0));
+        root = sqrt(m[i][i] - m[j][j] - m[k][k] + T(1));
         float* qv[3] = { &q.x, &q.y, &q.z };
         *qv[i] = T(0.5) * root;
         root = T(0.5) / root;
@@ -1325,13 +1323,9 @@ template<class T>
 inline tmat3x3<T> look33(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
 {
     auto f = normalize(forward);
-    auto r = normalize(cross(f, up));
+    auto r = normalize(cross(up, f));
     auto u = cross(f, r);
-    return{ {
-        { r.x, u.x, f.x },
-        { r.y, u.y, f.y },
-        { r.z, u.z, f.z },
-    } };
+    return{ { r, u, f } };
 }
 template<class T>
 inline tmat4x4<T> look44(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>::up())
@@ -1340,9 +1334,9 @@ inline tmat4x4<T> look44(const tvec3<T>& forward, const tvec3<T>& up = tvec3<T>:
     auto r = normalize(cross(f, up));
     auto u = cross(f, r);
     return{ {
-        { r.x, u.x, f.x, T(0) },
-        { r.y, u.y, f.y, T(0) },
-        { r.z, u.z, f.z, T(0) },
+        { r.x, r.y, r.z, T(0) },
+        { u.x, u.y, u.z, T(0) },
+        { f.x, f.y, f.z, T(0) },
         {T(0),T(0),T(0), T(1) },
     } };
 }
@@ -1357,12 +1351,12 @@ inline tmat4x4<T> look_at(const tvec3<T>& eye, const tvec3<T>& target, const tve
 {
     auto f = normalize(target - eye);
     auto r = normalize(cross(f, up));
-    auto u = cross(r, f);
+    auto u = cross(f, r);
     auto p = tvec3<T>{ -dot(r, eye), -dot(u, eye), dot(f, eye) };
     return { {
-        { r.x, u.x, f.x, T(0) },
-        { r.y, u.y, f.y, T(0) },
-        { r.z, u.z, f.z, T(0) },
+        { r.x, r.y, r.z, T(0) },
+        { u.x, u.y, u.z, T(0) },
+        { f.x, f.y, f.z, T(0) },
         { p.x, p.y, p.z, T(1) },
     } };
 }
