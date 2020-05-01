@@ -114,8 +114,8 @@ struct LightData
 struct MaterialData
 {
     MaterialType type = MaterialType::Opaque;
-    float3 diffuse = float3::one();
-    float3 emissive = float3::zero();
+    float3 diffuse{ 0.8f, 0.8f, 0.8f };
+    float3 emissive{ 0.0f, 0.0f, 0.0f };
     float roughness = 0.5f;
     float opacity = 1.0f;
     int diffuse_tex = -1;
@@ -215,6 +215,11 @@ public:
 
     RefCount() {}
 
+    void setID(int v)
+    {
+        m_id = v;
+    }
+
     int getID() const override
     {
         return m_id;
@@ -268,7 +273,7 @@ public:
         return m_name.c_str();
     }
 
-public:
+protected:
     std::atomic_int m_ref_external{ 0 };
     std::atomic_int m_ref_internal{ 0 };
     int m_id = 0;
@@ -295,7 +300,7 @@ public:
         m_dirty_flags = 0;
     }
 
-public:
+protected:
     uint32_t m_dirty_flags = 0;
 };
 
@@ -342,7 +347,7 @@ public:
     Texture(int width, int height, Format format);
     void upload(const void* src) override;
 
-public:
+protected:
     int m_width = 0;
     int m_height = 0;
     Format m_format = Format::RGBAu8;
@@ -358,7 +363,7 @@ public:
     RenderTarget(int width, int height, Format format);
     void enableReadback(bool v) override;
 
-public:
+protected:
     int m_width = 0;
     int m_height = 0;
     Format m_format = Format::RGBAu8;
@@ -380,7 +385,9 @@ public:
     void setRoughnessTexture(ITexture* v) override;
     void setEmissiveTexture(ITexture* v) override;
 
-public:
+    const MaterialData& getData();
+
+protected:
     MaterialData m_data;
     TexturePtr m_tex_diffuse;
     TexturePtr m_tex_roughness;
@@ -399,9 +406,14 @@ public:
     void setFOV(float v) override;
     void setNear(float v) override;
     void setFar(float v) override;
+    void setRenderTarget(IRenderTarget* v) override;
 
-public:
+    RenderTarget* getRenderTarget();
+    const CameraData& getData();
+
+protected:
     CameraData m_data;
+    RenderTargetPtr m_render_target;
 };
 gptDefRefPtr(Camera);
 gptDefBaseT(Camera, ICamera)
@@ -418,7 +430,9 @@ public:
     void setSpotAngle(float v) override;
     void setColor(float3 v) override;
 
-public:
+    const LightData& getData();
+
+protected:
     LightData m_data;
 };
 gptDefRefPtr(Light);
@@ -461,7 +475,7 @@ public:
             body(*pf);
     }
 
-public:
+protected:
     Mesh* m_mesh = nullptr;
     std::string m_name;
     std::vector<FramePtr> m_frames;
@@ -497,6 +511,7 @@ public:
 
     int getJointCount() const;
     int getJointWeightCount() const;
+    const float4x4* getJointBindposes() const;
     void exportJointCounts(JointCount* dst) const;
     void exportJointWeights(JointWeight* dst) const;
 
@@ -514,7 +529,9 @@ public:
             body(*pbs);
     }
 
-public:
+    const MeshData& getData();
+
+protected:
     MeshData m_data;
     RawVector<int>    m_indices;
     RawVector<float3> m_points;
@@ -546,7 +563,11 @@ public:
     void exportJointMatrices(float4x4* dst);
     void exportBlendshapeWeights(float* dst);
 
-public:
+    Mesh* getMesh();
+    Material* getMaterial();
+    const InstanceData& getData();
+
+protected:
     InstanceData m_data;
     MeshPtr m_mesh;
     MaterialPtr m_material;
@@ -566,7 +587,6 @@ public:
     void setEnabled(bool v) override;
     void setBackgroundColor(float3 v) override;
 
-    void setRenderTarget(IRenderTarget* v) override;
     void setCamera(ICamera* v) override;
     void addLight(ILight* v) override;
     void removeLight(ILight* v) override;
@@ -574,13 +594,14 @@ public:
     void removeMesh(IMeshInstance* v) override;
     void clear() override;
 
-    void updateData();
+    Camera* getCamera();
+    const SceneData& getData();
+    void incrementFrameCount();
 
-public:
+protected:
     bool m_enabled = true;
     SceneData m_data;
     CameraPtr m_camera;
-    RenderTargetPtr m_render_target;
     std::vector<LightPtr> m_lights;
     std::vector<MeshInstancePtr> m_instances;
 };

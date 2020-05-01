@@ -175,6 +175,11 @@ void Material::setEmissiveTexture(ITexture* v)
     markDirty(DirtyFlag::Material);
 }
 
+const MaterialData& Material::getData()
+{
+    return m_data;
+}
+
 
 Camera::Camera()
 {
@@ -206,6 +211,25 @@ void Camera::setFar(float v)
 {
     m_data.far_plane = v;
     markDirty(DirtyFlag::Camera);
+}
+
+void Camera::setRenderTarget(IRenderTarget* v)
+{
+    m_render_target = base_t(v);
+    markDirty(DirtyFlag::Camera);
+}
+
+RenderTarget* Camera::getRenderTarget()
+{
+    return m_render_target;
+}
+
+const CameraData& Camera::getData()
+{
+    if (isDirty(DirtyFlag::Camera)) {
+        // todo: update matrices
+    }
+    return m_data;
 }
 
 
@@ -248,6 +272,11 @@ void Light::setColor(float3 v)
 {
     m_data.color = v;
     markDirty(DirtyFlag::Light);
+}
+
+const LightData& Light::getData()
+{
+    return m_data;
 }
 
 
@@ -505,6 +534,11 @@ int Mesh::getJointWeightCount() const
     return (int)m_joint_weights.size();
 }
 
+const float4x4* Mesh::getJointBindposes() const
+{
+    return m_joint_bindposes.data();
+}
+
 void Mesh::exportJointCounts(JointCount* dst) const
 {
     int offset = 0;
@@ -575,6 +609,11 @@ void Mesh::exportBlendshapeDelta(vertex_t* dst) const
             dst += vc;
         }
     });
+}
+
+const MeshData& Mesh::getData()
+{
+    return m_data;
 }
 
 
@@ -649,8 +688,9 @@ void MeshInstance::exportJointMatrices(float4x4* dst)
     // both cases work, but identity matrix means world space skinning that is not optimal.
 
     auto iroot = mu::invert(m_data.local_to_world);
+    auto* bindposes = mesh.getJointBindposes();
     for (int ji = 0; ji < n; ++ji)
-        *dst++ = mesh.m_joint_bindposes[ji] * m_joint_matrices[ji] * iroot;
+        *dst++ = bindposes[ji] * m_joint_matrices[ji] * iroot;
 }
 
 void MeshInstance::exportBlendshapeWeights(float* dst)
@@ -666,6 +706,21 @@ void MeshInstance::exportBlendshapeWeights(float* dst)
     m_blendshape_weights.copy_to(dst);
 }
 
+Mesh* MeshInstance::getMesh()
+{
+    return m_mesh;
+}
+
+Material* MeshInstance::getMaterial()
+{
+    return m_material;
+}
+
+const InstanceData& MeshInstance::getData()
+{
+    return m_data;
+}
+
 
 void Scene::setEnabled(bool v)
 {
@@ -677,12 +732,6 @@ void Scene::setBackgroundColor(float3 v)
 {
     m_data.bg_color = v;
     markDirty(DirtyFlag::Scene);
-}
-
-void Scene::setRenderTarget(IRenderTarget* v)
-{
-    m_render_target = base_t(v);
-    markDirty(DirtyFlag::RenderTarget);
 }
 
 void Scene::setCamera(ICamera* v)
@@ -717,26 +766,36 @@ void Scene::removeMesh(IMeshInstance* v)
 
 void Scene::clear()
 {
-    m_render_target.reset();
     m_camera.reset();
     m_lights.clear();
     m_instances.clear();
     markDirty(DirtyFlag::SceneEntities);
 }
 
-void Scene::updateData()
+Camera* Scene::getCamera()
 {
-    m_data.frame++;
+    return m_camera;
+}
+
+const SceneData& Scene::getData()
+{
     m_data.samples_per_frame = Globals::getInstance().getSamplesPerFrame();
     m_data.max_trace_depth = Globals::getInstance().getMaxTraceDepth();
 
     if (m_camera)
-        m_data.camera = m_camera->m_data;
+        m_data.camera = m_camera->getData();
 
     int nlights = std::min((int)m_lights.size(), gptMaxLights);
     m_data.light_count = nlights;
     for (int li = 0; li < nlights; ++li)
-        m_data.lights[li] = m_lights[li]->m_data;
+        m_data.lights[li] = m_lights[li]->getData();
+
+    return m_data;
+}
+
+void Scene::incrementFrameCount()
+{
+    m_data.frame++;
 }
 
 } // namespace gpt 

@@ -585,7 +585,7 @@ void ContextDXR::updateResources()
         if (dirty) {
             writeBuffer(m_buf_meshes, m_buf_meshes_staging, sizeof(MeshData) * m_meshes.capacity(), [this](MeshData* dst) {
                 for (auto& pmesh : m_meshes)
-                    dst[pmesh->m_id] = pmesh->m_data;
+                    dst[pmesh->m_id] = pmesh->getData();
             });
         }
     }
@@ -712,13 +712,16 @@ void ContextDXR::dispatchRays()
 
     // dispatch for each enabled scene
     each_ref(m_scenes, [&](auto& scene) {
-        if (!scene.m_enabled || !scene.m_render_target)
+        if (!scene.m_enabled)
             return;
 
-        auto& rt = dxr_t(*scene.m_render_target);
-        cl_rays->SetComputeRootDescriptorTable(0, rt.m_uav_frame_buffer.hgpu);
-        cl_rays->SetComputeRootDescriptorTable(1, scene.m_srv_tlas.hgpu);
-        do_dispatch(rt.m_frame_buffer, RayGenType::Default);
+        auto cam = scene.getCamera();
+        auto rt = cam ? dxr_t(cam->getRenderTarget()) : nullptr;
+        if (rt) {
+            cl_rays->SetComputeRootDescriptorTable(0, rt->m_uav_frame_buffer.hgpu);
+            cl_rays->SetComputeRootDescriptorTable(1, scene.m_srv_tlas.hgpu);
+            do_dispatch(rt->m_frame_buffer, RayGenType::Default);
+        }
     });
     gptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
 

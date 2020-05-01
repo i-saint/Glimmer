@@ -38,7 +38,7 @@ TestCase(TestMinimum)
     auto render_target = ctx->createRenderTarget(window, rt_format);
 
     render_target->enableReadback(true);
-    scene->setRenderTarget(render_target);
+    camera->setRenderTarget(render_target);
     scene->setCamera(camera);
     scene->addLight(light);
 
@@ -90,9 +90,9 @@ TestCase(TestMinimum)
         };
 
         static const float3 delta_points[]{
-            {-10.0f, 0.0f, 0.0f},
-            {-20.0f, 0.0f, 0.0f},
-            {-30.0f, 0.0f, 0.0f},
+            {0.0f, -1.0f, 0.0f},
+            {0.0f, -2.0f, 0.0f},
+            {0.0f, -3.0f, 0.0f},
         };
 
         auto triangle = ctx->createMesh();
@@ -113,9 +113,9 @@ TestCase(TestMinimum)
         }
 
         static const float4x4 joint_matrices[]{
-            mu::translate(float3{0.0f, 0.0f, -10.0f}),
-            mu::translate(float3{0.0f, 0.0f, -20.0f}),
-            mu::translate(float3{0.0f, 0.0f, -30.0f}),
+            mu::translate(float3{0.0f, 0.0f, -1.0f}),
+            mu::translate(float3{0.0f, 0.0f, -2.0f}),
+            mu::translate(float3{0.0f, 0.0f, -3.0f}),
         };
         static const float bs_weights[]{
             1.0f,

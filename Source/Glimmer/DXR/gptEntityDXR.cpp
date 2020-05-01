@@ -482,7 +482,7 @@ void SceneDXR::updateResources()
 {
     if (!m_enabled)
         return;
-    updateData();
+    incrementFrameCount();
 
     ContextDXR* ctx = m_context;
 
@@ -497,7 +497,7 @@ void SceneDXR::updateResources()
     // size of constant buffer must be multiple of 256
     int cb_size = align_to(256, sizeof(SceneData));
     bool allocated = ctx->updateBuffer(m_buf_scene, m_buf_scene_staging, cb_size, [this](SceneData* mapped) {
-        *mapped = m_data;
+        *mapped = getData();
     });
     if (allocated) {
         gptSetName(m_buf_scene, m_name + " Scene Buffer");
@@ -544,11 +544,11 @@ void SceneDXR::updateTLAS()
         UINT n = (UINT)m_instances.size();
         for (UINT i = 0; i < n; ++i) {
             auto& inst = dxr_t(*m_instances[i]);
-            auto& mesh = dxr_t(*inst.m_mesh);
+            auto& mesh = dxr_t(*inst.getMesh());
             auto& blas = inst.m_blas ? inst.m_blas : mesh.m_blas;
 
-            (float3x4&)desc.Transform = to_mat3x4(inst.m_data.local_to_world);
-            desc.InstanceID = inst.m_id;
+            (float3x4&)desc.Transform = to_mat3x4(inst.getData().local_to_world);
+            desc.InstanceID = inst.getID();
             desc.InstanceMask = ~0;
             desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
             desc.AccelerationStructure = blas->GetGPUVirtualAddress();

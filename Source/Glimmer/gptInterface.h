@@ -239,6 +239,7 @@ public:
     virtual void setFOV(float v) = 0;
     virtual void setNear(float v) = 0;
     virtual void setFar(float v) = 0;
+    virtual void setRenderTarget(IRenderTarget* v) = 0;
 };
 using ICameraPtr = ref_ptr<ICamera>;
 
@@ -296,7 +297,6 @@ public:
     virtual void setEnabled(bool v) = 0;
     virtual void setBackgroundColor(float3 v) = 0;
 
-    virtual void setRenderTarget(IRenderTarget* v) = 0;
     virtual void setCamera(ICamera* v) = 0;
     virtual void addLight(ILight* v) = 0;
     virtual void removeLight(ILight* v) = 0;

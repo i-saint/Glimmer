@@ -105,7 +105,7 @@ int DeformerDXR::deform()
 
     int ret = 0;
     each_ref(ctx->m_mesh_instances, [&](auto& inst) {
-        auto& mesh = dxr_t(*inst.m_mesh);
+        auto& mesh = dxr_t(*inst.getMesh());
         if (mesh.hasJoints() || mesh.hasBlendshapes()) {
             cl->SetComputeRootDescriptorTable(0, inst.m_uav_vertices.hgpu);
             cl->SetComputeRootDescriptorTable(1, mesh.m_srv_vertices.hgpu);
