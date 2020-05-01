@@ -347,6 +347,9 @@ public:
     Texture(int width, int height, Format format);
     void upload(const void* src) override;
 
+    int getWidth() const override;
+    int getHeight() const override;
+
 protected:
     int m_width = 0;
     int m_height = 0;
@@ -362,6 +365,9 @@ class RenderTarget : public EntityBase<IRenderTarget>
 public:
     RenderTarget(int width, int height, Format format);
     void enableReadback(bool v) override;
+
+    int getWidth() const override;
+    int getHeight() const override;
 
 protected:
     int m_width = 0;
@@ -384,6 +390,14 @@ public:
     void setDiffuseTexture(ITexture* v) override;
     void setRoughnessTexture(ITexture* v) override;
     void setEmissiveTexture(ITexture* v) override;
+
+    MaterialType getType() const override;
+    float3       getDiffuse() const override;
+    float        getRoughness() const override;
+    float3       getEmissive() const override;
+    ITexture*    getDiffuseTexture() const override;
+    ITexture*    getRoughnessTexture() const override;
+    ITexture*    getEmissiveTexture() const override;
 
     const MaterialData& getData();
 
@@ -430,6 +444,13 @@ public:
     void setSpotAngle(float v) override;
     void setColor(float3 v) override;
 
+    LightType getType() const override;
+    float3    getPosition() const override;
+    float3    getDirection() const override;
+    float     getRange() const override;
+    float     getSpotAngle() const override;
+    float3    getColor() const override;
+
     const LightData& getData();
 
 protected:
@@ -441,27 +462,31 @@ gptDefBaseT(Light, ILight)
 
 class Mesh;
 
+class BlendshapeFrame : public IBlendshapeFrame
+{
+public:
+    BlendshapeFrame(float weight);
+    void setDeltaPoints(const float3* v, size_t n) override;
+    void setDeltaNormals(const float3* v, size_t n) override;
+    void setDeltaTangents(const float3* v, size_t n) override;
+    void setDeltaUV(const float2* v, size_t n) override;
+
+public:
+    RawVector<float3> m_delta_points;
+    RawVector<float3> m_delta_normals;
+    RawVector<float3> m_delta_tangents;
+    RawVector<float2> m_delta_uv;
+    float m_weight = 1.0f;
+};
+using BlendshapeFramePtr = std::shared_ptr<BlendshapeFrame>;
+
 class Blendshape : public IBlendshape
 {
 public:
-    struct Frame
-    {
-        RawVector<float3> delta_points;
-        RawVector<float3> delta_normals;
-        RawVector<float3> delta_tangents;
-        RawVector<float2> delta_uv;
-        float weight = 1.0f;
-    };
-    using FramePtr = std::shared_ptr<Frame>;
 
     Blendshape(Mesh* mesh);
     void setName(const char* name) override;
-    int addFrame() override;
-    void setWeight(int frame, float v) override;
-    void setDeltaPoints(int frame, const float3* v, size_t n) override;
-    void setDeltaNormals(int frame, const float3* v, size_t n) override;
-    void setDeltaTangents(int frame, const float3* v, size_t n) override;
-    void setDeltaUV(int frame, const float2* v, size_t n) override;
+    IBlendshapeFrame* addFrame(float weight) override;
 
     int getFrameCount() const;
     void exportDelta(int frame, vertex_t* dst) const;
@@ -478,7 +503,7 @@ public:
 protected:
     Mesh* m_mesh = nullptr;
     std::string m_name;
-    std::vector<FramePtr> m_frames;
+    std::vector<BlendshapeFramePtr> m_frames;
 };
 using BlendshapePtr = std::shared_ptr<Blendshape>;
 

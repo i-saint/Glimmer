@@ -38,7 +38,7 @@ bool RenderTargetDXR::readback(void* dst)
     }
 }
 
-void* RenderTargetDXR::getDeviceObject()
+void* RenderTargetDXR::getDeviceObject() const
 {
     return m_frame_buffer;
 }
@@ -112,7 +112,7 @@ TextureDXR::TextureDXR(int width, int height, Format format)
 {
 }
 
-void* TextureDXR::getDeviceObject()
+void* TextureDXR::getDeviceObject() const
 {
     return m_texture;
 }

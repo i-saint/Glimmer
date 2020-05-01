@@ -35,7 +35,7 @@ public:
     RenderTargetDXR(int width, int height, Format format);
     RenderTargetDXR(IWindow* window, Format format);
     bool readback(void* dst) override;
-    void* getDeviceObject() override;
+    void* getDeviceObject() const override;
 
     void updateResources();
     void readback();
@@ -71,7 +71,7 @@ using super = DXREntity<Texture>;
 friend class ContextDXR;
 public:
     TextureDXR(int width, int height, Format format);
-    void* getDeviceObject() override;
+    void* getDeviceObject() const override;
 
     void updateResources();
 

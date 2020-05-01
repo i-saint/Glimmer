@@ -1159,6 +1159,12 @@ template<class T> inline tmat4x4<T> transform(const tvec3<T>& t, const tquat<T>&
     (tvec3<T>&)ret[3] = t;
     return ret;
 }
+template<class T> inline tmat4x4<T> transform(const tvec3<T>& t, const tquat<T>& r)
+{
+    auto ret = to_mat4x4(r);
+    (tvec3<T>&)ret[3] = t;
+    return ret;
+}
 
 template<class T> inline tmat4x4<T> transform(const std::tuple<tvec3<T>, tquat<T>, tvec3<T>>& v)
 {

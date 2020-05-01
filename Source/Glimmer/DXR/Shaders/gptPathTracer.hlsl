@@ -18,7 +18,7 @@ Texture2D<float4>               g_textures[]    : register(t0, space5);
 float3 CameraPosition()     { return g_scene.camera.position.xyz; }
 float3 CameraRight()        { return g_scene.camera.view[0].xyz; }
 float3 CameraUp()           { return g_scene.camera.view[1].xyz; }
-float3 CameraForward()      { return -g_scene.camera.view[2].xyz; }
+float3 CameraForward()      { return g_scene.camera.view[2].xyz; }
 float CameraFocalLength()   { return abs(g_scene.camera.proj[1][1]); }
 float CameraNearPlane()     { return g_scene.camera.near_plane; }
 float CameraFarPlane()      { return g_scene.camera.far_plane; }
@@ -140,15 +140,38 @@ void RayGenRadiance()
     Payload payload = ShootRadianceRay();
     g_frame_buffer[screen_idx] = float4(payload.color, payload.t);
 
-    uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, FrameCount());
-    g_frame_buffer[screen_idx] = float4(
-        rnd(seed) - 0.5f,
-        rnd(seed) - 0.5f,
-        rnd(seed) - 0.5f,
-        rnd(seed) - 0.5f
-    );
-    //if (screen_idx.x < 3 && screen_idx.y == 0) {
-    //    g_frame_buffer[screen_idx].xyz = g_vertices_d[0][screen_idx.x].position;
+    //uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, FrameCount());
+    //g_frame_buffer[screen_idx] = float4(
+    //    rnd(seed) - 0.5f,
+    //    rnd(seed) - 0.5f,
+    //    rnd(seed) - 0.5f,
+    //    rnd(seed) - 0.5f
+    //);
+
+    //if (screen_idx.y == 0) {
+    //    RayDesc rd = GetCameraRay();
+    //    if (screen_idx.x == 0)
+    //        g_frame_buffer[screen_idx].xyz = rd.Origin;
+    //    if (screen_idx.x == 1)
+    //        g_frame_buffer[screen_idx].xyz = rd.Direction;
+    //    if (screen_idx.x == 2)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.view[0];
+    //    if (screen_idx.x == 3)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.view[1];
+    //    if (screen_idx.x == 4)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.view[2];
+    //    if (screen_idx.x == 5)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.view[3];
+    //    if (screen_idx.x == 6)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[0];
+    //    if (screen_idx.x == 7)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[1];
+    //    if (screen_idx.x == 8)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[2];
+    //    if (screen_idx.x == 9)
+    //        g_frame_buffer[screen_idx] = g_scene.camera.proj[3];
+    //    if (screen_idx.x == 10)
+    //        g_frame_buffer[screen_idx] = float4(9, 99, 999, 9999);
     //}
 }
 

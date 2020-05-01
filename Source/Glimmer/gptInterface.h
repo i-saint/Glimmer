@@ -139,20 +139,16 @@ public:
         std::swap(m_ptr, v->m_data);
     }
 
-    T* get() { return m_ptr; }
-    const T* get() const { return m_ptr; }
+    T* get() const { return m_ptr; }
 
     T& operator*() { return *m_ptr; }
     const T& operator*() const { return *m_ptr; }
     T* operator->() { return m_ptr; }
     const T* operator->() const { return m_ptr; }
-    operator T* () { return m_ptr; }
-    operator const T* () const { return m_ptr; }
+    operator T* () const { return m_ptr; }
     operator bool() const { return m_ptr; }
     bool operator==(const ref_ptr<T>& v) const { return m_ptr == v.m_ptr; }
     bool operator!=(const ref_ptr<T>& v) const { return m_ptr != v.m_ptr; }
-    template<class U> bool operator==(const U* v) const { return m_ptr == v; }
-    template<class U> bool operator!=(const U* v) const { return m_ptr != v; }
 
 private:
     T* m_ptr = nullptr;
@@ -189,7 +185,10 @@ class ITexture : public IObject
 {
 public:
     virtual void upload(const void* src) = 0;
-    virtual void* getDeviceObject() = 0;
+
+    virtual int   getWidth() const = 0;
+    virtual int   getHeight() const = 0;
+    virtual void* getDeviceObject() const = 0;
 };
 using ITexturePtr = ref_ptr<ITexture>;
 
@@ -199,7 +198,10 @@ class IRenderTarget : public IObject
 public:
     virtual void enableReadback(bool v) = 0;
     virtual bool readback(void* dst) = 0;
-    virtual void* getDeviceObject() = 0;
+
+    virtual int   getWidth() const = 0;
+    virtual int   getHeight() const = 0;
+    virtual void* getDeviceObject() const = 0;
 };
 using IRenderTargetPtr = ref_ptr<IRenderTarget>;
 
@@ -214,6 +216,14 @@ public:
     virtual void setDiffuseTexture(ITexture* v) = 0;
     virtual void setRoughnessTexture(ITexture* v) = 0;
     virtual void setEmissiveTexture(ITexture* v) = 0;
+
+    virtual MaterialType getType() const = 0;
+    virtual float3       getDiffuse() const = 0;
+    virtual float        getRoughness() const = 0;
+    virtual float3       getEmissive() const = 0;
+    virtual ITexture*    getDiffuseTexture() const = 0;
+    virtual ITexture*    getRoughnessTexture() const = 0;
+    virtual ITexture*    getEmissiveTexture() const = 0;
 };
 using IMaterialPtr = ref_ptr<IMaterial>;
 
@@ -227,6 +237,13 @@ public:
     virtual void setRange(float v) = 0;
     virtual void setSpotAngle(float v) = 0;
     virtual void setColor(float3 v) = 0;
+
+    virtual LightType getType() const = 0;
+    virtual float3    getPosition() const = 0;
+    virtual float3    getDirection() const = 0;
+    virtual float     getRange() const = 0;
+    virtual float     getSpotAngle() const = 0;
+    virtual float3    getColor() const = 0;
 };
 using ILightPtr = ref_ptr<ILight>;
 
@@ -244,17 +261,22 @@ public:
 using ICameraPtr = ref_ptr<ICamera>;
 
 
+class IBlendshapeFrame
+{
+public:
+    virtual ~IBlendshapeFrame() {}
+    virtual void setDeltaPoints(const float3* v, size_t n) = 0;
+    virtual void setDeltaNormals(const float3* v, size_t n) = 0;
+    virtual void setDeltaTangents(const float3* v, size_t n) = 0;
+    virtual void setDeltaUV(const float2* v, size_t n) = 0;
+};
+
 class IBlendshape
 {
 public:
     virtual ~IBlendshape() {}
     virtual void setName(const char* name) = 0;
-    virtual int addFrame() = 0;
-    virtual void setWeight(int frame, float v) = 0; // 0.0f - 1.0f
-    virtual void setDeltaPoints(int frame, const float3* v, size_t n) = 0;
-    virtual void setDeltaNormals(int frame, const float3* v, size_t n) = 0;
-    virtual void setDeltaTangents(int frame, const float3* v, size_t n) = 0;
-    virtual void setDeltaUV(int frame, const float2* v, size_t n) = 0;
+    virtual IBlendshapeFrame* addFrame(float weight = 1.0f) = 0;
 };
 
 class IMesh : public IObject

@@ -13,6 +13,8 @@ TestCase(TestMath)
     printf("r: {%f, %f, %f}\n", r.x, r.y, r.z);
 }
 
+#define EnableWindow
+
 TestCase(TestMinimum)
 {
     gptGetGlobals()->enableTimestamp(true);
@@ -27,20 +29,31 @@ TestCase(TestMinimum)
 
     const int rt_width = 1024;
     const int rt_height = 1024;
-    //const auto rt_format = gpt::Format::RGBAf32;
+#ifdef EnableWindow
     const auto rt_format = gpt::Format::RGBAu8;
     auto window = gptCreateWindow(rt_width, rt_height);
+    auto render_target = ctx->createRenderTarget(window, rt_format);
+#else
+    const auto rt_format = gpt::Format::RGBAf32;
+    auto render_target = ctx->createRenderTarget(rt_width, rt_height, rt_format);
+#endif
 
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();
     auto light = ctx->createLight();
     auto material = ctx->createMaterial();
-    auto render_target = ctx->createRenderTarget(window, rt_format);
 
     render_target->enableReadback(true);
     camera->setRenderTarget(render_target);
     scene->setCamera(camera);
     scene->addLight(light);
+
+    {
+        float3 pos{ 0.0f, 2.0f, -8.0f };
+        float3 target{ 0.0f, 0.0f, 0.0f };
+        camera->setPosition(pos);
+        camera->setDirection(mu::normalize(target - pos));
+    }
 
     // create meshes
     {
@@ -108,8 +121,8 @@ TestCase(TestMinimum)
         {
             // bllendshapes
             auto bs = triangle->addBlendshape();
-            int f = bs->addFrame();
-            bs->setDeltaPoints(f, delta_points, _countof(delta_points));
+            auto frame = bs->addFrame();
+            frame->setDeltaPoints(delta_points, _countof(delta_points));
         }
 
         static const float4x4 joint_matrices[]{
@@ -149,16 +162,26 @@ TestCase(TestMinimum)
     }
 
     // render!
-    RawVector<float4> readback_buffer;
-    while (!window->isClosed()) {
-        window->processMessages();
-
+#ifdef EnableWindow
+    {
+        while (!window->isClosed()) {
+            window->processMessages();
+            ctx->render();
+            ctx->finish();
+            printf("%s\n", ctx->getTimestampLog());
+        }
+    }
+#else
+    {
         ctx->render();
         ctx->finish();
 
-        readback_buffer.resize(window->getWidth() * window->getHeight(), mu::nan<float4>());
+        RawVector<float4> readback_buffer;
+        readback_buffer.resize(rt_width * rt_height, mu::nan<float4>());
         render_target->readback(readback_buffer.data());
         printf("%s\n", ctx->getTimestampLog());
     }
+#endif
+
 }
 

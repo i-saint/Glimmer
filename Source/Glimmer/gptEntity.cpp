@@ -110,6 +110,9 @@ void Texture::upload(const void* src)
     markDirty(DirtyFlag::TextureData);
 }
 
+int Texture::getWidth() const { return m_width; }
+int Texture::getHeight() const { return m_height; }
+
 
 RenderTarget::RenderTarget(int width, int height, Format format)
 {
@@ -123,6 +126,9 @@ void RenderTarget::enableReadback(bool v)
 {
     m_readback_enabled = v;
 }
+
+int RenderTarget::getWidth() const { return m_width; }
+int RenderTarget::getHeight() const { return m_height; }
 
 
 Material::Material()
@@ -174,6 +180,14 @@ void Material::setEmissiveTexture(ITexture* v)
     m_data.emissive_tex = GetID(m_tex_emissive);
     markDirty(DirtyFlag::Material);
 }
+
+MaterialType Material::getType() const { return m_data.type; }
+float3 Material::getDiffuse() const { return m_data.diffuse; }
+float Material::getRoughness() const { return m_data.roughness; }
+float3 Material::getEmissive() const { return m_data.emissive; }
+ITexture* Material::getDiffuseTexture() const { return m_tex_diffuse; }
+ITexture* Material::getRoughnessTexture() const { return m_tex_roughness; }
+ITexture* Material::getEmissiveTexture() const { return m_tex_emissive; }
 
 const MaterialData& Material::getData()
 {
@@ -227,7 +241,12 @@ RenderTarget* Camera::getRenderTarget()
 const CameraData& Camera::getData()
 {
     if (isDirty(DirtyFlag::Camera)) {
-        // todo: update matrices
+        float aspect = (float)m_render_target->getWidth() / (float)m_render_target->getHeight();
+        m_data.proj = mu::perspective(m_data.fov, aspect, m_data.near_plane, m_data.far_plane);
+
+        auto view = mu::transpose(mu::to_mat4x4(m_data.rotation));
+        (float3&)view[3] = -m_data.position;
+        m_data.view = view;
     }
     return m_data;
 }
@@ -274,11 +293,40 @@ void Light::setColor(float3 v)
     markDirty(DirtyFlag::Light);
 }
 
+LightType Light::getType() const { return m_data.type; }
+float3 Light::getPosition() const { return m_data.position; }
+float3 Light::getDirection() const { return m_data.direction; }
+float Light::getRange() const { return m_data.range; }
+float Light::getSpotAngle() const { return m_data.spot_angle; }
+float3 Light::getColor() const { return m_data.color; }
+
 const LightData& Light::getData()
 {
     return m_data;
 }
 
+
+BlendshapeFrame::BlendshapeFrame(float w)
+    : m_weight(w)
+{
+}
+
+void BlendshapeFrame::setDeltaPoints(const float3* v, size_t n)
+{
+    m_delta_points.assign(v, n);
+}
+void BlendshapeFrame::setDeltaNormals(const float3* v, size_t n)
+{
+    m_delta_normals.assign(v, n);
+}
+void BlendshapeFrame::setDeltaTangents(const float3* v, size_t n)
+{
+    m_delta_tangents.assign(v, n);
+}
+void BlendshapeFrame::setDeltaUV(const float2* v, size_t n)
+{
+    m_delta_uv.assign(v, n);
+}
 
 Blendshape::Blendshape(Mesh* mesh)
     : m_mesh(mesh)
@@ -288,36 +336,14 @@ void Blendshape::setName(const char* name)
 {
     m_name = name;
 }
-int Blendshape::addFrame()
+
+IBlendshapeFrame* Blendshape::addFrame(float weight)
 {
-    int ret = (int)m_frames.size();
-    m_frames.push_back(std::make_unique<Frame>());
-    return ret;
-}
-void Blendshape::setWeight(int frame, float v)
-{
-    m_frames[frame]->weight = v;
-    m_mesh->markDirty(DirtyFlag::Blendshape);
-}
-void Blendshape::setDeltaPoints(int frame, const float3* v, size_t n)
-{
-    m_frames[frame]->delta_points.assign(v, n);
-    m_mesh->markDirty(DirtyFlag::Blendshape);
-}
-void Blendshape::setDeltaNormals(int frame, const float3* v, size_t n)
-{
-    m_frames[frame]->delta_normals.assign(v, n);
-    m_mesh->markDirty(DirtyFlag::Blendshape);
-}
-void Blendshape::setDeltaTangents(int frame, const float3* v, size_t n)
-{
-    m_frames[frame]->delta_tangents.assign(v, n);
-    m_mesh->markDirty(DirtyFlag::Blendshape);
-}
-void Blendshape::setDeltaUV(int frame, const float2* v, size_t n)
-{
-    m_frames[frame]->delta_uv.assign(v, n);
-    m_mesh->markDirty(DirtyFlag::Blendshape);
+    auto ret = std::make_shared<BlendshapeFrame>(weight);
+    m_frames.push_back(ret);
+    std::sort(m_frames.begin(), m_frames.end(),
+        [](auto& a, auto& b) { return a->m_weight < b->m_weight; });
+    return ret.get();
 }
 
 int Blendshape::getFrameCount() const
@@ -328,11 +354,11 @@ int Blendshape::getFrameCount() const
 void Blendshape::exportDelta(int frame, vertex_t* dst) const
 {
     int vc = m_mesh->getVertexCount();
-    const Frame& f = *m_frames[frame];
-    auto* points    = f.delta_points.empty() ? GetDummyBuffer<float3>(vc) : f.delta_points.cdata();
-    auto* normals   = f.delta_normals.empty() ? GetDummyBuffer<float3>(vc) : f.delta_normals.cdata();
-    auto* tangents  = f.delta_tangents.empty() ? GetDummyBuffer<float3>(vc) : f.delta_tangents.cdata();
-    auto* uv        = f.delta_uv.empty() ? GetDummyBuffer<float2>(vc) : f.delta_uv.cdata();
+    auto& f = *m_frames[frame];
+    auto* points    = f.m_delta_points.empty() ? GetDummyBuffer<float3>(vc) : f.m_delta_points.cdata();
+    auto* normals   = f.m_delta_normals.empty() ? GetDummyBuffer<float3>(vc) : f.m_delta_normals.cdata();
+    auto* tangents  = f.m_delta_tangents.empty() ? GetDummyBuffer<float3>(vc) : f.m_delta_tangents.cdata();
+    auto* uv        = f.m_delta_uv.empty() ? GetDummyBuffer<float2>(vc) : f.m_delta_uv.cdata();
 
     vertex_t tmp{};
     for (int vi = 0; vi < vc; ++vi) {
@@ -592,7 +618,7 @@ void Mesh::exportBlendshapeFrames(BlendshapeFrameData* dst) const
     eachBlendshape([&](auto& bs) {
         bs.eachFrame([&](auto& frame) {
             tmp.delta_offset = offset;
-            tmp.weight = frame.weight;
+            tmp.weight = frame.m_weight;
             offset += vc;
             *dst++ = tmp;
         });
