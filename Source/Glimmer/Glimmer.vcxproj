@@ -30,7 +30,6 @@
     <ClInclude Include="DXR\gptInternalDXR.h" />
     <ClInclude Include="DXR\Shaders\gptCommon.h" />
     <ClInclude Include="DXR\Shaders\gptMath.h" />
-    <ClInclude Include="DXR\Shaders\gptRandom.h" />
     <ClInclude Include="Foundation\gptLog.h" />
     <ClInclude Include="Foundation\gptUtils.h" />
     <ClInclude Include="gptEntity.h" />

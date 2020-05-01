@@ -319,7 +319,7 @@ bool ContextDXR::initializeDevice()
 
         // scene data
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
@@ -741,7 +741,6 @@ void ContextDXR::wait()
     auto& queue = m_cmd_queue_direct;
     auto fv = incrementFenceValue();
     queue->Signal(m_fence, fv);
-    queue->Wait(m_fence, fv);
     m_fence->SetEventOnCompletion(fv, m_fence_event);
     ::WaitForSingleObject(m_fence_event, kTimeoutMS);
 }

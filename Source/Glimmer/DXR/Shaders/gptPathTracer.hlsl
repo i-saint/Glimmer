@@ -4,7 +4,6 @@
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
 RWTexture2D<float4>             g_accum_buffer  : register(u1, space0);
 RaytracingAccelerationStructure g_tlas          : register(t0, space0);
-Texture2D<float4>               g_prev_buffer   : register(t1, space0);
 ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);

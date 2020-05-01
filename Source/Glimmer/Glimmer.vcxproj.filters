@@ -66,9 +66,6 @@
     <ClInclude Include="DXR\Shaders\gptCommon.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
-    <ClInclude Include="DXR\Shaders\gptRandom.h">
-      <Filter>DXR\Shaders</Filter>
-    </ClInclude>
     <ClInclude Include="DXR\Shaders\gptMath.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>

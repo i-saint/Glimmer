@@ -202,9 +202,7 @@ public:
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
     DescriptorHandleDXR m_srv_tlas;
-    DescriptorHandleDXR m_srv_prev_buffer;
     DescriptorHandleDXR m_cbv_scene;
-    DescriptorHandleDXR m_srv_tmp;
 
     ID3D12ResourcePtr m_tlas_instance_desc;
     ID3D12ResourcePtr m_tlas_scratch;

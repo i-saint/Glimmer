@@ -489,10 +489,8 @@ void SceneDXR::updateResources()
     // desc heap
     if (!m_srv_tlas) {
         auto& desc_alloc = ctx->m_desc_alloc;
-        m_srv_tlas          = desc_alloc.allocate();
-        m_srv_prev_buffer   = desc_alloc.allocate();
-        m_cbv_scene         = desc_alloc.allocate();
-        m_srv_tmp           = desc_alloc.allocate();
+        m_srv_tlas  = desc_alloc.allocate();
+        m_cbv_scene = desc_alloc.allocate();
     }
 
     // scene constant buffer

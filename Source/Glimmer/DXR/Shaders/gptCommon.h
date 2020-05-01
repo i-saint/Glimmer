@@ -9,7 +9,9 @@ enum LightType
 
 enum MaterialType
 {
-    MT_DEFAULT,
+    MT_OPAQUE,
+    MT_TRANSPARENT,
+    MT_TRANSLUCENT,
 };
 
 enum RayType

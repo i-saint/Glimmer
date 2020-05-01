@@ -31,7 +31,9 @@ enum class LightType : uint32_t
 
 enum class MaterialType : uint32_t
 {
-    Default,
+    Opaque,
+    Transparent,
+    Translucent,
 };
 
 enum class WindowFlag : uint32_t

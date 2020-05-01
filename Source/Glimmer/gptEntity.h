@@ -113,7 +113,7 @@ struct LightData
 
 struct MaterialData
 {
-    MaterialType type = MaterialType::Default;
+    MaterialType type = MaterialType::Opaque;
     float3 diffuse = float3::one();
     float3 emissive = float3::zero();
     float roughness = 0.5f;
