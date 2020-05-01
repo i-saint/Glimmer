@@ -470,18 +470,16 @@ void ContextDXR::prepare()
     m_scenes.eraseUnreferenced();
     m_mesh_instances.eraseUnreferenced();
     m_meshes.eraseUnreferenced();
-
     m_materials.eraseUnreferenced();
     m_textures.eraseUnreferenced();
     m_render_targets.eraseUnreferenced();
     m_cameras.eraseUnreferenced();
     m_lights.eraseUnreferenced();
 
-    // clear states
     for (auto& pmesh : m_meshes)
-        pmesh->m_blas_updated = false;
+        pmesh->prepare();
     for (auto& pinst : m_mesh_instances)
-        pinst->m_blas_updated = false;
+        pinst->prepare();
 }
 
 void ContextDXR::updateResources()

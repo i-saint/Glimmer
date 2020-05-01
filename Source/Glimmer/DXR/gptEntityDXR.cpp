@@ -146,6 +146,11 @@ MeshDXR::~MeshDXR()
     m_context->m_deform_mesh_indices.free(m_data.deform_id);
 }
 
+void MeshDXR::prepare()
+{
+    m_blas_updated = false;
+}
+
 void MeshDXR::updateResources()
 {
     if (m_points.empty() || m_indices.empty())
@@ -339,6 +344,11 @@ MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
 MeshInstanceDXR::~MeshInstanceDXR()
 {
     m_context->m_deform_instance_indices.free(m_data.deform_id);
+}
+
+void MeshInstanceDXR::prepare()
+{
+    m_blas_updated = false;
 }
 
 void MeshInstanceDXR::updateResources()

@@ -351,9 +351,9 @@ static IDXGISwapChain3Ptr CreateSwapChain(IDXGIFactory4Ptr& factory, HWND hwnd, 
 
 SwapchainDXR::SwapchainDXR(ContextDXR* ctx, IWindow* window, DXGI_FORMAT format)
     : m_context(ctx)
-    , m_window(base_t(window))
+    , m_window(window)
 {
-    m_swapchain = CreateSwapChain(ctx->m_dxgi_factory, (HWND)window->getHandle(), m_window->m_width, m_window->m_height, format, ctx->m_cmd_queue_direct);
+    m_swapchain = CreateSwapChain(ctx->m_dxgi_factory, (HWND)window->getHandle(), m_window->getWidth(), m_window->getHeight(), format, ctx->m_cmd_queue_direct);
 }
 
 int SwapchainDXR::getBufferCount() const

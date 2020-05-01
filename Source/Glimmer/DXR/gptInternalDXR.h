@@ -202,7 +202,7 @@ class ContextDXR;
 class SwapchainDXR
 {
 public:
-    SwapchainDXR(ContextDXR* ctx, IWindow *window, DXGI_FORMAT format);
+    SwapchainDXR(ContextDXR* ctx, IWindow*window, DXGI_FORMAT format);
     int getBufferCount() const;
     int getCurrentBufferIndex();
     ID3D12ResourcePtr getBuffer(int i);
@@ -211,7 +211,7 @@ public:
 
 public:
     ContextDXR* m_context;
-    WindowPtr m_window;
+    IWindow* m_window;
     IDXGISwapChain3Ptr m_swapchain;
 };
 using SwapchainDXRPtr = std::shared_ptr<SwapchainDXR>;

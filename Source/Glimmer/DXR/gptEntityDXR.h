@@ -57,7 +57,7 @@ public:
     DescriptorHandleDXR m_uav_frame_buffer;
     DescriptorHandleDXR m_uav_accum_buffer;
 
-    WindowPtr m_window;
+    Window* m_window = nullptr;
     WindowCallback m_callback;
     SwapchainDXRPtr m_swapchain;
 };
@@ -125,6 +125,7 @@ friend class ContextDXR;
 public:
     MeshDXR();
     ~MeshDXR();
+    void prepare();
     void updateResources();
     void updateBLAS();
     void clearBLAS();
@@ -166,6 +167,7 @@ friend class ContextDXR;
 public:
     MeshInstanceDXR(IMesh* v = nullptr);
     ~MeshInstanceDXR();
+    void prepare();
     void updateResources();
     void updateBLAS();
     void clearBLAS();
