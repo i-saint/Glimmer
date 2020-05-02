@@ -13,7 +13,7 @@
 #define gptDXRMaxTextureCount 2048
 #define gptDXRMaxShaderRecords 64
 #define gptDXRSwapChainBuffers 2
-#define gptDXRMaxPayloadSize 16
+#define gptDXRMaxPayloadSize 32
 
 
 namespace gpt {
@@ -259,7 +259,7 @@ bool Map(ID3D12Resource* res, const Body& body)
 // Body : [](size_t size) -> ID3D12Resource
 // return true if expanded
 template<class Body>
-bool ReuseOrExpandBuffer(ID3D12ResourcePtr& buf, size_t stride, size_t size, size_t minimum, const Body& body)
+bool ExpandBuffer(ID3D12ResourcePtr& buf, size_t stride, size_t size, size_t minimum, const Body& body)
 {
     if (buf) {
         auto capacity_in_byte = buf->GetDesc().Width;

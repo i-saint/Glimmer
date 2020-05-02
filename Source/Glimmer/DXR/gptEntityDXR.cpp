@@ -421,7 +421,7 @@ void MeshInstanceDXR::updateBLAS()
         geom_desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
         geom_desc.Triangles.VertexBuffer.StartAddress = m_buf_vertices->GetGPUVirtualAddress();
-        geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(float3);
+        geom_desc.Triangles.VertexBuffer.StrideInBytes = sizeof(vertex_t);
         geom_desc.Triangles.VertexCount = (UINT)mesh.getVertexCount();
         geom_desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 
@@ -533,7 +533,7 @@ void SceneDXR::updateTLAS()
     inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
     // create instance desc buffer
-    ReuseOrExpandBuffer(m_tlas_instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, ctx](size_t size) {
+    ExpandBuffer(m_tlas_instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, ctx](size_t size) {
         m_tlas_instance_desc = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
         gptSetName(m_tlas_instance_desc, m_name + " TLAS Instance Desk");
     });
@@ -564,17 +564,17 @@ void SceneDXR::updateTLAS()
         ctx->m_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &info);
 
         // scratch buffer
-        ReuseOrExpandBuffer(m_tlas_scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, ctx](size_t size) {
+        ExpandBuffer(m_tlas_scratch, 1, info.ScratchDataSizeInBytes, 1024 * 64, [this, ctx](size_t size) {
             m_tlas_scratch = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
             gptSetName(m_tlas_scratch, m_name + " TLAS Scratch");
-            });
+        });
 
         // TLAS buffer
-        bool expanded = ReuseOrExpandBuffer(m_tlas, 1, info.ResultDataMaxSizeInBytes, 1024 * 256, [this, ctx](size_t size) {
+        bool allocated = ExpandBuffer(m_tlas, 1, info.ResultDataMaxSizeInBytes, 1024 * 256, [this, ctx](size_t size) {
             m_tlas = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, kDefaultHeapProps);
             gptSetName(m_tlas, m_name + " TLAS");
-            });
-        if (expanded) {
+        });
+        if (allocated) {
             // SRV
             D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
             srv_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;

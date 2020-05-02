@@ -53,6 +53,8 @@ TestCase(TestMinimum)
     auto light = ctx->createLight();
     auto material1 = ctx->createMaterial();
     auto material2 = ctx->createMaterial();
+    auto material3 = ctx->createMaterial();
+    gpt::IMeshInstancePtr deformable;
 
     render_target->enableReadback(true);
     camera->setRenderTarget(render_target);
@@ -61,6 +63,7 @@ TestCase(TestMinimum)
 
     material1->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
     material2->setDiffuse(float3{ 0.5f, 0.5f, 0.5f });
+    material3->setDiffuse(float3{ 0.25f, 0.25f, 0.25f });
     {
         float3 pos{ 0.0f, 2.0f, -8.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
@@ -116,9 +119,9 @@ TestCase(TestMinimum)
         };
 
         static const float3 delta_points[]{
-            {0.0f, -1.0f, 0.0f},
-            {0.0f, -2.0f, 0.0f},
-            {0.0f, -3.0f, 0.0f},
+            {0.0f, 0.5f, 0.0f},
+            {0.0f, 1.0f, 0.0f},
+            {0.0f, 1.5f, 0.0f},
         };
 
         auto triangle = ctx->createMesh();
@@ -139,19 +142,19 @@ TestCase(TestMinimum)
         }
 
         static const float4x4 joint_matrices[]{
-            mu::translate(float3{0.0f, 0.0f, -1.0f}),
-            mu::translate(float3{0.0f, 0.0f, -2.0f}),
-            mu::translate(float3{0.0f, 0.0f, -3.0f}),
+            mu::translate(float3{0.0f, 0.0f, 0.5f}),
+            mu::translate(float3{0.0f, 0.0f, 1.0f}),
+            mu::translate(float3{0.0f, 0.0f, 1.5f}),
         };
         static const float bs_weights[]{
             1.0f,
         };
 
-        auto instance = ctx->createMeshInstance(triangle);
-        instance->setMaterial(material1);
-        instance->setJointMatrices(joint_matrices);
-        instance->setBlendshapeWeights(bs_weights);
-        scene->addMesh(instance);
+        deformable = ctx->createMeshInstance(triangle);
+        deformable->setMaterial(material2);
+        deformable->setJointMatrices(joint_matrices);
+        deformable->setBlendshapeWeights(bs_weights);
+        scene->addMesh(deformable);
     }
     {
         // floor quad
@@ -170,7 +173,7 @@ TestCase(TestMinimum)
 
         // add a instance with default transform
         auto instance = ctx->createMeshInstance(quad);
-        instance->setMaterial(material2);
+        instance->setMaterial(material3);
         scene->addMesh(instance);
     }
 
@@ -189,6 +192,11 @@ TestCase(TestMinimum)
             pos.y += sin((float)frame * 0.002f) * 1.0f;
             camera->setPosition(pos);
             camera->setDirection(mu::normalize(target - pos));
+
+            float bs_weights[]{
+                sin((float)frame * 0.002f) * 0.5f + 0.5f,
+            };
+            deformable->setBlendshapeWeights(bs_weights);
 
             printf("%s\n", ctx->getTimestampLog());
             ++frame;

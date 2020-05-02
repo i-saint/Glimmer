@@ -113,7 +113,7 @@ public:
     void eraseUnreferenced()
     {
         auto is_zero_ref = [](T* p) {
-            return p->getRef() <= 0 && p->getRefInternal() <= 1;
+            return p && p->getRef() <= 0 && p->getRefInternal() <= 1;
         };
         erase_if(m_active, is_zero_ref);
 
@@ -122,7 +122,7 @@ public:
                 p = nullptr;
                 m_vacants.push_back((int)i);
             }
-            });
+        });
     }
 
     void clearDirty()
