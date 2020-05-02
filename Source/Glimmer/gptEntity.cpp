@@ -152,7 +152,7 @@ void Material::setDiffuse(float3 v)
 
 void Material::setRoughness(float v)
 {
-    m_data.roughness = v;
+    m_data.roughness = mu::clamp01(v);
     markDirty(DirtyFlag::Material);
 }
 

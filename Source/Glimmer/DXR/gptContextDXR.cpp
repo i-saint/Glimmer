@@ -23,9 +23,13 @@ static const WCHAR* kHitGroups[]{
     L"Radiance",
     L"Occlusion" ,
 };
+static const WCHAR* kAnyHitShaders[]{
+    nullptr,
+    L"AnyHitOcclusion",
+};
 static const WCHAR* kClosestHitShaders[]{
     L"ClosestHitRadiance",
-    L"ClosestHitOcclusion",
+    nullptr,
 };
 
 const D3D12_HEAP_PROPERTIES kDefaultHeapProps =
@@ -399,7 +403,7 @@ bool ContextDXR::initializeDevice()
             auto& hit_desc = hit_descs[i];
             hit_desc.HitGroupExport = kHitGroups[i];
             hit_desc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
-            //hit_desc.AnyHitShaderImport = kAnyHitShaders[i];
+            hit_desc.AnyHitShaderImport = kAnyHitShaders[i];
             hit_desc.ClosestHitShaderImport = kClosestHitShaders[i];
             add_subobject(D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &hit_desc);
         }

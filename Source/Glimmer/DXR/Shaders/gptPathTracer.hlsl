@@ -107,29 +107,43 @@ float3 HitPosition()
     return offset_ray(WorldRayOrigin() + (WorldRayDirection() * RayTCurrent()), FaceNormal());
 }
 
+float3 GetDiffuseColor(MaterialData md, float2 uv)
+{
+    float3 r = md.diffuse;
+    int tid = md.diffuse_tex;
+    if (tid != -1)
+        r *= g_textures[tid].SampleLevel(g_sampler_default, uv, 0).xyz;
+    return r;
+}
+
+float3 GetEmissiveColor(MaterialData md, float2 uv)
+{
+    float3 r = md.emissive;
+    int tid = md.emissive_tex;
+    if (tid != -1)
+        r += g_textures[tid].SampleLevel(g_sampler_default, uv, 0).xyz;
+    return r;
+}
+
 
 
 struct RadiancePayload
 {
     float3 radiance;
-    float3 emitted;
     float3 attenuation;
     float3 origin;
     float3 direction;
     uint   seed;
-    int    count_emitted;
     int    done;
-    int    pad2;
+    int2   pad;
 
     void init()
     {
         radiance = 0.0f;
-        emitted = 0.0f;
         attenuation = 1.0f;
         origin = 0.0f;
         direction = 0.0f;
         seed = 0;
-        count_emitted = 0;
         done = 0;
     }
 };
@@ -195,13 +209,12 @@ void RayGenRadiance()
 
         for (int d = 0; d < max_trace_depth && !payload.done; ++d) {
             ShootRadianceRay(payload);
-            result += payload.emitted;
             result += payload.radiance * payload.attenuation;
         }
     }
 
     float4 prev = g_accum_buffer[si];
-    prev *= 0.8f;
+    prev *= 0.9f;
     float accum = prev.w + float(samples_per_frame);
     result += prev.xyz;
     
@@ -216,20 +229,12 @@ void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
     payload.done = true;
 }
 
+
 bool ShootOcclusionRay(uint flags, in RayDesc ray)
 {
     OcclusionPayload payload;
     TraceRay(g_tlas, flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     return payload.hit;
-}
-
-float3 GetDiffuseColor(MaterialData md, float2 uv)
-{
-    float3 r = md.diffuse;
-    int tid = md.diffuse_tex;
-    if (tid != -1) 
-        r *= g_textures[tid].SampleLevel(g_sampler_default, uv, 0).xyz;
-    return r;
 }
 
 [shader("closesthit")]
@@ -242,85 +247,83 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     // prepare next trace
     {
         MaterialData md = FaceMaterial();
-        float roughness = md.roughness;
-        float3 diffuse_color = GetDiffuseColor(md, v.uv);
-
         uint seed = payload.seed;
-        float3 w_in = cosine_sample_hemisphere(rnd01(seed), rnd01(seed));
 
         ONB onb;
         onb.init(N);
-        w_in = onb.inverse_transform(w_in);
+        float3 dir = cosine_sample_hemisphere(rnd01(seed), rnd01(seed));
+        dir = onb.inverse_transform(dir);
 
         float3 ref = reflect(payload.direction, N);
-        w_in = lerp(ref, w_in, roughness);
+        dir = normalize(lerp(ref, dir, md.roughness));
 
-        payload.direction = w_in;
+        payload.direction = dir;
         payload.origin = P;
-        payload.attenuation *= diffuse_color;
-        payload.count_emitted = false;
+        payload.attenuation *= GetDiffuseColor(md, v.uv);
+        payload.radiance += GetEmissiveColor(md, v.uv);
     }
 
 
     // receive lights
-
-    uint render_flags = RenderFlags();
-    uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
-    if (render_flags & RF_CULL_BACK_FACES)
-        ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-
+    uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_FORCE_NON_OPAQUE;
     for (int li = 0; li < LightCount(); ++li) {
-        LightData light = GetLight(li);
 
         float weight = 0.0f;
+        const LightData light = GetLight(li);
         if (light.type == LT_DIRECTIONAL) {
             // directional light
+            float3 L = -light.direction;
+
             RayDesc ray;
-            ray.Origin = HitPosition();
-            ray.Direction = -light.direction.xyz;
+            ray.Origin = P;
+            ray.Direction = L;
             ray.TMin = 0.0f;
             ray.TMax = CameraFarPlane();
             if (!ShootOcclusionRay(ray_flags, ray)) {
-                float  nDl = max(-dot(N, light.direction), 0.0f);
+                float nDl = dot(N, L);
                 weight = nDl;
             }
         }
         else if (light.type == LT_POINT) {
             // point light
             float3 L = normalize(light.position - P);
-            float distance = length(light.position - P);
-
-            if (distance <= light.range) {
+            float Ld = length(light.position - P);
+            if (Ld <= light.range) {
                 RayDesc ray;
                 ray.Origin = P;
                 ray.Direction = L;
                 ray.TMin = 0.0f;
-                ray.TMax = distance;
+                ray.TMax = Ld;
                 if (!ShootOcclusionRay(ray_flags, ray)) {
-                    float  Ldist = length(light.position - P);
-                    float  nDl = dot(N, L);
-                    weight = nDl / (PI * Ldist * Ldist);
-                    weight = nDl;
+                    float nDl = dot(N, L);
+                    //weight = nDl / (PI * Ld * Ld);
+
+                    float a = (light.range - Ld) / light.range;
+                    weight = nDl * (a * a);
                 }
             }
         }
         else if (light.type == LT_SPOT) {
             // spot light
             float3 L = normalize(light.position - P);
-            float distance = length(light.position - P);
-            if (distance <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
+            float Ld = length(light.position - P);
+            if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
                 RayDesc ray;
                 ray.Origin = P;
                 ray.Direction = L;
                 ray.TMin = 0.0f;
-                ray.TMax = distance;
+                ray.TMax = Ld;
                 if (!ShootOcclusionRay(ray_flags, ray)) {
-                    weight = 1.0f;
+                    float nDl = dot(N, L);
+                    //weight = nDl / (PI * Ld * Ld);
+
+                    float a = (light.range - Ld) / light.range;
+                    weight = nDl * (a * a);
                 }
             }
         }
 
-        payload.radiance += light.color * weight;
+        payload.radiance += light.color * max(weight, 0.0f);
     }
 }
 
@@ -330,8 +333,8 @@ void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 {
 }
 
-[shader("closesthit")]
-void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+[shader("anyhit")]
+void AnyHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     payload.hit = true;
 }

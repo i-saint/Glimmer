@@ -72,9 +72,11 @@ TestCase(TestMinimum)
 
     material1->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
     material1->setRoughness(0.02f);
-    material2->setDiffuse(float3{ 0.5f, 0.5f, 0.5f });
-    material3->setDiffuse(float3{ 0.25f, 0.25f, 0.25f });
+    material2->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
+    material2->setEmissive(float3{ 0.9f, 0.8f, 1.2f });
+    material3->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
     material3->setDiffuseTexture(texture);
+    //material3->setEmissiveTexture(texture);
     {
         float3 pos{ 0.0f, 2.0f, -8.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
@@ -88,7 +90,7 @@ TestCase(TestMinimum)
         light->setType(gpt::LightType::Point);
         light->setPosition(pos);
         light->setDirection(mu::normalize(target - pos));
-        light->setColor(color * 5.0f);
+        light->setColor(color * 1.0f);
     }
 
     // create meshes
@@ -216,12 +218,12 @@ TestCase(TestMinimum)
             float3 pos{ 0.0f, 2.0f, -8.0f };
             float3 target{ 0.0f, 0.0f, 0.0f };
             pos = mu::to_mat3x3(mu::rotate_y((float)frame * 0.001f)) * pos;
-            pos.y += sin((float)frame * 0.002f) * 1.0f;
+            pos.y += sin((float)frame * 0.0005f) * 1.0f;
             camera->setPosition(pos);
             camera->setDirection(mu::normalize(target - pos));
 
             float bs_weights[]{
-                sin((float)frame * 0.002f) * 0.5f + 0.5f,
+                sin((float)frame * 0.001f) * 0.5f + 0.5f,
             };
             deformable->setBlendshapeWeights(bs_weights);
             //deformable->setEnabled(frame % 60 < 30);

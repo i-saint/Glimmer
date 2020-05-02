@@ -14,7 +14,7 @@
 #define gptDXRMaxTextureCount 2048
 #define gptDXRMaxShaderRecords 64
 #define gptDXRSwapChainBuffers 2
-#define gptDXRMaxPayloadSize 80
+#define gptDXRMaxPayloadSize 64
 
 
 namespace gpt {
