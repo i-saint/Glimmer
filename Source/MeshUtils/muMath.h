@@ -1630,6 +1630,12 @@ inline U triangle_interpolation(
     return x1 * a1 + x2 * a2 + x3 * a3;
 }
 
+template<class T, class U>
+inline U barycentric_interpolation(tvec2<T> barycentric, U p0, U p1, U p2)
+{
+    return p0 + ((p1 - p0) * barycentric.x) + ((p2 - p0) * barycentric.y);
+}
+
 template<class T> inline T ray_point_distance(const tvec3<T>& pos, const tvec3<T>& dir, const tvec3<T>& p)
 {
     return length(cross(dir, p - pos));

@@ -536,14 +536,12 @@ void Mesh::exportVertices(vertex_t* dst) const
 void Mesh::exportFaces(face_t* dst) const
 {
     int fc = getFaceCount();
-    auto* indices = m_indices.cdata();
+    auto* indices = (const int3*)m_indices.cdata();
     auto* mids = m_material_ids.empty() ? GetDummyBuffer<int>(fc) : m_material_ids.cdata();
 
     face_t tmp{};
     for (int fi = 0; fi < fc; ++fi) {
-        for (int i = 0; i < 3; ++i)
-            tmp.indices[i] = indices[i];
-        indices += 3;
+        tmp.indices = *indices++;
         tmp.material_index = *mids++;
         *dst++ = tmp;
     }

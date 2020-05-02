@@ -1,3 +1,5 @@
+#pragma once
+
 static const float PI = 3.14159265f;
 
 // some of these are based on OptiX SDK examples
@@ -80,3 +82,19 @@ inline float angle_between(float3 a, float3 b)
 {
     return acos(clamp(dot(a, b), 0, 1));
 }
+
+
+inline float2 barycentric_interpolation(float2 barycentric, float2 p0, float2 p1, float2 p2)
+{
+    return p0 + ((p1 - p0) * barycentric.x) + ((p2 - p0) * barycentric.y);
+}
+inline float3 barycentric_interpolation(float2 barycentric, float3 p0, float3 p1, float3 p2)
+{
+    return p0 + ((p1 - p0) * barycentric.x) + ((p2 - p0) * barycentric.y);
+}
+inline float4 barycentric_interpolation(float2 barycentric, float4 p0, float4 p1, float4 p2)
+{
+    return p0 + ((p1 - p0) * barycentric.x) + ((p2 - p0) * barycentric.y);
+}
+
+

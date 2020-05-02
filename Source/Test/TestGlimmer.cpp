@@ -164,11 +164,18 @@ TestCase(TestMinimum)
             { 5.0f, 0.0f,-5.0f},
             {-5.0f, 0.0f,-5.0f},
         };
+        static const float2 uv[]{
+            { 0.0f, 1.0f},
+            { 1.0f, 1.0f},
+            { 1.0f, 0.0f},
+            { 0.0f, 0.0f},
+        };
         static const int indices[]{
             0, 1, 2, 0, 2, 3,
         };
         auto quad = ctx->createMesh();
         quad->setPoints(points, _countof(points));
+        quad->setUV(uv, _countof(uv));
         quad->setIndices(indices, _countof(indices));
 
         // add a instance with default transform

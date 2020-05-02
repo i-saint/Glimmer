@@ -1,3 +1,5 @@
+#pragma once
+
 #define kMaxLights 32
 
 enum LightType
@@ -153,3 +155,16 @@ struct face_t
     int material_index;
 };
 
+
+
+#include "gptMath.h"
+
+inline vertex_t barycentric_interpolation(float2 barycentric, vertex_t p0, vertex_t p1, vertex_t p2)
+{
+    vertex_t r;
+    r.position  = barycentric_interpolation(barycentric, p0.position, p1.position, p2.position);
+    r.normal    = normalize(barycentric_interpolation(barycentric, p0.normal, p1.normal, p2.normal));
+    r.tangent   = normalize(barycentric_interpolation(barycentric, p0.tangent, p1.tangent, p2.tangent));
+    r.uv        = barycentric_interpolation(barycentric, p0.uv, p1.uv, p2.uv);
+    return r;
+}

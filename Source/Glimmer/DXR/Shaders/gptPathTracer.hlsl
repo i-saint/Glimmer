@@ -76,6 +76,34 @@ MaterialData FaceMaterial()
     return FaceMaterial(instance_id, face_id);
 }
 
+vertex_t HitVertex(int instance_id, int face_id, float2 barycentric)
+{
+    int mesh_id = g_instances[instance_id].mesh_id;
+    int deform_id = g_instances[instance_id].deform_id;
+    int3 indices = g_faces[mesh_id][face_id].indices;
+
+    if (deform_id != -1) {
+        return barycentric_interpolation(
+            barycentric,
+            g_vertices_d[deform_id][indices[0]],
+            g_vertices_d[deform_id][indices[1]],
+            g_vertices_d[deform_id][indices[2]]);
+    }
+    else {
+        return barycentric_interpolation(
+            barycentric,
+            g_vertices[mesh_id][indices[0]],
+            g_vertices[mesh_id][indices[1]],
+            g_vertices[mesh_id][indices[2]]);
+    }
+}
+vertex_t HitVertex(float2 barycentric)
+{
+    int instance_id = InstanceID();
+    int face_id = PrimitiveIndex();
+    return HitVertex(instance_id, face_id, barycentric);
+}
+
 float3 HitPosition()
 {
     return offset_ray(WorldRayOrigin() + (WorldRayDirection() * RayTCurrent()), FaceNormal());
@@ -165,6 +193,9 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
 {
     MaterialData md = FaceMaterial();
     payload.color = md.diffuse;
+
+    //vertex_t v = HitVertex(attr.barycentrics);
+    //payload.color = float3(v.uv, 0.0f);
 
     uint render_flags = RenderFlags();
     uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
