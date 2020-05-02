@@ -4,6 +4,8 @@
 template<class T>
 void GenerateCheckerImage(T* pixels, int width, int height)
 {
+    T black = { 0.2f, 0.2f, 0.2f, 0.2f };
+    T white = { 0.8f, 0.8f, 0.8f, 0.8f };
     const int block_size = 32;
     for (int iy = 0; iy < height; iy++) {
         for (int ix = 0; ix < width; ix++) {
@@ -12,10 +14,10 @@ void GenerateCheckerImage(T* pixels, int width, int height)
             int yb = iy / block_size;
 
             if ((xb + yb) % 2 == 0) {
-                pixels[ip] = T::one();
+                pixels[ip] = black;
             }
             else {
-                pixels[ip] = T::zero();
+                pixels[ip] = white;
             }
         }
     }

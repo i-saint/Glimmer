@@ -49,12 +49,20 @@ inline uint tea(uint val0, uint val1)
 }
 
 // random float in [0.0f, 1.0f)
-inline float rnd(inout uint prev)
+inline float rnd01(inout uint prev)
 {
     const uint LCG_A = 1664525u;
     const uint LCG_C = 1013904223u;
     prev = (LCG_A * prev + LCG_C);
     return ((float)(prev & 0x00FFFFFF) / (float)0x01000000);
+}
+inline float rnd11(inout uint prev)
+{
+    return rnd01(prev) * 2.0f - 1.0f;
+}
+inline float rnd55(inout uint prev)
+{
+    return rnd01(prev) - 0.5f;
 }
 
 

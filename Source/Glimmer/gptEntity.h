@@ -104,7 +104,7 @@ struct LightData
     LightType type = LightType::Directional;
     float3 position = float3::zero();
     float3 direction = -float3::up();
-    float range = 1.0f;
+    float range = 100.0f;
     float3 color = float3::one();
     float spot_angle = 0.0f; // radian
 

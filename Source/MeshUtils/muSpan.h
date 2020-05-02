@@ -46,15 +46,15 @@ public:
 
     void zeroclear()
     {
-        memset(m_data, 0, sizeof(T)*m_size);
+        memset(m_data, 0, sizeof(T) * m_size);
     }
     void copy_to(pointer dst) const
     {
-        memcpy(dst, m_data, sizeof(value_type) * m_size);
+        memcpy(dst, m_data, sizeof(T) * m_size);
     }
     void copy_to(pointer dst, size_t length, size_t offset = 0) const
     {
-        memcpy(dst, m_data + offset, sizeof(value_type) * length);
+        memcpy(dst, m_data + offset, sizeof(T) * length);
     }
 
 private:
@@ -89,13 +89,6 @@ public:
         return *this;
     }
 
-    void reset(const I *i, const T *d, size_t s)
-    {
-        m_indices = const_cast<I*>(i);
-        m_data = const_cast<I*>(d);
-        m_size = s;
-    }
-
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
 
@@ -104,6 +97,7 @@ public:
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
+    const T* cdata() const { return m_data; }
 
     T& operator[](size_t i) { return m_data[m_indices[i]]; }
     const T& operator[](size_t i) const { return m_data[m_indices[i]]; }
@@ -112,6 +106,18 @@ public:
     const_iterator begin() const { return { m_data, m_indices }; }
     iterator end() { return { m_data, m_indices + m_size }; }
     const_iterator end() const { return { m_data, m_indices + m_size }; }
+
+    void copy_to(pointer dst) const
+    {
+        size_t length = m_size;
+        for (size_t i = 0; i < length; ++i)
+            *dst++ = m_data[m_indices[i]];
+    }
+    void copy_to(pointer dst, size_t length, size_t offset = 0) const
+    {
+        for (size_t i = offset; i < length; ++i)
+            *dst++ = m_data[m_indices[i]];
+    }
 
 private:
     I *m_indices = nullptr;

@@ -80,6 +80,13 @@ TestCase(TestMinimum)
         camera->setPosition(pos);
         camera->setDirection(mu::normalize(target - pos));
     }
+    {
+        float3 pos{ 2.0f, 10.0f, -2.0f };
+        float3 target{ 0.0f, 0.0f, 0.0f };
+        light->setType(gpt::LightType::Point);
+        light->setPosition(pos);
+        light->setDirection(mu::normalize(target - pos));
+    }
 
     // create meshes
     {

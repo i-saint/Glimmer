@@ -109,64 +109,104 @@ float3 HitPosition()
 
 
 
-struct Payload
+struct RadiancePayload
 {
-    float3 color;
-    float t;
+    float3 radiance;
+    float3 emitted;
+    float3 attenuation;
+    float3 origin;
+    float3 direction;
+    uint   seed;
+    int    count_emitted;
+    int    done;
+    int    pad2;
+
+    void init()
+    {
+        radiance = 0.0f;
+        emitted = 0.0f;
+        attenuation = 1.0f;
+        origin = 0.0f;
+        direction = 0.0f;
+        seed = 0;
+        count_emitted = 0;
+        done = 0;
+    }
 };
 
-void init(inout Payload a)
+struct OcclusionPayload
 {
-    a.color = 0.0f;
-    a.t = -1.0f;
-}
+    int hit;
 
-RayDesc GetCameraRay(float2 offset = 0.0f)
+    void init()
+    {
+        hit = 0;
+    }
+};
+
+
+void GetCameraRay(out float3 origin, out float3 direction, float2 offset = 0.0f)
 {
-    uint2 screen_idx = DispatchRaysIndex().xy;
-    uint2 screen_dim = DispatchRaysDimensions().xy;
+    uint2 si = DispatchRaysIndex().xy;
+    uint2 sd = DispatchRaysDimensions().xy;
 
-    float aspect_ratio = (float)screen_dim.x / (float)screen_dim.y;
-    float2 screen_pos = ((float2(screen_idx) + offset + 0.5f) / float2(screen_dim)) * 2.0f - 1.0f;
+    float aspect_ratio = (float)sd.x / (float)sd.y;
+    float2 screen_pos = ((float2(si) + offset + 0.5f) / float2(sd)) * 2.0f - 1.0f;
     screen_pos.x *= aspect_ratio;
 
-    RayDesc ray;
-    ray.Origin = CameraPosition();
-    ray.Direction = normalize(
+    origin = CameraPosition();
+    direction = normalize(
         CameraRight() * screen_pos.x +
         CameraUp() * screen_pos.y +
         CameraForward() * CameraFocalLength());
-    ray.TMin = CameraNearPlane(); // 
-    ray.TMax = CameraFarPlane();  // todo: correct this
-    return ray;
 }
 
-Payload ShootRadianceRay(float2 offset = 0.0f)
+void ShootRadianceRay(inout RadiancePayload payload)
 {
-    Payload payload;
-    init(payload);
+    RayDesc ray;
+    ray.Origin = payload.origin;
+    ray.Direction = payload.direction;
+    ray.TMin = CameraNearPlane(); // 
+    ray.TMax = CameraFarPlane();  // todo: correct this
 
-    RayDesc ray = GetCameraRay(offset);
     uint render_flags = RenderFlags();
     uint ray_flags = 0;
     if (render_flags & RF_CULL_BACK_FACES)
         ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
     TraceRay(g_tlas, ray_flags, 0xff, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
-    return payload;
 }
 
 [shader("raygeneration")]
 void RayGenRadiance()
 {
-    uint2 screen_idx = DispatchRaysIndex().xy;
-    uint2 screen_dim = DispatchRaysDimensions().xy;
+    uint2 si = DispatchRaysIndex().xy;
+    uint2 sd = DispatchRaysDimensions().xy;
 
-    Payload payload = ShootRadianceRay();
-    g_frame_buffer[screen_idx] = float4(payload.color, payload.t);
+    float3 result = 0.0f;
+    uint seed = tea(si.y * sd.x + si.x, FrameCount());
+    int samples_per_frame = SamplesPerFrame();
+    int max_trace_depth = MaxTraceDepth();
+    for (int i = 0; i < samples_per_frame; ++i) {
+        RadiancePayload payload;
+        payload.init();
+        payload.seed = seed;
+        GetCameraRay(payload.origin, payload.direction, float2(rnd55(seed), rnd55(seed)));
 
-    //uint seed = tea(screen_idx.y * screen_dim.x + screen_idx.x, FrameCount());
-    //g_frame_buffer[screen_idx] = float4(
+        for (int d = 0; d < max_trace_depth && !payload.done; ++d) {
+            ShootRadianceRay(payload);
+            result += payload.emitted;
+            result += payload.radiance * payload.attenuation;
+        }
+    }
+
+    float3 prev = g_accum_buffer[si].xyz;
+    result = (prev + result) * 0.5f; // todo: improve this
+    
+    g_frame_buffer[si] = float4(result, 0.0f);
+    g_accum_buffer[si] = float4(result / samples_per_frame, 0.0f);
+
+    //g_frame_buffer[si] = float4(
     //    rnd(seed) - 0.5f,
     //    rnd(seed) - 0.5f,
     //    rnd(seed) - 0.5f,
@@ -175,15 +215,17 @@ void RayGenRadiance()
 }
 
 [shader("miss")]
-void MissRadiance(inout Payload payload : SV_RayPayload)
+void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
 {
-    payload.color = BackgroundColor();
+    payload.radiance = BackgroundColor();
+    payload.done = true;
 }
 
-bool ShootOcclusionRay(uint flags, in RayDesc ray, inout Payload payload)
+bool ShootOcclusionRay(uint flags, in RayDesc ray)
 {
+    OcclusionPayload payload;
     TraceRay(g_tlas, flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
-    return payload.t >= 0.0f;
+    return payload.hit;
 }
 
 float3 GetDiffuseColor(MaterialData md, float2 uv)
@@ -196,12 +238,31 @@ float3 GetDiffuseColor(MaterialData md, float2 uv)
 }
 
 [shader("closesthit")]
-void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
+    float3 P = HitPosition();
+    float3 N = FaceNormal();
     vertex_t v = HitVertex(attr.barycentrics);
 
-    MaterialData md = FaceMaterial();
-    payload.color = GetDiffuseColor(md, v.uv);
+    // prepare next ray
+    {
+        uint seed = payload.seed;
+        float z1 = rnd01(seed);
+        float z2 = rnd01(seed);
+        float3 w_in = cosine_sample_hemisphere(z1, z2);
+
+        ONB onb;
+        onb.init(N);
+        onb.inverse_transform(w_in);
+
+        payload.direction = w_in;
+        payload.origin = P;
+
+        float3 diffuse_color = GetDiffuseColor(FaceMaterial(), v.uv);
+        payload.attenuation *= diffuse_color;
+        payload.count_emitted = false;
+    }
+
 
 
     uint render_flags = RenderFlags();
@@ -213,7 +274,7 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
     for (li = 0; li < LightCount(); ++li) {
         LightData light = GetLight(li);
 
-        bool hit = true;
+        float weight = 0.0f;
         if (light.type == LT_DIRECTIONAL) {
             // directional light
             RayDesc ray;
@@ -221,52 +282,58 @@ void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangl
             ray.Direction = -light.direction.xyz;
             ray.TMin = 0.0f;
             ray.TMax = CameraFarPlane();
-            hit = ShootOcclusionRay(ray_flags, ray, payload);
+            if (!ShootOcclusionRay(ray_flags, ray)) {
+                float  nDl = max(-dot(N, light.direction), 0.0f);
+                weight = nDl;
+            }
         }
         else if (light.type == LT_POINT) {
             // point light
-            float3 pos = HitPosition();
-            float3 dir = normalize(light.position - pos);
-            float distance = length(light.position - pos);
+            float3 L = normalize(light.position - P);
+            float distance = length(light.position - P);
 
             if (distance <= light.range) {
                 RayDesc ray;
-                ray.Origin = pos;
-                ray.Direction = dir;
+                ray.Origin = P;
+                ray.Direction = L;
                 ray.TMin = 0.0f;
                 ray.TMax = distance;
-                hit = ShootOcclusionRay(ray_flags, ray, payload);
+                if (!ShootOcclusionRay(ray_flags, ray)) {
+                    float  Ldist = length(light.position - P);
+                    float  nDl = dot(N, L);
+                    weight = nDl / (PI * Ldist * Ldist);
+                    weight = nDl;
+                }
             }
-            else
-                continue;
         }
         else if (light.type == LT_SPOT) {
             // spot light
-            float3 pos = HitPosition();
-            float3 dir = normalize(light.position - pos);
-            float distance = length(light.position - pos);
-            if (distance <= light.range && angle_between(-dir, light.direction) * 2.0f <= light.spot_angle) {
+            float3 L = normalize(light.position - P);
+            float distance = length(light.position - P);
+            if (distance <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
                 RayDesc ray;
-                ray.Origin = pos;
-                ray.Direction = dir;
+                ray.Origin = P;
+                ray.Direction = L;
                 ray.TMin = 0.0f;
                 ray.TMax = distance;
-                hit = ShootOcclusionRay(ray_flags, ray, payload);
+                if (!ShootOcclusionRay(ray_flags, ray)) {
+                    weight = 1.0f;
+                }
             }
-            else
-                continue;
         }
+
+        payload.radiance += light.color * weight;
     }
 }
 
 
 [shader("miss")]
-void MissOcclusion(inout Payload payload : SV_RayPayload)
+void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 {
 }
 
 [shader("closesthit")]
-void ClosestHitOcclusion(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    payload.t = RayTCurrent();
+    payload.hit = true;
 }
