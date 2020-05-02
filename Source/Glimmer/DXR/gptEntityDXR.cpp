@@ -524,8 +524,6 @@ void SceneDXR::updateTLAS()
     ContextDXR* ctx = m_context;
     auto& cl_tlas = ctx->m_cl;
 
-    UINT instance_count = (UINT)m_instances.size();
-
     // get the size of the TLAS buffers
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs{};
     inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
@@ -533,17 +531,20 @@ void SceneDXR::updateTLAS()
     inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
     // create instance desc buffer
-    ExpandBuffer(m_tlas_instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instance_count, 4096, [this, ctx](size_t size) {
+    ExpandBuffer(m_tlas_instance_desc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), (UINT)m_instances.size(), 4096, [this, ctx](size_t size) {
         m_tlas_instance_desc = ctx->createBuffer(size, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, kUploadHeapProps);
         gptSetName(m_tlas_instance_desc, m_name + " TLAS Instance Desk");
     });
 
     // update instance desc
+    int active_instance_count = 0;
     Map(m_tlas_instance_desc, [&](D3D12_RAYTRACING_INSTANCE_DESC* instance_descs) {
         D3D12_RAYTRACING_INSTANCE_DESC desc{};
-        UINT n = (UINT)m_instances.size();
-        for (UINT i = 0; i < n; ++i) {
-            auto& inst = dxr_t(*m_instances[i]);
+        for (auto& pinst : m_instances) {
+            auto& inst = dxr_t(*pinst);
+            if (!inst.isEnabled())
+                continue;
+
             auto& mesh = dxr_t(*inst.getMesh());
             auto& blas = inst.m_blas ? inst.m_blas : mesh.m_blas;
 
@@ -552,10 +553,11 @@ void SceneDXR::updateTLAS()
             desc.InstanceMask = ~0;
             desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
             desc.AccelerationStructure = blas->GetGPUVirtualAddress();
-            instance_descs[i] = desc;
+            *instance_descs++ = desc;
+            ++active_instance_count;
         }
     });
-    inputs.NumDescs = instance_count;
+    inputs.NumDescs = active_instance_count;
     inputs.InstanceDescs = m_tlas_instance_desc->GetGPUVirtualAddress();
 
     // create TLAS

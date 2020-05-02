@@ -65,7 +65,7 @@ TestCase(TestMinimum)
 
     {
         RawVector<unorm8x4> image;
-        image.resize(texture->getWidth() * texture->getHeight() * sizeof(unorm8x4));
+        image.resize(texture->getWidth() * texture->getHeight());
         GenerateCheckerImage(image.data(), texture->getWidth(), texture->getHeight());
         texture->upload(image.cdata());
     }
@@ -214,6 +214,7 @@ TestCase(TestMinimum)
                 sin((float)frame * 0.002f) * 0.5f + 0.5f,
             };
             deformable->setBlendshapeWeights(bs_weights);
+            //deformable->setEnabled(frame % 60 < 30);
 
             printf("%s\n", ctx->getTimestampLog());
             ++frame;

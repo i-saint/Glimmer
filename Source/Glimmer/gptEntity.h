@@ -352,6 +352,7 @@ public:
 
     int getWidth() const override;
     int getHeight() const override;
+    Format getFormat() const override;
 
 protected:
     int m_width = 0;
@@ -371,6 +372,7 @@ public:
 
     int getWidth() const override;
     int getHeight() const override;
+    Format getFormat() const override;
 
 protected:
     int m_width = 0;
@@ -582,6 +584,7 @@ class MeshInstance : public EntityBase<IMeshInstance>
 {
 public:
     MeshInstance(IMesh* v = nullptr);
+    void setEnabled(bool v) override;
     void setMaterial(IMaterial* v, int slot) override;
     void setTransform(const float4x4& v) override;
     void setJointMatrices(const float4x4* v) override;
@@ -591,11 +594,13 @@ public:
     void exportJointMatrices(float4x4* dst);
     void exportBlendshapeWeights(float* dst);
 
-    Mesh* getMesh();
-    Material* getMaterial();
+    bool isEnabled() const;
+    Mesh* getMesh() const;
+    Material* getMaterial() const;
     const InstanceData& getData();
 
 protected:
+    bool m_enabled = true;
     InstanceData m_data;
     MeshPtr m_mesh;
     MaterialPtr m_material;
@@ -622,7 +627,8 @@ public:
     void removeMesh(IMeshInstance* v) override;
     void clear() override;
 
-    Camera* getCamera();
+    bool isEnabled() const;
+    Camera* getCamera() const;
     const SceneData& getData();
     void incrementFrameCount();
 

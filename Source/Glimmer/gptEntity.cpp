@@ -112,6 +112,7 @@ void Texture::upload(const void* src)
 
 int Texture::getWidth() const { return m_width; }
 int Texture::getHeight() const { return m_height; }
+Format Texture::getFormat() const { return m_format; }
 
 
 RenderTarget::RenderTarget(int width, int height, Format format)
@@ -129,6 +130,7 @@ void RenderTarget::enableReadback(bool v)
 
 int RenderTarget::getWidth() const { return m_width; }
 int RenderTarget::getHeight() const { return m_height; }
+Format RenderTarget::getFormat() const { return m_format; }
 
 
 Material::Material()
@@ -651,6 +653,12 @@ MeshInstance::MeshInstance(IMesh* v)
     markDirty(DirtyFlag::Mesh);
 }
 
+void MeshInstance::setEnabled(bool v)
+{
+    m_enabled = v;
+    markDirty(DirtyFlag::Transform);
+}
+
 void MeshInstance::setMaterial(IMaterial* v, int slot)
 {
     if (slot >= _countof(m_data.material_ids)) {
@@ -732,15 +740,9 @@ void MeshInstance::exportBlendshapeWeights(float* dst)
     m_blendshape_weights.copy_to(dst);
 }
 
-Mesh* MeshInstance::getMesh()
-{
-    return m_mesh;
-}
-
-Material* MeshInstance::getMaterial()
-{
-    return m_material;
-}
+bool MeshInstance::isEnabled() const { return m_enabled; }
+Mesh* MeshInstance::getMesh() const  { return m_mesh; }
+Material* MeshInstance::getMaterial() const { return m_material; }
 
 const InstanceData& MeshInstance::getData()
 {
@@ -798,10 +800,8 @@ void Scene::clear()
     markDirty(DirtyFlag::SceneEntities);
 }
 
-Camera* Scene::getCamera()
-{
-    return m_camera;
-}
+bool Scene::isEnabled() const { return m_enabled; }
+Camera* Scene::getCamera() const { return m_camera; }
 
 const SceneData& Scene::getData()
 {

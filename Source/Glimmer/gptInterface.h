@@ -185,12 +185,13 @@ class ITexture : public IObject
 {
 public:
     // actual upload will be done in IContext::render()
-    // but the data is copied and so src can be discarded after calling this.
+    // but the data is copied in upload() and so src can be discarded after calling this.
     virtual void upload(const void* src) = 0;
 
-    virtual int   getWidth() const = 0;
-    virtual int   getHeight() const = 0;
-    virtual void* getDeviceObject() const = 0;
+    virtual int    getWidth() const = 0;
+    virtual int    getHeight() const = 0;
+    virtual Format getFormat() const = 0;
+    virtual void*  getDeviceObject() const = 0;
 };
 using ITexturePtr = ref_ptr<ITexture>;
 
@@ -199,12 +200,15 @@ class IRenderTarget : public IObject
 {
 public:
     virtual void enableReadback(bool v) = 0;
+
+    // need to be enableReadback(true) before IContext::render().
     // should be called after IContext::finish()
     virtual bool readback(void* dst) = 0;
 
-    virtual int   getWidth() const = 0;
-    virtual int   getHeight() const = 0;
-    virtual void* getDeviceObject() const = 0;
+    virtual int    getWidth() const = 0;
+    virtual int    getHeight() const = 0;
+    virtual Format getFormat() const = 0;
+    virtual void*  getDeviceObject() const = 0;
 };
 using IRenderTargetPtr = ref_ptr<IRenderTarget>;
 
@@ -308,6 +312,7 @@ using IMeshPtr = ref_ptr<IMesh>;
 class IMeshInstance : public IObject
 {
 public:
+    virtual void setEnabled(bool v) = 0;
     virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;

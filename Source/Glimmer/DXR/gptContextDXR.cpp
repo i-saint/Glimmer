@@ -738,7 +738,7 @@ void ContextDXR::dispatchRays()
 
     // dispatch for each enabled scene
     each_ref(m_scenes, [&](auto& scene) {
-        if (!scene.m_enabled)
+        if (!scene.isEnabled())
             return;
 
         auto cam = scene.getCamera();
