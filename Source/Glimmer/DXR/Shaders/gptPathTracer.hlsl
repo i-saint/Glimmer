@@ -200,18 +200,13 @@ void RayGenRadiance()
         }
     }
 
-    float3 prev = g_accum_buffer[si].xyz;
-    result = (prev + result) * 0.5f; // todo: improve this
+    float4 prev = g_accum_buffer[si];
+    prev *= 0.8f;
+    float accum = prev.w + float(samples_per_frame);
+    result += prev.xyz;
     
-    g_frame_buffer[si] = float4(result, 0.0f);
-    g_accum_buffer[si] = float4(result / samples_per_frame, 0.0f);
-
-    //g_frame_buffer[si] = float4(
-    //    rnd(seed) - 0.5f,
-    //    rnd(seed) - 0.5f,
-    //    rnd(seed) - 0.5f,
-    //    rnd(seed) - 0.5f
-    //);
+    g_frame_buffer[si] = float4(result / accum, 0.0f);
+    g_accum_buffer[si] = float4(result, accum);
 }
 
 [shader("miss")]
@@ -244,34 +239,37 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     float3 N = FaceNormal();
     vertex_t v = HitVertex(attr.barycentrics);
 
-    // prepare next ray
+    // prepare next trace
     {
+        MaterialData md = FaceMaterial();
+        float roughness = md.roughness;
+        float3 diffuse_color = GetDiffuseColor(md, v.uv);
+
         uint seed = payload.seed;
-        float z1 = rnd01(seed);
-        float z2 = rnd01(seed);
-        float3 w_in = cosine_sample_hemisphere(z1, z2);
+        float3 w_in = cosine_sample_hemisphere(rnd01(seed), rnd01(seed));
 
         ONB onb;
         onb.init(N);
-        onb.inverse_transform(w_in);
+        w_in = onb.inverse_transform(w_in);
+
+        float3 ref = reflect(payload.direction, N);
+        w_in = lerp(ref, w_in, roughness);
 
         payload.direction = w_in;
         payload.origin = P;
-
-        float3 diffuse_color = GetDiffuseColor(FaceMaterial(), v.uv);
         payload.attenuation *= diffuse_color;
         payload.count_emitted = false;
     }
 
 
+    // receive lights
 
     uint render_flags = RenderFlags();
     uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
     if (render_flags & RF_CULL_BACK_FACES)
         ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
-    int li;
-    for (li = 0; li < LightCount(); ++li) {
+    for (int li = 0; li < LightCount(); ++li) {
         LightData light = GetLight(li);
 
         float weight = 0.0f;

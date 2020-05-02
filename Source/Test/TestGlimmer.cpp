@@ -71,6 +71,7 @@ TestCase(TestMinimum)
     }
 
     material1->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
+    material1->setRoughness(0.02f);
     material2->setDiffuse(float3{ 0.5f, 0.5f, 0.5f });
     material3->setDiffuse(float3{ 0.25f, 0.25f, 0.25f });
     material3->setDiffuseTexture(texture);
@@ -83,9 +84,11 @@ TestCase(TestMinimum)
     {
         float3 pos{ 2.0f, 10.0f, -2.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
+        float3 color{ 0.95f, 0.925f, 1.0f };
         light->setType(gpt::LightType::Point);
         light->setPosition(pos);
         light->setDirection(mu::normalize(target - pos));
+        light->setColor(color * 5.0f);
     }
 
     // create meshes
