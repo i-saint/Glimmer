@@ -48,7 +48,7 @@ void RenderTargetDXR::updateResources()
     ContextDXR* ctx = m_context;
 
     if (!m_uav_frame_buffer) {
-        auto& desc_alloc = ctx->m_desc_alloc;
+        auto& desc_alloc = ctx->m_desc_alloc_srv;
         m_uav_frame_buffer = desc_alloc.allocate();
         m_uav_accum_buffer = desc_alloc.allocate();
     }
@@ -488,7 +488,7 @@ void SceneDXR::updateResources()
 
     // desc heap
     if (!m_srv_tlas) {
-        auto& desc_alloc = ctx->m_desc_alloc;
+        auto& desc_alloc = ctx->m_desc_alloc_srv;
         m_srv_tlas  = desc_alloc.allocate();
         m_cbv_scene = desc_alloc.allocate();
     }

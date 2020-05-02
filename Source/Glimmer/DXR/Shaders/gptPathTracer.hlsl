@@ -9,6 +9,8 @@ ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
 StructuredBuffer<MeshData>      g_meshes        : register(t1, space1);
 StructuredBuffer<MaterialData>  g_materials     : register(t2, space1);
+SamplerState                    g_sampler_default : register(s0, space1);
+
 StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space2);
 StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space3);
 StructuredBuffer<face_t>        g_faces[]       : register(t0, space4);
@@ -76,8 +78,10 @@ MaterialData FaceMaterial()
     return FaceMaterial(instance_id, face_id);
 }
 
-vertex_t HitVertex(int instance_id, int face_id, float2 barycentric)
+vertex_t HitVertex(float2 barycentric)
 {
+    int instance_id = InstanceID();
+    int face_id = PrimitiveIndex();
     int mesh_id = g_instances[instance_id].mesh_id;
     int deform_id = g_instances[instance_id].deform_id;
     int3 indices = g_faces[mesh_id][face_id].indices;
@@ -96,12 +100,6 @@ vertex_t HitVertex(int instance_id, int face_id, float2 barycentric)
             g_vertices[mesh_id][indices[1]],
             g_vertices[mesh_id][indices[2]]);
     }
-}
-vertex_t HitVertex(float2 barycentric)
-{
-    int instance_id = InstanceID();
-    int face_id = PrimitiveIndex();
-    return HitVertex(instance_id, face_id, barycentric);
 }
 
 float3 HitPosition()
@@ -188,14 +186,23 @@ bool ShootOcclusionRay(uint flags, in RayDesc ray, inout Payload payload)
     return payload.t >= 0.0f;
 }
 
+float3 GetDiffuseColor(MaterialData md, float2 uv)
+{
+    float3 r = md.diffuse;
+    int tid = md.diffuse_tex;
+    if (tid != -1) 
+        r *= g_textures[tid].SampleLevel(g_sampler_default, uv, 0).xyz;
+    return r;
+}
+
 [shader("closesthit")]
 void ClosestHitRadiance(inout Payload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    MaterialData md = FaceMaterial();
-    payload.color = md.diffuse;
+    vertex_t v = HitVertex(attr.barycentrics);
 
-    //vertex_t v = HitVertex(attr.barycentrics);
-    //payload.color = float3(v.uv, 0.0f);
+    MaterialData md = FaceMaterial();
+    payload.color = GetDiffuseColor(md, v.uv);
+
 
     uint render_flags = RenderFlags();
     uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;

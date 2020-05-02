@@ -1,5 +1,28 @@
 #include "pch.h"
-#include "MeshGenerator.h"
+#include "AssetGenerator.h"
+
+template<class T>
+void GenerateCheckerImage(T* pixels, int width, int height)
+{
+    const int block_size = 32;
+    for (int iy = 0; iy < height; iy++) {
+        for (int ix = 0; ix < width; ix++) {
+            int ip = iy * width + ix;
+            int xb = ix / block_size;
+            int yb = iy / block_size;
+
+            if ((xb + yb) % 2 == 0) {
+                pixels[ip] = T::one();
+            }
+            else {
+                pixels[ip] = T::zero();
+            }
+        }
+    }
+}
+template void GenerateCheckerImage<unorm8x4>(unorm8x4* pixels, int width, int height);
+template void GenerateCheckerImage<half4>(half4* pixels, int width, int height);
+template void GenerateCheckerImage<float4>(float4* pixels, int width, int height);
 
 
 static inline int GetMiddlePoint(int p1, int p2, std::vector<float3>& vertices, std::map<int64_t, int>& cache, float radius)

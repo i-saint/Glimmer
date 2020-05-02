@@ -184,6 +184,8 @@ public:
 class ITexture : public IObject
 {
 public:
+    // actual upload will be done in IContext::render()
+    // but the data is copied and so src can be discarded after calling this.
     virtual void upload(const void* src) = 0;
 
     virtual int   getWidth() const = 0;
@@ -197,6 +199,7 @@ class IRenderTarget : public IObject
 {
 public:
     virtual void enableReadback(bool v) = 0;
+    // should be called after IContext::finish()
     virtual bool readback(void* dst) = 0;
 
     virtual int   getWidth() const = 0;

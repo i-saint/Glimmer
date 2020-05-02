@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Test.h"
-#include "MeshGenerator.h"
+#include "AssetGenerator.h"
 #define gptImpl
 #include "gptInterface.h"
 
@@ -51,6 +51,8 @@ TestCase(TestMinimum)
     auto scene = ctx->createScene();
     auto camera = ctx->createCamera();
     auto light = ctx->createLight();
+
+    auto texture = ctx->createTexture(512, 512, gpt::Format::RGBAu8);
     auto material1 = ctx->createMaterial();
     auto material2 = ctx->createMaterial();
     auto material3 = ctx->createMaterial();
@@ -61,9 +63,17 @@ TestCase(TestMinimum)
     scene->setCamera(camera);
     scene->addLight(light);
 
+    {
+        RawVector<unorm8x4> image;
+        image.resize(texture->getWidth() * texture->getHeight() * sizeof(unorm8x4));
+        GenerateCheckerImage(image.data(), texture->getWidth(), texture->getHeight());
+        texture->upload(image.cdata());
+    }
+
     material1->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
     material2->setDiffuse(float3{ 0.5f, 0.5f, 0.5f });
     material3->setDiffuse(float3{ 0.25f, 0.25f, 0.25f });
+    material3->setDiffuseTexture(texture);
     {
         float3 pos{ 0.0f, 2.0f, -8.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };

@@ -99,7 +99,7 @@ int DeformerDXR::deform()
     auto ctx = m_context;
     auto& cl = m_cmd_list;
 
-    ID3D12DescriptorHeap* heaps[] = { ctx->m_desc_heap };
+    ID3D12DescriptorHeap* heaps[] = { ctx->m_desc_heap_srv };
     cl->SetDescriptorHeaps(_countof(heaps), heaps);
     cl->SetComputeRootSignature(m_rootsig);
 

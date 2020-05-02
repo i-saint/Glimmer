@@ -120,8 +120,11 @@ public:
     ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
     ID3D12ResourcePtr m_buf_meshes, m_buf_meshes_staging;
 
-    ID3D12DescriptorHeapPtr m_desc_heap;
-    DescriptorHeapAllocatorDXR m_desc_alloc;
+    ID3D12DescriptorHeapPtr m_desc_heap_srv;
+    ID3D12DescriptorHeapPtr m_desc_heap_sampler;
+    DescriptorHeapAllocatorDXR m_desc_alloc_srv;
+    DescriptorHeapAllocatorDXR m_desc_alloc_sampler;
+
     DescriptorHandleDXR m_srv_instances;
     DescriptorHandleDXR m_srv_meshes;
     DescriptorHandleDXR m_srv_materials;
@@ -131,6 +134,7 @@ public:
     DescriptorHandleDXR m_srv_textures;
     DescriptorHandleDXR m_srv_deform_meshes;
     DescriptorHandleDXR m_srv_deform_instances;
+    DescriptorHandleDXR m_sampler_default;
 
 #ifdef gptEnableTimestamp
     TimestampDXRPtr m_timestamp;

@@ -336,8 +336,11 @@ bool ContextDXR::initializeDevice()
             // textures
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount,       0, 5, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
+        D3D12_DESCRIPTOR_RANGE ranges3[] = {
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+        };
 
-        D3D12_ROOT_PARAMETER params[3]{};
+        D3D12_ROOT_PARAMETER params[4]{};
         auto append = [&params](const int i, auto& range) {
             params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[i].DescriptorTable.NumDescriptorRanges = _countof(range);
@@ -347,6 +350,7 @@ bool ContextDXR::initializeDevice()
         Append(0);
         Append(1);
         Append(2);
+        Append(3);
 #undef Append
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
@@ -431,28 +435,49 @@ bool ContextDXR::initializeDevice()
             gptSetName(m_pipeline_state, L"Shadow Pipeline State");
         }
     }
-    
-    // desc heap
-    if (!m_desc_heap) {
+
+    // desc heaps
+    if (!m_desc_heap_srv) {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
-        desc.NumDescriptors = gptDXRMaxDescriptorCount;
+        desc.NumDescriptors = gptDXRMaxSRVCount;
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap));
-        gptSetName(m_desc_heap, "Global Desc Heap");
+        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap_srv));
+        gptSetName(m_desc_heap_srv, "SRV Heap");
 
-        m_desc_alloc.reset(m_device, m_desc_heap);
-        m_srv_instances = m_desc_alloc.allocate();
-        m_srv_meshes    = m_desc_alloc.allocate();
-        m_srv_materials = m_desc_alloc.allocate();
-        m_srv_vertices  = m_desc_alloc.allocate(gptDXRMaxMeshCount);
-        m_srv_vertices_d= m_desc_alloc.allocate(gptDXRMaxDeformInstanceCount);
-        m_srv_faces     = m_desc_alloc.allocate(gptDXRMaxMeshCount);
-        m_srv_textures  = m_desc_alloc.allocate(gptDXRMaxTextureCount);
+        m_desc_alloc_srv.reset(m_device, m_desc_heap_srv);
+        m_srv_instances = m_desc_alloc_srv.allocate();
+        m_srv_meshes    = m_desc_alloc_srv.allocate();
+        m_srv_materials = m_desc_alloc_srv.allocate();
+        m_srv_vertices  = m_desc_alloc_srv.allocate(gptDXRMaxMeshCount);
+        m_srv_vertices_d= m_desc_alloc_srv.allocate(gptDXRMaxDeformInstanceCount);
+        m_srv_faces     = m_desc_alloc_srv.allocate(gptDXRMaxMeshCount);
+        m_srv_textures  = m_desc_alloc_srv.allocate(gptDXRMaxTextureCount);
 
         // need to figure out better way...
-        m_srv_deform_meshes = m_desc_alloc.allocate(gptDXRMaxDeformMeshCount * 6);
-        m_srv_deform_instances = m_desc_alloc.allocate(gptDXRMaxDeformInstanceCount * 3);
+        m_srv_deform_meshes = m_desc_alloc_srv.allocate(gptDXRMaxDeformMeshCount * 6);
+        m_srv_deform_instances = m_desc_alloc_srv.allocate(gptDXRMaxDeformInstanceCount * 3);
+    }
+    if (!m_desc_heap_sampler) {
+        D3D12_DESCRIPTOR_HEAP_DESC desc{};
+        desc.NumDescriptors = gptDXRMaxSamplerCount;
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_desc_heap_sampler));
+        gptSetName(m_desc_heap_sampler, "Sampler Heap");
+
+        m_desc_alloc_sampler.reset(m_device, m_desc_heap_sampler);
+        m_sampler_default = m_desc_alloc_sampler.allocate();
+
+
+        // sampler
+        D3D12_SAMPLER_DESC sd{};
+        sd.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        sd.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        sd.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        sd.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        sd.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        m_device->CreateSampler(&sd, m_sampler_default.hcpu);
     }
 
     m_deformer = std::make_shared<DeformerDXR>(this);
@@ -672,11 +697,12 @@ void ContextDXR::dispatchRays()
     cl_rays->SetComputeRootSignature(m_rootsig);
     cl_rays->SetPipelineState1(m_pipeline_state.GetInterfacePtr());
 
-    ID3D12DescriptorHeap* desc_heaps[] = { m_desc_heap };
+    ID3D12DescriptorHeap* desc_heaps[] = { m_desc_heap_srv, m_desc_heap_sampler };
     cl_rays->SetDescriptorHeaps(_countof(desc_heaps), desc_heaps);
 
     // global descriptors
     cl_rays->SetComputeRootDescriptorTable(2, m_srv_instances.hgpu);
+    cl_rays->SetComputeRootDescriptorTable(3, m_sampler_default.hgpu);
 
     auto do_dispatch = [&](ID3D12Resource* rt, RayGenType raygen_type) {
         addResourceBarrier(rt, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

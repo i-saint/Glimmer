@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MeshGenerator.cpp" />
+    <ClCompile Include="AssetGenerator.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -19,7 +19,7 @@
     <ClCompile Include="TestGlimmer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MeshGenerator.h" />
+    <ClInclude Include="AssetGenerator.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Test.h" />
   </ItemGroup>
