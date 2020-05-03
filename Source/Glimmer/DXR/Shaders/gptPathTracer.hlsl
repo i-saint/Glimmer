@@ -2,7 +2,7 @@
 #include "gptCommon.h"
 
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
-RWTexture2D<float4>             g_accum_buffer  : register(u1, space0);
+RWStructuredBuffer<accum_t>     g_accum_buffer  : register(u1, space0);
 RaytracingAccelerationStructure g_tlas          : register(t0, space0);
 ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
@@ -17,13 +17,6 @@ StructuredBuffer<face_t>        g_faces[]       : register(t0, space4);
 Texture2D<float4>               g_textures[]    : register(t0, space5);
 
 
-float3 CameraPosition()     { return g_scene.camera.position.xyz; }
-float3 CameraRight()        { return g_scene.camera.view[0].xyz; }
-float3 CameraUp()           { return -g_scene.camera.view[1].xyz; }
-float3 CameraForward()      { return g_scene.camera.view[2].xyz; }
-float CameraFocalLength()   { return abs(g_scene.camera.proj[1][1]); }
-float CameraNearPlane()     { return g_scene.camera.near_plane; }
-float CameraFarPlane()      { return g_scene.camera.far_plane; }
 
 uint  FrameCount()          { return g_scene.frame; }
 uint  SamplesPerFrame()     { return g_scene.samples_per_frame; }
@@ -140,9 +133,10 @@ struct RadiancePayload
     float3 attenuation;
     float3 origin;
     float3 direction;
+    float  t;
     uint   seed;
     int    done;
-    int2   pad;
+    int    pad;
 
     void init()
     {
@@ -150,6 +144,7 @@ struct RadiancePayload
         attenuation = 1.0f;
         origin = 0.0f;
         direction = 0.0f;
+        t = -1.0f;
         seed = 0;
         done = false;
     }
@@ -166,7 +161,7 @@ struct OcclusionPayload
 };
 
 
-void GetCameraRay(out float3 origin, out float3 direction, float2 offset = 0.0f)
+void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, float2 offset)
 {
     uint2 si = DispatchRaysIndex().xy;
     uint2 sd = DispatchRaysDimensions().xy;
@@ -175,11 +170,28 @@ void GetCameraRay(out float3 origin, out float3 direction, float2 offset = 0.0f)
     float2 screen_pos = ((float2(si) + offset + 0.5f) / float2(sd)) * 2.0f - 1.0f;
     screen_pos.x *= aspect_ratio;
 
-    origin = CameraPosition();
+    origin = cam.position;
+    float3 r = cam.view[0].xyz;
+    float3 u = -cam.view[1].xyz;
+    float3 f = cam.view[2].xyz;
+    float focal = abs(cam.proj[1][1]);
+
     direction = normalize(
-        CameraRight() * screen_pos.x +
-        CameraUp() * screen_pos.y +
-        CameraForward() * CameraFocalLength());
+        r * screen_pos.x +
+        u * screen_pos.y +
+        f * focal);
+}
+
+float3 GetCameraRayPosition(CameraData cam, float t)
+{
+    float3 origin, direction;
+    GetCameraRay(origin, direction, cam, 0.0f);
+    return origin + (direction * t);
+}
+
+void GetCameraRay(out float3 origin, out float3 direction, float2 offset = 0.0f)
+{
+    GetCameraRay(origin, direction, g_scene.camera, offset);
 }
 
 void ShootRadianceRay(inout RadiancePayload payload)
@@ -187,8 +199,8 @@ void ShootRadianceRay(inout RadiancePayload payload)
     RayDesc ray;
     ray.Origin = payload.origin;
     ray.Direction = payload.direction;
-    ray.TMin = CameraNearPlane(); // 
-    ray.TMax = CameraFarPlane();  // todo: correct this
+    ray.TMin = g_scene.camera.near_plane; // 
+    ray.TMax = g_scene.camera.far_plane;  // todo: correct this
 
     uint render_flags = RenderFlags();
     uint ray_flags = 0;
@@ -203,30 +215,51 @@ void RayGenRadiance()
 {
     uint2 si = DispatchRaysIndex().xy;
     uint2 sd = DispatchRaysDimensions().xy;
+    uint si1 = sd.x * si.y + si.x;
 
-    float3 result = 0.0f;
     uint seed = tea(si.y * sd.x + si.x, FrameCount());
     int samples_per_frame = SamplesPerFrame();
     int max_trace_depth = MaxTraceDepth();
+    float2 jitter = 0.0f;
+    float3 radiance = 0.0f;
+    float t = 0.0f;
+
     for (int i = 0; i < samples_per_frame; ++i) {
         RadiancePayload payload;
         payload.init();
         payload.seed = seed;
-        GetCameraRay(payload.origin, payload.direction, float2(rnd55(seed), rnd55(seed)));
+        GetCameraRay(payload.origin, payload.direction, jitter);
 
-        for (int d = 0; d < max_trace_depth && !payload.done; ++d) {
+        for (int depth = 0; depth < max_trace_depth && !payload.done; ++depth) {
             ShootRadianceRay(payload);
-            result += payload.radiance * payload.attenuation;
+            radiance += payload.radiance * payload.attenuation;
+            if (i == 0 && depth == 0)
+                t = payload.t;
         }
+        jitter = float2(rnd55(seed), rnd55(seed));
     }
 
-    float4 prev = g_accum_buffer[si];
-    prev *= 0.9f;
-    float accum = prev.w + float(samples_per_frame);
-    result += prev.xyz;
-    
-    g_frame_buffer[si] = float4(result / accum, 0.0f);
-    g_accum_buffer[si] = float4(result, accum);
+    float accum = float(samples_per_frame);
+    accum_t prev = g_accum_buffer[si1];
+    float move_amount = 0;
+    {
+        float3 pos = GetCameraRayPosition(g_scene.camera, t);
+        float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, prev.t);
+        move_amount = length(pos - pos_prev);
+        //if (move_amount < 0.0001f)
+        {
+            const float accum_attenuation = 0.9f;
+            radiance += prev.radiance * accum_attenuation;
+            accum += prev.accum * accum_attenuation;
+        }
+    }
+    prev.radiance = radiance;
+    prev.accum = accum;
+    prev.t = t;
+
+    g_frame_buffer[si] = float4(radiance / accum, 0.0f);
+    //g_frame_buffer[si] = d * 100.0f;
+    g_accum_buffer[si1] = prev;
 }
 
 [shader("miss")]
@@ -234,6 +267,7 @@ void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
 {
     payload.radiance = BackgroundColor();
     payload.done = true;
+    payload.t = g_scene.camera.far_plane;
 }
 
 
@@ -251,6 +285,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     float3 P = HitPosition();
     float3 N = FaceNormal();
     vertex_t V = HitVertex(attr.barycentrics);
+    payload.t = RayTCurrent();
 
     {
         MaterialData md = FaceMaterial();
@@ -288,7 +323,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
             ray.Origin = P;
             ray.Direction = L;
             ray.TMin = 0.0f;
-            ray.TMax = CameraFarPlane();
+            ray.TMax = g_scene.camera.far_plane;
             if (!ShootOcclusionRay(ray_flags, ray)) {
                 float nDl = dot(N, L);
                 weight = nDl;

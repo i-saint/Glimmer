@@ -46,12 +46,12 @@ struct CameraData
 {
     float4x4 view;
     float4x4 proj;
-    float4 position;
+    float3 position;
+    float fov;
     float4 rotation;
     float near_plane;
     float far_plane;
-    float fov;
-    float pad;
+    float2 pad;
 };
 
 struct LightData
@@ -128,6 +128,7 @@ struct SceneData
     float3 bg_color;
 
     CameraData camera;
+    CameraData camera_prev;
     LightData lights[kMaxLights];
 };
 
@@ -153,6 +154,15 @@ struct face_t
 {
     int3 indices;
     int material_index;
+};
+
+struct accum_t
+{
+    float3 radiance;
+    float accum;
+    float t;
+
+    float3 pad;
 };
 
 

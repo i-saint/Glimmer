@@ -1,8 +1,9 @@
 #pragma once
 
 static const float PI = 3.14159265f;
-
-// some of these are based on OptiX SDK examples
+static const float FLT_EPSILON = 1.192092896e-07;
+static const float FLT_MIN = 1.175494351e-38;
+static const float FLT_MAX = 3.402823466e+38;
 
 // orthonormal basis
 struct ONB
@@ -85,6 +86,11 @@ inline float3 offset_ray(const float3 p, const float3 n)
         abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
 }
 
+
+inline bool near_equal(float a, float b, float t)
+{
+    return abs(a - b) < t;
+}
 
 inline float3 mul_p(float4x4 m, float3 v)
 {

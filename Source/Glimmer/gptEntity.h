@@ -85,16 +85,12 @@ struct CameraData
 {
     float4x4 view = float4x4::identity();
     float4x4 proj = float4x4::identity();
-    union {
-        float3 position;
-        float4 position4 = float4::zero();
-    };
-    quatf rotation = quatf::identity();
-
-    float near_plane = 0.01f;
-    float far_plane = 100.0f;
-    float fov = 60.0f;
-    float pad{};
+    float3   position = float3::zero();
+    float    fov = 60.0f;
+    quatf    rotation = quatf::identity();
+    float    near_plane = 0.01f;
+    float    far_plane = 100.0f;
+    float2   pad{};
 
     gptDefCompare(CameraData);
 };
@@ -175,6 +171,7 @@ struct SceneData
     float3 bg_color = {0.1f, 0.1f, 0.1f};
 
     CameraData camera;
+    CameraData camera_prev;
     LightData lights[gptMaxLights];
 
     gptDefCompare(SceneData);
@@ -203,6 +200,15 @@ struct face_t
     int material_index;
 
     gptDefCompare(face_t);
+};
+
+struct accum_t
+{
+    float3 radiance;
+    float accum;
+    float t;
+
+    float3 pad;
 };
 
 #undef gptDefCompare

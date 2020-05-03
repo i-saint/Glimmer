@@ -74,8 +74,8 @@ void RenderTargetDXR::updateResources()
         gptSetName(m_frame_buffer, m_name + " Frame Buffer");
     }
     if (!m_accum_buffer) {
-        m_accum_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R32G32B32A32_TYPELESS);
-        ctx->createTextureUAV(m_uav_accum_buffer, m_accum_buffer);
+        m_accum_buffer = ctx->createBuffer(m_width * m_height * sizeof(accum_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
+        ctx->createBufferUAV(m_uav_accum_buffer, m_accum_buffer, sizeof(accum_t));
         gptSetName(m_accum_buffer, m_name + " Accum Buffer");
     }
     if (m_readback_enabled && !m_buf_readback) {
