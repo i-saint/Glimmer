@@ -264,6 +264,13 @@ public:
     virtual void setNear(float v) = 0;
     virtual void setFar(float v) = 0;
     virtual void setRenderTarget(IRenderTarget* v) = 0;
+
+    virtual float3 getPosition() const = 0;
+    virtual float3 getDirection() const = 0;
+    virtual float getFOV() const = 0;
+    virtual float getNear() const = 0;
+    virtual float getFar() const = 0;
+    virtual IRenderTarget* getRenderTarget() const = 0;
 };
 using ICameraPtr = ref_ptr<ICamera>;
 
@@ -373,7 +380,7 @@ public:
     virtual void onMaximize() {}
     virtual void onKeyDown(int key) {}
     virtual void onKeyUp(int key) {}
-    virtual void onMouseMove(int x, int y) {}
+    virtual void onMouseMove(int x, int y, int buttons) {}
     virtual void onMouseDown(int button) {}
     virtual void onMouseUp(int button) {}
 };

@@ -7,6 +7,7 @@ using mu::float4x4;
 using mu::quatf;
 using mu::unorm8x4;
 using mu::half4;
+using mu::int2;
 
 
 // T: unorm8x4, half4, float4

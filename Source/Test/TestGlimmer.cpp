@@ -25,44 +25,100 @@ TestCase(TestMath)
 
 #define EnableWindow
 
-TestCase(TestMinimum)
+class GlimmerTest : public gpt::IWindowCallback
+{
+public:
+    void onMouseMove(int x, int y, int button) override;
+
+    bool init();
+    void messageLoop();
+
+private:
+    gpt::IContextPtr m_ctx;
+    gpt::IWindowPtr m_window;
+
+    gpt::IScenePtr m_scene;
+    gpt::IRenderTargetPtr m_render_target;
+    gpt::ICameraPtr m_camera;
+    gpt::ILightPtr m_light;
+
+    gpt::IMaterialPtr m_mat_reflective;
+    gpt::IMaterialPtr m_mat_emissive;
+    gpt::IMaterialPtr m_mat_checker;
+
+    gpt::IMeshPtr m_mesh_floor;
+    gpt::IMeshPtr m_mesh_triangle;
+    gpt::IMeshPtr m_mesh_deformable;
+    gpt::IMeshPtr m_mesh_cube;
+    gpt::IMeshPtr m_mesh_sphere;
+
+    gpt::IMeshInstancePtr m_inst_floor;
+    gpt::IMeshInstancePtr m_inst_triangle;
+    gpt::IMeshInstancePtr m_inst_deformable;
+    gpt::IMeshInstancePtr m_inst_cube;
+    gpt::IMeshInstancePtr m_inst_sphere;
+
+    int2 m_mouse_pos{};
+    int2 m_mouse_move{};
+};
+
+
+void GlimmerTest::onMouseMove(int x, int y, int button)
+{
+    int2 new_pos{ x,y };
+    m_mouse_move = new_pos - m_mouse_pos;
+    m_mouse_pos = new_pos;
+
+    if (button & 1 != 0) {
+        float3 pos = m_camera->getPosition();
+        float3 target{ 0.0f, 0.0f, 0.0f };
+        float3 axis = mu::cross(mu::normalize(target - pos), float3::up());
+        pos = mu::to_mat3x3(mu::rotate_y((float)-m_mouse_move.x * 0.001f)) * pos;
+        pos = mu::to_mat3x3(mu::rotate(axis, (float)m_mouse_move.y * 0.001f)) * pos;
+        m_camera->setPosition(pos);
+        m_camera->setDirection(mu::normalize(target - pos));
+    }
+}
+
+
+bool GlimmerTest::init()
 {
     gptGetGlobals()->enableTimestamp(true);
     gptGetGlobals()->enableStrictUpdateCheck(true);
 
-    auto ctx = gptCreateContext(gpt::DeviceType::DXR);
-    if (!ctx) {
+    m_ctx = gptCreateContext(gpt::DeviceType::DXR);
+    if (!m_ctx) {
         printf("DXR is not supported on this system.\n");
-        return;
+        return false;
     }
-    printf("device: %s\n", ctx->getDeviceName());
+    printf("device: %s\n", m_ctx->getDeviceName());
 
     const int rt_width = 1024;
     const int rt_height = 1024;
 #ifdef EnableWindow
     const auto rt_format = gpt::Format::RGBAu8;
-    auto window = gptCreateWindow(rt_width, rt_height);
-    auto render_target = ctx->createRenderTarget(window, rt_format);
+    m_window = gptCreateWindow(rt_width, rt_height);
+    m_window->addCallback(this);
+    m_render_target = m_ctx->createRenderTarget(m_window, rt_format);
 #else
     const auto rt_format = gpt::Format::RGBAf32;
-    auto render_target = ctx->createRenderTarget(rt_width, rt_height, rt_format);
+    m_render_target = m_ctx->createRenderTarget(rt_width, rt_height, rt_format);
 #endif
 
-    auto scene = ctx->createScene();
-    auto camera = ctx->createCamera();
-    auto light = ctx->createLight();
+    m_scene = m_ctx->createScene();
+    m_camera = m_ctx->createCamera();
+    m_light = m_ctx->createLight();
 
-    auto texture = ctx->createTexture(512, 512, gpt::Format::RGBAu8);
-    auto material1 = ctx->createMaterial();
-    auto material2 = ctx->createMaterial();
-    auto material3 = ctx->createMaterial();
-    gpt::IMeshInstancePtr reflective;
-    gpt::IMeshInstancePtr deformable;
+    m_render_target->enableReadback(true);
+    m_camera->setRenderTarget(m_render_target);
+    m_scene->setCamera(m_camera);
+    m_scene->addLight(m_light);
 
-    render_target->enableReadback(true);
-    camera->setRenderTarget(render_target);
-    scene->setCamera(camera);
-    scene->addLight(light);
+    auto texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
+    m_mat_reflective = m_ctx->createMaterial();
+    m_mat_emissive = m_ctx->createMaterial();
+    m_mat_checker = m_ctx->createMaterial();
+
 
     {
         RawVector<unorm8x4> image;
@@ -71,30 +127,60 @@ TestCase(TestMinimum)
         texture->upload(image.cdata());
     }
 
-    material1->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
-    material1->setRoughness(0.02f);
-    material2->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
-    material2->setEmissive(float3{ 0.9f, 0.8f, 1.2f });
-    material3->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
-    material3->setDiffuseTexture(texture);
-    //material3->setEmissiveTexture(texture);
+    m_mat_reflective->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
+    m_mat_reflective->setRoughness(0.02f);
+
+    m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
+    m_mat_emissive->setEmissive(float3{ 0.9f, 0.8f, 1.2f });
+
+    m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
+    m_mat_checker->setDiffuseTexture(texture);
+    //m_mat_checker->setEmissiveTexture(texture);
     {
         float3 pos{ 0.0f, 2.0f, -8.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
-        camera->setPosition(pos);
-        camera->setDirection(mu::normalize(target - pos));
+        m_camera->setPosition(pos);
+        m_camera->setDirection(mu::normalize(target - pos));
     }
     {
         float3 pos{ 2.0f, 10.0f, -2.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
         float3 color{ 0.95f, 0.925f, 1.0f };
-        light->setType(gpt::LightType::Point);
-        light->setPosition(pos);
-        light->setDirection(mu::normalize(target - pos));
-        light->setColor(color * 1.0f);
+        m_light->setType(gpt::LightType::Point);
+        m_light->setPosition(pos);
+        m_light->setDirection(mu::normalize(target - pos));
+        m_light->setColor(color * 1.0f);
     }
 
     // create meshes
+    {
+        // floor quad
+        static const float3 points[]{
+            {-5.0f, 0.0f, 5.0f},
+            { 5.0f, 0.0f, 5.0f},
+            { 5.0f, 0.0f,-5.0f},
+            {-5.0f, 0.0f,-5.0f},
+        };
+        static const float2 uv[]{
+            { 0.0f, 1.0f},
+            { 1.0f, 1.0f},
+            { 1.0f, 0.0f},
+            { 0.0f, 0.0f},
+        };
+        static const int indices[]{
+            0, 1, 2, 0, 2, 3,
+        };
+        m_mesh_floor = m_ctx->createMesh();
+        m_mesh_floor->setPoints(points, _countof(points));
+        m_mesh_floor->setUV(uv, _countof(uv));
+        m_mesh_floor->setIndices(indices, _countof(indices));
+
+        // add a instance with default transform
+        m_inst_floor = m_ctx->createMeshInstance(m_mesh_floor);
+        m_inst_floor->setMaterial(m_mat_checker);
+        m_scene->addMesh(m_inst_floor);
+    }
+
     {
         // standing triangle
         static const float3 points[]{
@@ -106,16 +192,16 @@ TestCase(TestMinimum)
             0, 1, 2,
         };
 
-        auto triangle = ctx->createMesh();
-        triangle->setName("Triangle");
-        triangle->setPoints(points, _countof(points));
-        triangle->setIndices(indices, _countof(indices));
+        m_mesh_triangle = m_ctx->createMesh();
+        m_mesh_triangle->setName("Triangle");
+        m_mesh_triangle->setPoints(points, _countof(points));
+        m_mesh_triangle->setIndices(indices, _countof(indices));
 
-        // add a instance with default transform (identity matrix)
-        reflective = ctx->createMeshInstance(triangle);
-        reflective->setMaterial(material1);
-        scene->addMesh(reflective);
+        m_inst_triangle = m_ctx->createMeshInstance(m_mesh_triangle);
+        m_inst_triangle->setMaterial(m_mat_reflective);
+        m_scene->addMesh(m_inst_triangle);
     }
+
     {
         // deformable triangle
         static const float3 points[]{
@@ -147,19 +233,19 @@ TestCase(TestMinimum)
             {0.0f, 1.5f, 0.0f},
         };
 
-        auto triangle = ctx->createMesh();
-        triangle->setName("Deformable Triangle");
-        triangle->setPoints(points, _countof(points));
-        triangle->setIndices(indices, _countof(indices));
+        m_mesh_deformable = m_ctx->createMesh();
+        m_mesh_deformable->setName("Deformable Triangle");
+        m_mesh_deformable->setPoints(points, _countof(points));
+        m_mesh_deformable->setIndices(indices, _countof(indices));
         {
             // joints
-            triangle->setJointCounts(joint_counts, _countof(joint_counts));
-            triangle->setJointWeights(joint_weights, _countof(joint_weights));
-            triangle->setJointBindposes(joint_bindposes, _countof(joint_bindposes));
+            m_mesh_deformable->setJointCounts(joint_counts, _countof(joint_counts));
+            m_mesh_deformable->setJointWeights(joint_weights, _countof(joint_weights));
+            m_mesh_deformable->setJointBindposes(joint_bindposes, _countof(joint_bindposes));
         }
         {
             // bllendshapes
-            auto bs = triangle->addBlendshape();
+            auto bs = m_mesh_deformable->addBlendshape();
             auto frame = bs->addFrame();
             frame->setDeltaPoints(delta_points, _countof(delta_points));
         }
@@ -173,65 +259,34 @@ TestCase(TestMinimum)
             1.0f,
         };
 
-        deformable = ctx->createMeshInstance(triangle);
-        deformable->setMaterial(material2);
-        deformable->setJointMatrices(joint_matrices);
-        deformable->setBlendshapeWeights(bs_weights);
-        scene->addMesh(deformable);
+        m_inst_deformable = m_ctx->createMeshInstance(m_mesh_deformable);
+        m_inst_deformable->setMaterial(m_mat_emissive);
+        m_inst_deformable->setJointMatrices(joint_matrices);
+        m_inst_deformable->setBlendshapeWeights(bs_weights);
+        m_scene->addMesh(m_inst_deformable);
     }
-    {
-        // floor quad
-        static const float3 points[]{
-            {-5.0f, 0.0f, 5.0f},
-            { 5.0f, 0.0f, 5.0f},
-            { 5.0f, 0.0f,-5.0f},
-            {-5.0f, 0.0f,-5.0f},
-        };
-        static const float2 uv[]{
-            { 0.0f, 1.0f},
-            { 1.0f, 1.0f},
-            { 1.0f, 0.0f},
-            { 0.0f, 0.0f},
-        };
-        static const int indices[]{
-            0, 1, 2, 0, 2, 3,
-        };
-        auto quad = ctx->createMesh();
-        quad->setPoints(points, _countof(points));
-        quad->setUV(uv, _countof(uv));
-        quad->setIndices(indices, _countof(indices));
+    return true;
+}
 
-        // add a instance with default transform
-        auto instance = ctx->createMeshInstance(quad);
-        instance->setMaterial(material3);
-        scene->addMesh(instance);
-    }
-
-    // render!
+void GlimmerTest::messageLoop()
+{
 #ifdef EnableWindow
     {
         int frame = 0;
-        while (!window->isClosed()) {
-            window->processMessages();
-            ctx->render();
-            ctx->finish();
-
-            float3 pos{ 0.0f, 2.0f, -8.0f };
-            float3 target{ 0.0f, 0.0f, 0.0f };
-            pos = mu::to_mat3x3(mu::rotate_y((float)frame * 0.001f)) * pos;
-            pos.y += sin((float)frame * 0.0005f) * 1.0f;
-            camera->setPosition(pos);
-            camera->setDirection(mu::normalize(target - pos));
+        while (!m_window->isClosed()) {
+            m_window->processMessages();
+            m_ctx->render();
+            m_ctx->finish();
 
             float bs_weights[]{
                 sin((float)frame * 0.001f) * 0.5f + 0.5f,
             };
-            deformable->setBlendshapeWeights(bs_weights);
-            //deformable->setEnabled(frame % 60 < 30);
+            m_inst_deformable->setBlendshapeWeights(bs_weights);
+            //m_inst_deformable->setEnabled(frame % 60 < 30);
 
-            reflective->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)frame * 0.002f)));
+            m_inst_triangle->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)frame * 0.002f)));
 
-            printf("%s\n", ctx->getTimestampLog());
+            printf("%s\n", m_ctx->getTimestampLog());
             ++frame;
         }
     }
@@ -246,6 +301,13 @@ TestCase(TestMinimum)
         printf("%s\n", ctx->getTimestampLog());
     }
 #endif
+}
 
+TestCase(TestMinimum)
+{
+    GlimmerTest test;
+    if (test.init()) {
+        test.messageLoop();
+    }
 }
 

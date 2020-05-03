@@ -71,25 +71,34 @@ static LRESULT CALLBACK gptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         break;
 
     case WM_MOUSEMOVE:
-        handle([&](Window* w) { w->onMouseMove(LOWORD(lParam), HIWORD(lParam)); });
+        handle([&](Window* w) {
+            int button = 0;
+            if (wParam & MK_LBUTTON)
+                button |= 1;
+            if (wParam & MK_RBUTTON)
+                button |= 2;
+            if (wParam & MK_MBUTTON)
+                button |= 3;
+            w->onMouseMove(LOWORD(lParam), HIWORD(lParam), button);
+        });
         break;
     case WM_LBUTTONDOWN:
-        handle([&](Window* w) { w->onMouseDown(1); });
+        handle([&](Window* w) { w->onMouseDown(0); });
         break;
     case WM_RBUTTONDOWN:
-        handle([&](Window* w) { w->onMouseDown(2); });
+        handle([&](Window* w) { w->onMouseDown(1); });
         break;
     case WM_MBUTTONDOWN:
-        handle([&](Window* w) { w->onMouseDown(3); });
+        handle([&](Window* w) { w->onMouseDown(2); });
         break;
     case WM_LBUTTONUP:
-        handle([&](Window* w) { w->onMouseUp(1); });
+        handle([&](Window* w) { w->onMouseUp(0); });
         break;
     case WM_RBUTTONUP:
-        handle([&](Window* w) { w->onMouseUp(2); });
+        handle([&](Window* w) { w->onMouseUp(1); });
         break;
     case WM_MBUTTONUP:
-        handle([&](Window* w) { w->onMouseUp(3); });
+        handle([&](Window* w) { w->onMouseUp(2); });
         break;
 
     default:
@@ -244,10 +253,10 @@ void Window::onKeyUp(int key)
     });
 }
 
-void Window::onMouseMove(int x, int y)
+void Window::onMouseMove(int x, int y, int buttons)
 {
     eachCallback([&](IWindowCallback* cb) {
-        cb->onMouseMove(x, y);
+        cb->onMouseMove(x, y, buttons);
     });
 }
 void Window::onMouseDown(int button)

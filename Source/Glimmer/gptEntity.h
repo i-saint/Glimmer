@@ -433,7 +433,13 @@ public:
     void setFar(float v) override;
     void setRenderTarget(IRenderTarget* v) override;
 
-    RenderTarget* getRenderTarget();
+    float3 getPosition() const override;
+    float3 getDirection() const override;
+    float getFOV() const override;
+    float getNear() const override;
+    float getFar() const override;
+    IRenderTarget* getRenderTarget() const override;
+
     const CameraData& getData();
 
 protected:

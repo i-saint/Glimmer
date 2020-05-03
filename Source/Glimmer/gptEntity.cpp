@@ -235,10 +235,12 @@ void Camera::setRenderTarget(IRenderTarget* v)
     markDirty(DirtyFlag::Camera);
 }
 
-RenderTarget* Camera::getRenderTarget()
-{
-    return m_render_target;
-}
+float3 Camera::getPosition() const { return m_data.position; }
+float3 Camera::getDirection() const { return to_mat3x3(m_data.rotation) * float3 {0.0f, 0.0f, 1.0f}; }
+float Camera::getFOV() const { return m_data.fov; }
+float Camera::getNear() const { return m_data.near_plane; }
+float Camera::getFar() const { return m_data.far_plane; }
+IRenderTarget* Camera::getRenderTarget() const { return m_render_target; }
 
 const CameraData& Camera::getData()
 {

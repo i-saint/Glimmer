@@ -246,12 +246,10 @@ void RayGenRadiance()
         float3 pos = GetCameraRayPosition(g_scene.camera, t);
         float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, prev.t);
         move_amount = length(pos - pos_prev);
-        //if (move_amount < 0.0001f)
-        {
-            const float accum_attenuation = 0.9f;
-            radiance += prev.radiance * accum_attenuation;
-            accum += prev.accum * accum_attenuation;
-        }
+
+        const float attenuation = max(0.95f - (move_amount * 100.0f), 0.0f);
+        radiance += prev.radiance * attenuation;
+        accum += prev.accum * attenuation;
     }
     prev.radiance = radiance;
     prev.accum = accum;

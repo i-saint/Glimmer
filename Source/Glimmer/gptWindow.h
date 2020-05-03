@@ -29,7 +29,7 @@ public:
     void onMaximize();
     void onKeyDown(int key);
     void onKeyUp(int key);
-    void onMouseMove(int x, int y);
+    void onMouseMove(int x, int y, int buttons);
     void onMouseDown(int button);
     void onMouseUp(int button);
 
