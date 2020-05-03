@@ -109,8 +109,8 @@ struct MeshData
 
 struct InstanceData
 {
-    float4x4 local_to_world;
-    float4x4 world_to_local;
+    float4x4 transform;
+    float4x4 itransform;
     int mesh_id;
     int deform_id;
     int instance_flags;
@@ -163,8 +163,8 @@ inline vertex_t barycentric_interpolation(float2 barycentric, vertex_t p0, verte
 {
     vertex_t r;
     r.position  = barycentric_interpolation(barycentric, p0.position, p1.position, p2.position);
-    r.normal    = normalize(barycentric_interpolation(barycentric, p0.normal, p1.normal, p2.normal));
-    r.tangent   = normalize(barycentric_interpolation(barycentric, p0.tangent, p1.tangent, p2.tangent));
+    r.normal    = barycentric_interpolation(barycentric, p0.normal, p1.normal, p2.normal);
+    r.tangent   = barycentric_interpolation(barycentric, p0.tangent, p1.tangent, p2.tangent);
     r.uv        = barycentric_interpolation(barycentric, p0.uv, p1.uv, p2.uv);
     return r;
 }

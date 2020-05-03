@@ -85,6 +85,16 @@ inline float3 offset_ray(const float3 p, const float3 n)
         abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
 }
 
+
+inline float3 mul_p(float4x4 m, float3 v)
+{
+    return mul(m, float4(v, 1.0f)).xyz;
+}
+inline float3 mul_v(float4x4 m, float3 v)
+{
+    return mul(m, float4(v, 0.0f)).xyz;
+}
+
 // a & b must be normalized
 inline float angle_between(float3 a, float3 b)
 {

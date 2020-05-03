@@ -154,8 +154,8 @@ struct MeshData
 
 struct InstanceData
 {
-    float4x4 local_to_world = float4x4::identity();
-    float4x4 world_to_local = float4x4::identity();
+    float4x4 transform = float4x4::identity();
+    float4x4 itransform = float4x4::identity();
     int mesh_id = -1;
     int deform_id = -1;
     int instance_flags = 0; // combination of InstanceFlags

@@ -673,8 +673,8 @@ void MeshInstance::setMaterial(IMaterial* v, int slot)
 
 void MeshInstance::setTransform(const float4x4& v)
 {
-    m_data.local_to_world = v;
-    m_data.world_to_local = mu::invert(v);
+    m_data.transform = v;
+    m_data.itransform = mu::invert(v);
     markDirty(DirtyFlag::Transform);
 }
 
@@ -721,7 +721,7 @@ void MeshInstance::exportJointMatrices(float4x4* dst)
     // on skinned meshes, inst.transform is root bone's transform or identity if root bone is not assigned.
     // both cases work, but identity matrix means world space skinning that is not optimal.
 
-    auto iroot = mu::invert(m_data.local_to_world);
+    auto iroot = m_data.itransform;
     auto* bindposes = mesh.getJointBindposes();
     for (int ji = 0; ji < n; ++ji)
         *dst++ = bindposes[ji] * m_joint_matrices[ji] * iroot;

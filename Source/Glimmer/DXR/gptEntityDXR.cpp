@@ -548,7 +548,7 @@ void SceneDXR::updateTLAS()
             auto& mesh = dxr_t(*inst.getMesh());
             auto& blas = inst.m_blas ? inst.m_blas : mesh.m_blas;
 
-            (float3x4&)desc.Transform = to_mat3x4(inst.getData().local_to_world);
+            (float3x4&)desc.Transform = to_mat3x4(inst.getData().transform);
             desc.InstanceID = inst.getID();
             desc.InstanceMask = ~0;
             desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;

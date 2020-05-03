@@ -56,6 +56,7 @@ TestCase(TestMinimum)
     auto material1 = ctx->createMaterial();
     auto material2 = ctx->createMaterial();
     auto material3 = ctx->createMaterial();
+    gpt::IMeshInstancePtr reflective;
     gpt::IMeshInstancePtr deformable;
 
     render_target->enableReadback(true);
@@ -111,9 +112,9 @@ TestCase(TestMinimum)
         triangle->setIndices(indices, _countof(indices));
 
         // add a instance with default transform (identity matrix)
-        auto instance = ctx->createMeshInstance(triangle);
-        instance->setMaterial(material1);
-        scene->addMesh(instance);
+        reflective = ctx->createMeshInstance(triangle);
+        reflective->setMaterial(material1);
+        scene->addMesh(reflective);
     }
     {
         // deformable triangle
@@ -227,6 +228,8 @@ TestCase(TestMinimum)
             };
             deformable->setBlendshapeWeights(bs_weights);
             //deformable->setEnabled(frame % 60 < 30);
+
+            reflective->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)frame * 0.002f)));
 
             printf("%s\n", ctx->getTimestampLog());
             ++frame;

@@ -13,12 +13,10 @@ void GenerateCheckerImage(T* pixels, int width, int height)
             int xb = ix / block_size;
             int yb = iy / block_size;
 
-            if ((xb + yb) % 2 == 0) {
+            if ((xb + yb) % 2 == 0)
                 pixels[ip] = black;
-            }
-            else {
+            else
                 pixels[ip] = white;
-            }
         }
     }
 }
@@ -27,7 +25,44 @@ template void GenerateCheckerImage<half4>(half4* pixels, int width, int height);
 template void GenerateCheckerImage<float4>(float4* pixels, int width, int height);
 
 
-static inline int GetMiddlePoint(int p1, int p2, std::vector<float3>& vertices, std::map<int64_t, int>& cache, float radius)
+void GenerateCubeMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector<float3>& normals, RawVector<float2>& uv, float size)
+{
+    const float s = size;
+    points = {
+        {-s,-s, s}, { s,-s, s}, { s, s, s}, {-s, s, s},
+        {-s, s,-s}, { s, s,-s}, { s, s, s}, {-s, s, s},
+        {-s,-s,-s}, { s,-s,-s}, { s,-s, s}, {-s,-s, s},
+        {-s,-s, s}, {-s,-s,-s}, {-s, s,-s}, {-s, s, s},
+        { s,-s, s}, { s,-s,-s}, { s, s,-s}, { s, s, s},
+        {-s,-s,-s}, { s,-s,-s}, { s, s,-s}, {-s, s,-s},
+    };
+    normals = {
+        { 0.0f, 0.0f, 1.0f}, { 0.0f, 0.0f, 1.0f}, { 0.0f, 0.0f, 1.0f}, { 0.0f, 0.0f, 1.0f},
+        { 0.0f, 1.0f, 0.0f}, { 0.0f, 1.0f, 0.0f}, { 0.0f, 1.0f, 0.0f}, { 0.0f, 1.0f, 0.0f},
+        { 0.0f,-1.0f, 0.0f}, { 0.0f,-1.0f, 0.0f}, { 0.0f,-1.0f, 0.0f}, { 0.0f,-1.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f},
+        { 1.0f, 0.0f, 0.0f}, { 1.0f, 0.0f, 0.0f}, { 1.0f, 0.0f, 0.0f}, { 1.0f, 0.0f, 0.0f},
+        { 0.0f, 0.0f,-1.0f}, { 0.0f, 0.0f,-1.0f}, { 0.0f, 0.0f,-1.0f}, { 0.0f, 0.0f,-1.0f},
+    };
+    uv = {
+        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f},
+        {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f},
+        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f},
+        {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 1.0f},
+        {1.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 1.0f},
+        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f},
+    };
+    indices = {
+        0,1,3, 3,1,2,
+        5,4,6, 6,4,7,
+        8,9,11, 11,9,10,
+        13,12,14, 14,12,15,
+        16,17,19, 19,17,18,
+        21,20,22, 22,20,23,
+    };
+}
+
+static inline int GetMiddlePoint(int p1, int p2, RawVector<float3>& points, std::map<int64_t, int>& cache, float radius)
 {
     // first check if we have it already
     bool firstIsSmaller = p1 < p2;
@@ -43,8 +78,8 @@ static inline int GetMiddlePoint(int p1, int p2, std::vector<float3>& vertices, 
     }
 
     // not in cache, calculate it
-    const auto& point1 = vertices[p1];
-    const auto& point2 = vertices[p2];
+    const auto& point1 = points[p1];
+    const auto& point2 = points[p2];
     float3 middle{
         (point1.x + point2.x) * 0.5f,
         (point1.y + point2.y) * 0.5f,
@@ -52,8 +87,8 @@ static inline int GetMiddlePoint(int p1, int p2, std::vector<float3>& vertices, 
     };
 
     // add vertex makes sure point is on unit sphere
-    size_t i = vertices.size();
-    vertices.push_back(normalize(middle) * radius);
+    size_t i = points.size();
+    points.push_back(normalize(middle) * radius);
 
     // store it, return index
     cache[key] = i;
@@ -61,9 +96,8 @@ static inline int GetMiddlePoint(int p1, int p2, std::vector<float3>& vertices, 
 }
 
 void GenerateIcoSphereMesh(
-    std::vector<int>& counts,
-    std::vector<int>& indices,
-    std::vector<float3>& points,
+    RawVector<int>& indices,
+    RawVector<float3>& points,
     float radius,
     int iteration)
 {
@@ -113,7 +147,7 @@ void GenerateIcoSphereMesh(
     std::map<int64_t, int> cache;
     for (int it = 0; it < iteration; it++)
     {
-        std::vector<int> indices2;
+        RawVector<int> indices2;
         size_t n = indices.size();
         for (size_t fi = 0; fi < n; fi += 3)
         {
@@ -134,19 +168,14 @@ void GenerateIcoSphereMesh(
         }
         indices = indices2;
     }
-
-    counts.resize(indices.size() / 3);
-    for (int& c : counts) { c = 3; }
 }
 
 void GenerateWaveMesh(
-    std::vector<int>& counts,
-    std::vector<int>& indices,
-    std::vector<float3> &points,
+    RawVector<int>& indices,
+    RawVector<float3> &points,
     float size, float height,
     const int resolution,
-    float angle,
-    bool triangulate)
+    float angle)
 {
     const int num_vertices = resolution * resolution;
 
@@ -169,40 +198,20 @@ void GenerateWaveMesh(
     }
 
     // topology
-    if (triangulate) {
+    {
         int num_faces = (resolution - 1) * (resolution - 1) * 2;
         int num_indices = num_faces * 3;
 
-        counts.resize(num_faces);
         indices.resize(num_indices);
         for (int iy = 0; iy < resolution - 1; ++iy) {
             for (int ix = 0; ix < resolution - 1; ++ix) {
                 int i = (resolution - 1)*iy + ix;
-                counts[i * 2 + 0] = 3;
-                counts[i * 2 + 1] = 3;
                 indices[i * 6 + 0] = resolution*iy + ix;
                 indices[i * 6 + 1] = resolution*(iy + 1) + ix;
                 indices[i * 6 + 2] = resolution*(iy + 1) + (ix + 1);
                 indices[i * 6 + 3] = resolution*iy + ix;
                 indices[i * 6 + 4] = resolution*(iy + 1) + (ix + 1);
                 indices[i * 6 + 5] = resolution*iy + (ix + 1);
-            }
-        }
-    }
-    else {
-        int num_faces = (resolution - 1) * (resolution - 1);
-        int num_indices = num_faces * 4;
-
-        counts.resize(num_faces);
-        indices.resize(num_indices);
-        for (int iy = 0; iy < resolution - 1; ++iy) {
-            for (int ix = 0; ix < resolution - 1; ++ix) {
-                int i = (resolution - 1)*iy + ix;
-                counts[i] = 4;
-                indices[i * 4 + 0] = resolution*iy + ix;
-                indices[i * 4 + 1] = resolution*(iy + 1) + ix;
-                indices[i * 4 + 2] = resolution*(iy + 1) + (ix + 1);
-                indices[i * 4 + 3] = resolution*iy + (ix + 1);
             }
         }
     }

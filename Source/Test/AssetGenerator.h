@@ -13,20 +13,24 @@ using mu::half4;
 template<class T>
 void GenerateCheckerImage(T* pixels, int width, int height);
 
+void GenerateCubeMesh(
+    RawVector<int>& indices,
+    RawVector<float3>& points,
+    RawVector<float3>& normals,
+    RawVector<float2>& uv,
+    float size);
+
 
 void GenerateIcoSphereMesh(
-    std::vector<int>& counts,
-    std::vector<int>& indices,
-    std::vector<float3>& points,
+    RawVector<int>& indices,
+    RawVector<float3>& points,
     float radius,
     int iteration);
 
 void GenerateWaveMesh(
-    std::vector<int>& counts,
-    std::vector<int>& indices,
-    std::vector<float3> &points,
+    RawVector<int>& indices,
+    RawVector<float3> &points,
     float size, float height,
     const int resolution,
-    float angle,
-    bool triangulate = false);
+    float angle);
 

@@ -56,7 +56,8 @@ float3 FaceNormal(int instance_id, int face_id)
         p1 = g_vertices[mesh_id][indices[1]].position;
         p2 = g_vertices[mesh_id][indices[2]].position;
     }
-    return normalize(cross(p1 - p0, p2 - p0));
+    float3 n = normalize(cross(p1 - p0, p2 - p0));
+    return mul_v(g_instances[instance_id].transform, n);
 }
 float3 FaceNormal()
 {
@@ -86,20 +87,26 @@ vertex_t HitVertex(float2 barycentric)
     int deform_id = g_instances[instance_id].deform_id;
     int3 indices = g_faces[mesh_id][face_id].indices;
 
+    vertex_t r;
     if (deform_id != -1) {
-        return barycentric_interpolation(
+        r = barycentric_interpolation(
             barycentric,
             g_vertices_d[deform_id][indices[0]],
             g_vertices_d[deform_id][indices[1]],
             g_vertices_d[deform_id][indices[2]]);
     }
     else {
-        return barycentric_interpolation(
+        r = barycentric_interpolation(
             barycentric,
             g_vertices[mesh_id][indices[0]],
             g_vertices[mesh_id][indices[1]],
             g_vertices[mesh_id][indices[2]]);
     }
+    float4x4 transform = g_instances[instance_id].transform;
+    r.position = mul_p(transform, r.position);
+    r.normal = normalize(mul_v(transform, r.normal));
+    r.tangent = normalize(mul_v(transform, r.tangent));
+    return r;
 }
 
 float3 HitPosition()
@@ -144,7 +151,7 @@ struct RadiancePayload
         origin = 0.0f;
         direction = 0.0f;
         seed = 0;
-        done = 0;
+        done = false;
     }
 };
 
@@ -154,7 +161,7 @@ struct OcclusionPayload
 
     void init()
     {
-        hit = 0;
+        hit = false;
     }
 };
 
@@ -233,6 +240,7 @@ void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
 bool ShootOcclusionRay(uint flags, in RayDesc ray)
 {
     OcclusionPayload payload;
+    payload.init();
     TraceRay(g_tlas, flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     return payload.hit;
 }
@@ -242,13 +250,13 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 {
     float3 P = HitPosition();
     float3 N = FaceNormal();
-    vertex_t v = HitVertex(attr.barycentrics);
+    vertex_t V = HitVertex(attr.barycentrics);
 
-    // prepare next trace
     {
         MaterialData md = FaceMaterial();
         uint seed = payload.seed;
 
+        // prepare next ray
         ONB onb;
         onb.init(N);
         float3 dir = cosine_sample_hemisphere(rnd01(seed), rnd01(seed));
@@ -259,8 +267,10 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
         payload.direction = dir;
         payload.origin = P;
-        payload.attenuation *= GetDiffuseColor(md, v.uv);
-        payload.radiance += GetEmissiveColor(md, v.uv);
+
+        // handle diffuse & emissive
+        payload.attenuation *= GetDiffuseColor(md, V.uv);
+        payload.radiance += GetEmissiveColor(md, V.uv);
     }
 
 
