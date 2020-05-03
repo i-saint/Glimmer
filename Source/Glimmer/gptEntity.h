@@ -487,6 +487,10 @@ public:
     void setDeltaNormals(const float3* v, size_t n) override;
     void setDeltaTangents(const float3* v, size_t n) override;
     void setDeltaUV(const float2* v, size_t n) override;
+    Span<float3> getDeltaPoints() const override;
+    Span<float3> getDeltaNormals() const override;
+    Span<float3> getDeltaTangents() const override;
+    Span<float2> getDeltaUV() const override;
 
 public:
     RawVector<float3> m_delta_points;
@@ -506,7 +510,7 @@ public:
     int getFrameCount() const override;
     IBlendshapeFrame* addFrame(float weight) override;
     IBlendshapeFrame* getFrame(int i) override;
-    void clearFrames() override;
+    void removeFrame(IBlendshapeFrame* f) override;
 
     void exportDelta(int frame, vertex_t* dst) const;
 
@@ -535,13 +539,25 @@ public:
     void setTangents(const float3* v, size_t n) override;
     void setUV(const float2* v, size_t n) override;
     void setMaterialIDs(const int* v, size_t n) override;
+    Span<int>    getIndices() const override;
+    Span<float3> getPoints() const override;
+    Span<float3> getNormals() const override;
+    Span<float3> getTangents() const override;
+    Span<float2> getUV() const override;
+    Span<int>    getMaterialIDs() const override;
 
     void setJointBindposes(const float4x4* v, size_t n) override;
     void setJointWeights(const JointWeight* v, size_t n) override;
     void setJointCounts(const int* v, size_t n) override;
-    void clearJoints() override;
+    Span<float4x4>    getJointBindposes() const override;
+    Span<JointWeight> getJointWeights() const override;
+    Span<int>         getJointCounts() const override;
+
+    int getBlendshapeCount() const override;
+    IBlendshape* getBlendshape(int i) override;
     IBlendshape* addBlendshape() override;
-    void clearBlendshapes() override;
+    void removeBlendshape(IBlendshape* f) override;
+
     void markDynamic() override;
 
     bool hasBlendshapes() const;
@@ -555,11 +571,9 @@ public:
 
     int getJointCount() const;
     int getJointWeightCount() const;
-    const float4x4* getJointBindposes() const;
     void exportJointCounts(JointCount* dst) const;
     void exportJointWeights(JointWeight* dst) const;
 
-    int getBlendshapeCount() const;
     int getBlendshapeFrameCount() const;
     void exportBlendshapes(BlendshapeData* dst) const;
     void exportBlendshapeFrames(BlendshapeFrameData* dst) const;

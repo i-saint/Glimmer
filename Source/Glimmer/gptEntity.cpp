@@ -330,6 +330,12 @@ void BlendshapeFrame::setDeltaUV(const float2* v, size_t n)
 {
     m_delta_uv.assign(v, n);
 }
+Span<float3> BlendshapeFrame::getDeltaPoints() const { return m_delta_points; }
+Span<float3> BlendshapeFrame::getDeltaNormals() const { return m_delta_normals; }
+Span<float3> BlendshapeFrame::getDeltaTangents() const { return m_delta_tangents; }
+Span<float2> BlendshapeFrame::getDeltaUV() const { return m_delta_uv; }
+
+
 
 Blendshape::Blendshape(Mesh* mesh)
     : m_mesh(mesh)
@@ -356,9 +362,9 @@ IBlendshapeFrame* Blendshape::getFrame(int i)
     return m_frames[i].get();
 }
 
-void Blendshape::clearFrames()
+void Blendshape::removeFrame(IBlendshapeFrame* f)
 {
-    m_frames.clear();
+    erase_if(m_frames, [f](auto& p) { return p.get() == f; });
 }
 
 int Blendshape::getFrameCount() const
@@ -442,6 +448,14 @@ void Mesh::setMaterialIDs(const int* v, size_t n)
     markDirty(DirtyFlag::Material);
 }
 
+Span<int>    Mesh::getIndices() const { return m_indices; }
+Span<float3> Mesh::getPoints() const { return m_points; }
+Span<float3> Mesh::getNormals() const { return m_normals; }
+Span<float3> Mesh::getTangents() const { return m_tangents; }
+Span<float2> Mesh::getUV() const { return m_uv; }
+Span<int>    Mesh::getMaterialIDs() const { return m_material_ids; }
+
+
 void Mesh::setJointBindposes(const float4x4* v, size_t n)
 {
     if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_bindposes == MakeSpan(v, n))
@@ -472,12 +486,20 @@ void Mesh::setJointCounts(const int* v, size_t n)
     set_flag(m_data.flags, MeshFlag::HasJoints, true);
 }
 
-void Mesh::clearJoints()
+Span<float4x4>    Mesh::getJointBindposes() const { return m_joint_bindposes; }
+Span<JointWeight> Mesh::getJointWeights() const { return m_joint_weights; }
+Span<int>         Mesh::getJointCounts() const { return m_joint_counts; }
+
+int Mesh::getBlendshapeCount() const
 {
-    m_joint_bindposes.clear();
-    m_joint_weights.clear();
-    m_joint_counts.clear();
-    set_flag(m_data.flags, MeshFlag::HasJoints, false);
+    return (int)m_blendshapes.size();
+}
+
+IBlendshape* Mesh::getBlendshape(int i)
+{
+    if (i < 0 || i >= m_blendshapes.size())
+        return nullptr;
+    return m_blendshapes[i].get();
 }
 
 IBlendshape* Mesh::addBlendshape()
@@ -489,11 +511,13 @@ IBlendshape* Mesh::addBlendshape()
     return ret.get();
 }
 
-void Mesh::clearBlendshapes()
+void Mesh::removeBlendshape(IBlendshape* f)
 {
-    m_blendshapes.clear();
-    markDirty(DirtyFlag::Blendshape);
-    set_flag(m_data.flags, MeshFlag::HasBlendshapes, false);
+    if (erase_if(m_blendshapes, [f](auto& p) { return p.get() == f; })) {
+        if (m_blendshapes.empty())
+            set_flag(m_data.flags, MeshFlag::HasBlendshapes, false);
+        markDirty(DirtyFlag::Blendshape);
+    }
 }
 
 void Mesh::markDynamic()
@@ -579,11 +603,6 @@ int Mesh::getJointWeightCount() const
     return (int)m_joint_weights.size();
 }
 
-const float4x4* Mesh::getJointBindposes() const
-{
-    return m_joint_bindposes.data();
-}
-
 void Mesh::exportJointCounts(JointCount* dst) const
 {
     int offset = 0;
@@ -601,11 +620,6 @@ void Mesh::exportJointWeights(JointWeight* dst) const
     m_joint_weights.copy_to(dst);
 }
 
-
-int Mesh::getBlendshapeCount() const
-{
-    return (int)m_blendshapes.size();
-}
 
 int Mesh::getBlendshapeFrameCount() const
 {
@@ -742,7 +756,7 @@ void MeshInstance::exportJointMatrices(float4x4* dst)
     // both cases work, but identity matrix means world space skinning that is not optimal.
 
     auto iroot = m_data.itransform;
-    auto* bindposes = mesh.getJointBindposes();
+    auto bindposes = mesh.getJointBindposes();
     for (int ji = 0; ji < n; ++ji)
         *dst++ = bindposes[ji] * m_joint_matrices[ji] * iroot;
 }

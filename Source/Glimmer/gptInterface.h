@@ -97,6 +97,51 @@ struct float4x4
         } };
     }
 };
+
+// equivalent to std::span in C++20
+template<class T>
+class Span
+{
+public:
+    using value_type = T;
+    using reference = T&;
+    using const_reference = const T&;
+    using pointer = T*;
+    using const_pointer = const T*;
+    using iterator = pointer;
+    using const_iterator = const_pointer;
+
+    Span() {}
+    template<size_t N> Span(const T(&d)[N]) : m_data(const_cast<T*>(d)), m_size(N) {}
+    Span(const T* d, size_t s) : m_data(const_cast<T*>(d)), m_size(s) {}
+    Span(const Span& v) : m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
+    template<class Container> Span(const Container& v) : m_data(const_cast<T*>(v.data())), m_size(v.size()) {}
+    Span& operator=(const Span& v) { m_data = const_cast<T*>(v.m_data); m_size = v.m_size; return *this; }
+
+    bool empty() const { return m_size == 0; }
+    size_t size() const { return m_size; }
+    size_t size_bytes() const { return sizeof(T) * m_size; }
+
+    T* data() { return m_data; }
+    const T* data() const { return m_data; }
+
+    T& operator[](size_t i) { return m_data[i]; }
+    const T& operator[](size_t i) const { return m_data[i]; }
+
+    T& front() { return m_data[0]; }
+    const T& front() const { return m_data[0]; }
+    T& back() { return m_data[m_size - 1]; }
+    const T& back() const { return m_data[m_size - 1]; }
+
+    iterator begin() { return m_data; }
+    const_iterator begin() const { return m_data; }
+    iterator end() { return m_data + m_size; }
+    const_iterator end() const { return m_data + m_size; }
+
+private:
+    T* m_data = nullptr;
+    size_t m_size = 0;
+};
 #endif
 
 struct JointWeight
@@ -284,6 +329,11 @@ public:
     virtual void setDeltaNormals(const float3* v, size_t n) = 0;
     virtual void setDeltaTangents(const float3* v, size_t n) = 0;
     virtual void setDeltaUV(const float2* v, size_t n) = 0;
+    virtual Span<float3> getDeltaPoints() const = 0;
+    virtual Span<float3> getDeltaNormals() const = 0;
+    virtual Span<float3> getDeltaTangents() const = 0;
+    virtual Span<float2> getDeltaUV() const = 0;
+
 protected:
     virtual ~IBlendshapeFrame() {}
 };
@@ -295,7 +345,7 @@ public:
     virtual int getFrameCount() const = 0;
     virtual IBlendshapeFrame* getFrame(int i) = 0;
     virtual IBlendshapeFrame* addFrame(float weight = 1.0f) = 0;
-    virtual void clearFrames() = 0;
+    virtual void removeFrame(IBlendshapeFrame* f) = 0;
 protected:
     virtual ~IBlendshape() {}
 };
@@ -303,20 +353,30 @@ protected:
 class IMesh : public IObject
 {
 public:
-    virtual void setIndices(const int* v, size_t n) = 0;
+    virtual void setIndices(const int* v, size_t n) = 0; // all faces must be triangles
     virtual void setPoints(const float3* v, size_t n) = 0;
-    virtual void setNormals(const float3* v, size_t n) = 0;
-    virtual void setTangents(const float3* v, size_t n) = 0;
-    virtual void setUV(const float2* v, size_t n) = 0;
+    virtual void setNormals(const float3* v, size_t n) = 0;  // per-vertex
+    virtual void setTangents(const float3* v, size_t n) = 0; // 
+    virtual void setUV(const float2* v, size_t n) = 0;       // 
     virtual void setMaterialIDs(const int* v, size_t n) = 0; // per-face
+    virtual Span<int>    getIndices() const = 0;
+    virtual Span<float3> getPoints() const = 0;
+    virtual Span<float3> getNormals() const = 0;
+    virtual Span<float3> getTangents() const = 0;
+    virtual Span<float2> getUV() const = 0;
+    virtual Span<int>    getMaterialIDs() const = 0;
 
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
     virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
     virtual void setJointCounts(const int* v, size_t n) = 0;
-    virtual void clearJoints() = 0;
+    virtual Span<float4x4>    getJointBindposes() const = 0;
+    virtual Span<JointWeight> getJointWeights() const = 0;
+    virtual Span<int>         getJointCounts() const = 0;
 
+    virtual int getBlendshapeCount() const = 0;
+    virtual IBlendshape* getBlendshape(int i) = 0;
     virtual IBlendshape* addBlendshape() = 0;
-    virtual void clearBlendshapes() = 0;
+    virtual void removeBlendshape(IBlendshape* f) = 0;
 
     virtual void markDynamic() = 0;
 };

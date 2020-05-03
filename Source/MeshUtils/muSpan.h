@@ -16,7 +16,7 @@ public:
     using iterator = pointer;
     using const_iterator = const_pointer;
 
-    Span() : m_data(nullptr), m_size(0) {}
+    Span() {}
     template<size_t N> Span(const T (&d)[N]) : m_data(const_cast<T*>(d)), m_size(N) {}
     Span(const T *d, size_t s) : m_data(const_cast<T*>(d)), m_size(s) {}
     Span(const Span& v) : m_data(const_cast<T*>(v.m_data)), m_size(v.m_size) {}
