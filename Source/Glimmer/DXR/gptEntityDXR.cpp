@@ -19,11 +19,9 @@ RenderTargetDXR::RenderTargetDXR(int width, int height, Format format)
 }
 
 RenderTargetDXR::RenderTargetDXR(IWindow* window, Format format)
-    : super(window->getWidth(), window->getHeight(), format)
+    : super(window, format)
 {
     m_callback.m_self = this;
-
-    m_window = base_t(window);
     m_window->addCallback(&m_callback);
 }
 

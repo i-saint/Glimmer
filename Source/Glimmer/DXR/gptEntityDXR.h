@@ -57,7 +57,6 @@ public:
     DescriptorHandleDXR m_uav_frame_buffer;
     DescriptorHandleDXR m_uav_accum_buffer;
 
-    Window* m_window = nullptr;
     WindowCallback m_callback;
     SwapchainDXRPtr m_swapchain;
 };

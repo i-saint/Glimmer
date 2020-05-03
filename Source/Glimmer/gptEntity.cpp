@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "gptEntity.h"
+#include "gptWindow.h"
 #include "Foundation/gptUtils.h"
 
 namespace gpt {
@@ -113,6 +114,7 @@ void Texture::upload(const void* src)
 int Texture::getWidth() const { return m_width; }
 int Texture::getHeight() const { return m_height; }
 Format Texture::getFormat() const { return m_format; }
+Span<char> Texture::getData() const { return m_data; }
 
 
 RenderTarget::RenderTarget(int width, int height, Format format)
@@ -123,6 +125,12 @@ RenderTarget::RenderTarget(int width, int height, Format format)
     markDirty(DirtyFlag::Texture);
 }
 
+RenderTarget::RenderTarget(IWindow* window, Format format)
+    : RenderTarget(window->getWidth(), window->getHeight(), format)
+{
+    m_window = base_t(window);
+}
+
 void RenderTarget::enableReadback(bool v)
 {
     m_readback_enabled = v;
@@ -131,6 +139,7 @@ void RenderTarget::enableReadback(bool v)
 int RenderTarget::getWidth() const { return m_width; }
 int RenderTarget::getHeight() const { return m_height; }
 Format RenderTarget::getFormat() const { return m_format; }
+IWindow* RenderTarget::getWindow() const { return m_window; }
 
 
 Material::Material()
@@ -346,6 +355,13 @@ void Blendshape::setName(const char* name)
     m_name = name;
 }
 
+IBlendshapeFrame* Blendshape::getFrame(int i)
+{
+    if (i < 0 || i >= m_frames.size())
+        return nullptr;
+    return m_frames[i].get();
+}
+
 IBlendshapeFrame* Blendshape::addFrame(float weight)
 {
     auto ret = std::make_shared<BlendshapeFrame>(weight);
@@ -353,13 +369,6 @@ IBlendshapeFrame* Blendshape::addFrame(float weight)
     std::sort(m_frames.begin(), m_frames.end(),
         [](auto& a, auto& b) { return a->m_weight < b->m_weight; });
     return ret.get();
-}
-
-IBlendshapeFrame* Blendshape::getFrame(int i)
-{
-    if (i < 0 || i >= m_frames.size())
-        return nullptr;
-    return m_frames[i].get();
 }
 
 void Blendshape::removeFrame(IBlendshapeFrame* f)
@@ -455,6 +464,11 @@ Span<float3> Mesh::getTangents() const { return m_tangents; }
 Span<float2> Mesh::getUV() const { return m_uv; }
 Span<int>    Mesh::getMaterialIDs() const { return m_material_ids; }
 
+void Mesh::markDynamic()
+{
+    set_flag(m_data.flags, MeshFlag::IsDynamic, true);
+}
+
 
 void Mesh::setJointBindposes(const float4x4* v, size_t n)
 {
@@ -518,11 +532,6 @@ void Mesh::removeBlendshape(IBlendshape* f)
             set_flag(m_data.flags, MeshFlag::HasBlendshapes, false);
         markDirty(DirtyFlag::Blendshape);
     }
-}
-
-void Mesh::markDynamic()
-{
-    set_flag(m_data.flags, MeshFlag::IsDynamic, true);
 }
 
 bool Mesh::hasBlendshapes() const
@@ -684,6 +693,7 @@ MeshInstance::MeshInstance(IMesh* v)
 {
     m_mesh = base_t(v);
     m_data.mesh_id = GetID(m_mesh);
+    m_materials.resize(_countof(m_data.material_ids));
     markDirty(DirtyFlag::Mesh);
 }
 
@@ -695,13 +705,13 @@ void MeshInstance::setEnabled(bool v)
 
 void MeshInstance::setMaterial(IMaterial* v, int slot)
 {
-    if (slot >= _countof(m_data.material_ids)) {
+    if (slot < 0 || slot >= _countof(m_data.material_ids)) {
         mu::DbgBreak();
         return;
     }
 
-    m_material = base_t(v);
-    m_data.material_ids[slot] = GetID(m_material);
+    m_materials[slot] = base_t(v);
+    m_data.material_ids[slot] = GetID(v);
     markDirty(DirtyFlag::Material);
 }
 
@@ -774,9 +784,12 @@ void MeshInstance::exportBlendshapeWeights(float* dst)
     m_blendshape_weights.copy_to(dst);
 }
 
-bool MeshInstance::isEnabled() const { return m_enabled; }
-Mesh* MeshInstance::getMesh() const  { return m_mesh; }
-Material* MeshInstance::getMaterial() const { return m_material; }
+IMesh*          MeshInstance::getMesh() const  { return m_mesh; }
+bool            MeshInstance::isEnabled() const { return m_enabled; }
+IMaterial*      MeshInstance::getMaterial(int slot) const { return m_materials[slot]; }
+float4x4        MeshInstance::getTransform() const { return m_data.transform; }
+Span<float4x4>  MeshInstance::getJointMatrices() const { return m_joint_matrices; }
+Span<float>     MeshInstance::getBlendshapeWeights() const { return m_blendshape_weights; }
 
 const InstanceData& MeshInstance::getData()
 {
@@ -795,11 +808,44 @@ void Scene::setBackgroundColor(float3 v)
     m_data.bg_color = v;
     markDirty(DirtyFlag::Scene);
 }
+bool Scene::isEnabled() const { return m_enabled; }
+float3 Scene::getBackgroundColor() const { return m_data.bg_color; }
 
-void Scene::setCamera(ICamera* v)
+
+int Scene::getCameraCount() const
 {
-    m_camera = base_t(v);
+    return (int)m_cameras.size();
+}
+
+ICamera* Scene::getCamera(int i) const
+{
+    if (i < 0 || i >= m_cameras.size())
+        return nullptr;
+    return m_cameras[i].get();
+}
+
+void Scene::addCamera(ICamera* v)
+{
+    m_cameras.push_back(base_t(v));
     markDirty(DirtyFlag::Camera);
+}
+
+void Scene::removeCamera(ICamera* v)
+{
+    if (erase(m_cameras, v))
+        markDirty(DirtyFlag::Camera);
+}
+
+int Scene::getLightCount() const
+{
+    return (int)m_lights.size();
+}
+
+ILight* Scene::getLight(int i) const
+{
+    if (i < 0 || i >= m_lights.size())
+        return nullptr;
+    return m_lights[i];
 }
 
 void Scene::addLight(ILight* v)
@@ -814,6 +860,18 @@ void Scene::removeLight(ILight* v)
         markDirty(DirtyFlag::Light);
 }
 
+int Scene::getMeshCount() const
+{
+    return (int)m_instances.size();
+}
+
+IMeshInstance* Scene::getMesh(int i) const
+{
+    if (i < 0 || i >= m_instances.size())
+        return nullptr;
+    return m_instances[i];
+}
+
 void Scene::addMesh(IMeshInstance* v)
 {
     m_instances.push_back(base_t(v));
@@ -826,16 +884,6 @@ void Scene::removeMesh(IMeshInstance* v)
         markDirty(DirtyFlag::Instance);
 }
 
-void Scene::clear()
-{
-    m_camera.reset();
-    m_lights.clear();
-    m_instances.clear();
-    markDirty(DirtyFlag::SceneEntities);
-}
-
-bool Scene::isEnabled() const { return m_enabled; }
-Camera* Scene::getCamera() const { return m_camera; }
 
 const SceneData& Scene::getData()
 {
@@ -843,8 +891,8 @@ const SceneData& Scene::getData()
     m_data.max_trace_depth = Globals::getInstance().getMaxTraceDepth();
 
     m_data.camera_prev = m_data.camera;
-    if (m_camera && m_camera->isDirty())
-        m_data.camera = m_camera->getData();
+    if (!m_cameras.empty() && m_cameras.front()->isDirty())
+        m_data.camera = m_cameras.front()->getData();
 
     int nlights = std::min((int)m_lights.size(), gptMaxLights);
     m_data.light_count = nlights;

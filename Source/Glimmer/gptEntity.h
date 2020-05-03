@@ -341,7 +341,7 @@ private:
 
     uint32_t m_flags = 0;
     int m_samples_per_frame = 16;
-    int m_max_trace_depth = 8;
+    int m_max_trace_depth = 4;
 };
 
 
@@ -355,10 +355,10 @@ class Texture : public EntityBase<ITexture>
 public:
     Texture(int width, int height, Format format);
     void upload(const void* src) override;
-
     int getWidth() const override;
     int getHeight() const override;
     Format getFormat() const override;
+    Span<char> getData() const override;
 
 protected:
     int m_width = 0;
@@ -370,20 +370,24 @@ gptDefRefPtr(Texture);
 gptDefBaseT(Texture, ITexture)
 
 
+class Window;
+
 class RenderTarget : public EntityBase<IRenderTarget>
 {
 public:
     RenderTarget(int width, int height, Format format);
+    RenderTarget(IWindow* window, Format format);
     void enableReadback(bool v) override;
-
     int getWidth() const override;
     int getHeight() const override;
     Format getFormat() const override;
+    IWindow* getWindow() const override;
 
 protected:
     int m_width = 0;
     int m_height = 0;
     Format m_format = Format::RGBAu8;
+    Window* m_window = nullptr;
     bool m_readback_enabled = false;
 };
 gptDefRefPtr(RenderTarget);
@@ -508,8 +512,8 @@ public:
     Blendshape(Mesh* mesh);
     void setName(const char* name) override;
     int getFrameCount() const override;
-    IBlendshapeFrame* addFrame(float weight) override;
     IBlendshapeFrame* getFrame(int i) override;
+    IBlendshapeFrame* addFrame(float weight) override;
     void removeFrame(IBlendshapeFrame* f) override;
 
     void exportDelta(int frame, vertex_t* dst) const;
@@ -545,6 +549,7 @@ public:
     Span<float3> getTangents() const override;
     Span<float2> getUV() const override;
     Span<int>    getMaterialIDs() const override;
+    void markDynamic() override;
 
     void setJointBindposes(const float4x4* v, size_t n) override;
     void setJointWeights(const JointWeight* v, size_t n) override;
@@ -557,8 +562,6 @@ public:
     IBlendshape* getBlendshape(int i) override;
     IBlendshape* addBlendshape() override;
     void removeBlendshape(IBlendshape* f) override;
-
-    void markDynamic() override;
 
     bool hasBlendshapes() const;
     bool hasJoints() const;
@@ -619,19 +622,22 @@ public:
     void setBlendshapeWeights(const float* v) override;
     bool hasFlag(InstanceFlag flag) const;
 
+    IMesh*          getMesh() const override;
+    bool            isEnabled() const override;
+    IMaterial*      getMaterial(int slot) const override;
+    float4x4        getTransform() const override;
+    Span<float4x4>  getJointMatrices() const override;
+    Span<float>     getBlendshapeWeights() const override;
+
     void exportJointMatrices(float4x4* dst);
     void exportBlendshapeWeights(float* dst);
-
-    bool isEnabled() const;
-    Mesh* getMesh() const;
-    Material* getMaterial() const;
     const InstanceData& getData();
 
 protected:
     bool m_enabled = true;
     InstanceData m_data;
     MeshPtr m_mesh;
-    MaterialPtr m_material;
+    std::vector<MaterialPtr> m_materials;
     RawVector<float4x4> m_joint_matrices;
     RawVector<float> m_blendshape_weights;
 
@@ -645,25 +651,33 @@ gptDefBaseT(MeshInstance, IMeshInstance)
 class Scene : public EntityBase<IScene>
 {
 public:
-    void setEnabled(bool v) override;
-    void setBackgroundColor(float3 v) override;
+    void            setEnabled(bool v) override;
+    void            setBackgroundColor(float3 v) override;
+    bool            isEnabled() const override;
+    float3          getBackgroundColor() const override;
 
-    void setCamera(ICamera* v) override;
-    void addLight(ILight* v) override;
-    void removeLight(ILight* v) override;
-    void addMesh(IMeshInstance* v) override;
-    void removeMesh(IMeshInstance* v) override;
-    void clear() override;
+    int             getCameraCount() const override;
+    ICamera*        getCamera(int i) const override;
+    void            addCamera(ICamera* v) override;
+    void            removeCamera(ICamera* v) override;
 
-    bool isEnabled() const;
-    Camera* getCamera() const;
+    int             getLightCount() const override;
+    ILight*         getLight(int i) const override;
+    void            addLight(ILight* v) override;
+    void            removeLight(ILight* v) override;
+
+    int             getMeshCount() const override;
+    IMeshInstance*  getMesh(int i) const override;
+    void            addMesh(IMeshInstance* v) override;
+    void            removeMesh(IMeshInstance* v) override;
+
     const SceneData& getData();
     void incrementFrameCount();
 
 protected:
     bool m_enabled = true;
     SceneData m_data;
-    CameraPtr m_camera;
+    std::vector<CameraPtr> m_cameras;
     std::vector<LightPtr> m_lights;
     std::vector<MeshInstancePtr> m_instances;
 };

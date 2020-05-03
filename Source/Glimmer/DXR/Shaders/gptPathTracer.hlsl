@@ -95,6 +95,9 @@ vertex_t HitVertex(float2 barycentric)
             g_vertices[mesh_id][indices[1]],
             g_vertices[mesh_id][indices[2]]);
     }
+    if (HitKind() == HIT_KIND_TRIANGLE_BACK_FACE)
+        r.normal *= -1.0f;
+
     float4x4 transform = g_instances[instance_id].transform;
     r.position = mul_p(transform, r.position);
     r.normal = normalize(mul_v(transform, r.normal));
@@ -246,6 +249,7 @@ void RayGenRadiance()
             if (i == 0 && depth == 0)
                 t = payload.t;
         }
+        seed = payload.seed;
         jitter = float2(rnd55(seed), rnd55(seed));
     }
 
@@ -293,11 +297,11 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     vertex_t V = HitVertex(attr.barycentrics);
     float3 P = HitPosition();
     float3 N = V.normal;
+    uint seed = payload.seed;
     payload.t = RayTCurrent();
 
     {
         MaterialData md = FaceMaterial();
-        uint seed = payload.seed;
 
         // prepare next ray
         ONB onb;
@@ -378,6 +382,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
         payload.radiance += light.color * max(weight, 0.0f);
     }
+    payload.seed = seed;
 }
 
 

@@ -152,7 +152,7 @@ bool GlimmerTest::init()
 
     m_render_target->enableReadback(true);
     m_camera->setRenderTarget(m_render_target);
-    m_scene->setCamera(m_camera);
+    m_scene->addCamera(m_camera);
     m_scene->addLight(m_light);
 
     auto texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
@@ -178,7 +178,7 @@ bool GlimmerTest::init()
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
     m_mat_diffuse->setRoughness(0.5f);
 
-    m_mat_reflective->setDiffuse(float3{ 0.7f, 0.3f, 0.3f });
+    m_mat_reflective->setDiffuse(float3{ 0.5f, 0.5f, 0.7f });
     m_mat_reflective->setRoughness(0.02f);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });

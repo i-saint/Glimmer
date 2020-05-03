@@ -199,6 +199,8 @@ private:
     T* m_ptr = nullptr;
 };
 
+class IWindow;
+
 
 class IGlobals
 {
@@ -235,10 +237,11 @@ public:
     // but the data is copied in upload() and so src can be discarded after calling this.
     virtual void upload(const void* src) = 0;
 
-    virtual int    getWidth() const = 0;
-    virtual int    getHeight() const = 0;
-    virtual Format getFormat() const = 0;
-    virtual void*  getDeviceObject() const = 0;
+    virtual int         getWidth() const = 0;
+    virtual int         getHeight() const = 0;
+    virtual Format      getFormat() const = 0;
+    virtual Span<char>  getData() const = 0;
+    virtual void*       getDeviceObject() const = 0;
 };
 using ITexturePtr = ref_ptr<ITexture>;
 
@@ -252,10 +255,11 @@ public:
     // should be called after IContext::finish()
     virtual bool readback(void* dst) = 0;
 
-    virtual int    getWidth() const = 0;
-    virtual int    getHeight() const = 0;
-    virtual Format getFormat() const = 0;
-    virtual void*  getDeviceObject() const = 0;
+    virtual int         getWidth() const = 0;
+    virtual int         getHeight() const = 0;
+    virtual Format      getFormat() const = 0;
+    virtual IWindow*    getWindow() const = 0;
+    virtual void*       getDeviceObject() const = 0;
 };
 using IRenderTargetPtr = ref_ptr<IRenderTarget>;
 
@@ -365,6 +369,7 @@ public:
     virtual Span<float3> getTangents() const = 0;
     virtual Span<float2> getUV() const = 0;
     virtual Span<int>    getMaterialIDs() const = 0;
+    virtual void markDynamic() = 0;
 
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;
     virtual void setJointWeights(const JointWeight* v, size_t n) = 0;
@@ -377,8 +382,6 @@ public:
     virtual IBlendshape* getBlendshape(int i) = 0;
     virtual IBlendshape* addBlendshape() = 0;
     virtual void removeBlendshape(IBlendshape* f) = 0;
-
-    virtual void markDynamic() = 0;
 };
 using IMeshPtr = ref_ptr<IMesh>;
 
@@ -391,6 +394,13 @@ public:
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
     virtual void setBlendshapeWeights(const float* v) = 0;
+
+    virtual IMesh*          getMesh() const = 0;
+    virtual bool            isEnabled() const = 0;
+    virtual IMaterial*      getMaterial(int slot = 0) const = 0;
+    virtual float4x4        getTransform() const = 0;
+    virtual Span<float4x4>  getJointMatrices() const = 0;
+    virtual Span<float>     getBlendshapeWeights() const = 0;
 };
 using IMeshInstancePtr = ref_ptr<IMeshInstance>;
 
@@ -398,19 +408,28 @@ using IMeshInstancePtr = ref_ptr<IMeshInstance>;
 class IScene : public IObject
 {
 public:
-    virtual void setEnabled(bool v) = 0;
-    virtual void setBackgroundColor(float3 v) = 0;
+    virtual void            setEnabled(bool v) = 0;
+    virtual void            setBackgroundColor(float3 v) = 0;
+    virtual bool            isEnabled() const = 0;
+    virtual float3          getBackgroundColor() const = 0;
 
-    virtual void setCamera(ICamera* v) = 0;
-    virtual void addLight(ILight* v) = 0;
-    virtual void removeLight(ILight* v) = 0;
-    virtual void addMesh(IMeshInstance* v) = 0;
-    virtual void removeMesh(IMeshInstance* v) = 0;
-    virtual void clear() = 0;
+    virtual int             getCameraCount() const = 0;
+    virtual ICamera*        getCamera(int i) const = 0;
+    virtual void            addCamera(ICamera* v) = 0;
+    virtual void            removeCamera(ICamera* v) = 0;
+
+    virtual int             getLightCount() const = 0;
+    virtual ILight*         getLight(int i) const = 0;
+    virtual void            addLight(ILight* v) = 0;
+    virtual void            removeLight(ILight* v) = 0;
+
+    virtual int             getMeshCount() const = 0;
+    virtual IMeshInstance*  getMesh(int i) const = 0;
+    virtual void            addMesh(IMeshInstance* v) = 0;
+    virtual void            removeMesh(IMeshInstance* v) = 0;
 };
 using IScenePtr = ref_ptr<IScene>;
 
-class IWindow;
 
 class IContext : public IObject
 {

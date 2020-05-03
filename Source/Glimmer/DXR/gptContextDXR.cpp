@@ -745,7 +745,7 @@ void ContextDXR::dispatchRays()
         if (!scene.isEnabled())
             return;
 
-        auto cam = scene.getCamera();
+        auto cam = scene.getCamera(0);
         auto rt = cam ? dxr_t(cam->getRenderTarget()) : nullptr;
         if (rt) {
             cl_rays->SetComputeRootDescriptorTable(0, rt->m_uav_frame_buffer.hgpu);

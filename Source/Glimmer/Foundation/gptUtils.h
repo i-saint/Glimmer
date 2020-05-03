@@ -64,7 +64,7 @@ inline T* GetDummyBuffer(size_t n)
 
 
 template<class T, class R> int GetID(ref_ptr<T, R>& p) { return p ? p->getID() : -1; }
-template<class T> int GetID(T* p) { return p ? p->m_id : -1; }
+template<class T> int GetID(T* p) { return p ? p->getID() : -1; }
 
 template<class T>
 class InternalReleaser
