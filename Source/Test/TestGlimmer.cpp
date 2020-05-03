@@ -134,8 +134,8 @@ bool GlimmerTest::init()
     }
     printf("device: %s\n", m_ctx->getDeviceName());
 
-    const int rt_width = 1024;
-    const int rt_height = 1024;
+    const int rt_width = 1280;
+    const int rt_height = 720;
 #ifdef EnableWindow
     const auto rt_format = gpt::Format::RGBAu8;
     m_window = gptCreateWindow(rt_width, rt_height);
@@ -171,13 +171,14 @@ bool GlimmerTest::init()
 
     m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
     m_mat_checker->setRoughness(0.8f);
+    m_mat_checker->setRoughnessTexture(texture);
     m_mat_checker->setDiffuseTexture(texture);
     //m_mat_checker->setEmissiveTexture(texture);
 
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
     m_mat_diffuse->setRoughness(0.5f);
 
-    m_mat_reflective->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
+    m_mat_reflective->setDiffuse(float3{ 0.7f, 0.3f, 0.3f });
     m_mat_reflective->setRoughness(0.02f);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
@@ -334,12 +335,12 @@ bool GlimmerTest::init()
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ 0.8f, 1.5f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
-        inst->setMaterial(m_mat_reflective);
+        inst->setMaterial(m_mat_diffuse);
         m_scene->addMesh(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ -1.2f, 1.0f, 2.0f }, mu::rotate_y(45.0f * mu::DegToRad), float3{ 1.0f, 2.0f, 1.0f }));
-        inst->setMaterial(m_mat_diffuse);
+        inst->setMaterial(m_mat_reflective);
         m_scene->addMesh(inst);
     }
 

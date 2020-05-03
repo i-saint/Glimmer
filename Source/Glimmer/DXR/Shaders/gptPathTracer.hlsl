@@ -126,6 +126,15 @@ float3 GetEmissiveColor(MaterialData md, float2 uv)
     return r;
 }
 
+float3 GetRoughness(MaterialData md, float2 uv)
+{
+    float3 r = md.roughness;
+    int tid = md.roughness_tex;
+    if (tid != -1)
+        r *= g_textures[tid].SampleLevel(g_sampler_default, uv, 0).x;
+    return r;
+}
+
 
 
 struct RadiancePayload
@@ -297,7 +306,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         dir = onb.inverse_transform(dir);
 
         float3 ref = reflect(payload.direction, N);
-        dir = normalize(lerp(ref, dir, md.roughness));
+        dir = normalize(lerp(ref, dir, GetRoughness(md, V.uv)));
 
         payload.direction = dir;
         payload.origin = P;
