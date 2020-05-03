@@ -349,6 +349,18 @@ IBlendshapeFrame* Blendshape::addFrame(float weight)
     return ret.get();
 }
 
+IBlendshapeFrame* Blendshape::getFrame(int i)
+{
+    if (i < 0 || i >= m_frames.size())
+        return nullptr;
+    return m_frames[i].get();
+}
+
+void Blendshape::clearFrames()
+{
+    m_frames.clear();
+}
+
 int Blendshape::getFrameCount() const
 {
     return (int)m_frames.size();
@@ -521,9 +533,15 @@ int Mesh::getVertexCount() const
 
 void Mesh::exportVertices(vertex_t* dst) const
 {
+    if (m_normals.size() != m_points.size()) {
+        auto& normals = const_cast<RawVector<float3>&>(m_normals); // ...
+        normals.resize_discard(getVertexCount());
+        mu::GenerateNormalsTriangleIndexed(normals.data(), m_points.data(), m_indices.data(), getFaceCount(), getVertexCount());
+    }
+
     int vc = getVertexCount();
     auto* points    = m_points.cdata();
-    auto* normals   = m_normals.empty() ? GetDummyBuffer<float3>(vc) : m_normals.cdata();
+    auto* normals   = m_normals.cdata();
     auto* tangents  = m_tangents.empty() ? GetDummyBuffer<float3>(vc) : m_tangents.cdata();
     auto* uv        = m_uv.empty() ? GetDummyBuffer<float2>(vc) : m_uv.cdata();
 

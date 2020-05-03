@@ -98,6 +98,7 @@ static inline int GetMiddlePoint(int p1, int p2, RawVector<float3>& points, std:
 void GenerateIcoSphereMesh(
     RawVector<int>& indices,
     RawVector<float3>& points,
+    RawVector<float3>& normals,
     float radius,
     int iteration)
 {
@@ -145,8 +146,7 @@ void GenerateIcoSphereMesh(
     };
 
     std::map<int64_t, int> cache;
-    for (int it = 0; it < iteration; it++)
-    {
+    for (int it = 0; it < iteration; it++) {
         RawVector<int> indices2;
         size_t n = indices.size();
         for (size_t fi = 0; fi < n; fi += 3)
@@ -167,6 +167,12 @@ void GenerateIcoSphereMesh(
             indices2.insert(indices2.end(), std::begin(addition), std::end(addition));
         }
         indices = indices2;
+    }
+
+    size_t n = points.size();
+    normals.resize_discard(n);
+    for (size_t i = 0; i < n; ++i) {
+        normals[i] = mu::normalize(points[i]);
     }
 }
 

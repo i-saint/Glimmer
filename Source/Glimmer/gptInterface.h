@@ -158,26 +158,28 @@ private:
 class IGlobals
 {
 public:
-    virtual ~IGlobals() {}
     virtual void enableStrictUpdateCheck(bool v) = 0;
     virtual void enablePowerStableState(bool v) = 0; // must be called before create context
     virtual void enableTimestamp(bool v) = 0;
     virtual void enableForceUpdateAS(bool v) = 0;
     virtual void setSamplesPerFrame(int v) = 0;
     virtual void setMaxTraceDepth(int v) = 0;
+protected:
+    virtual ~IGlobals() {}
 };
 
 
 class IObject
 {
 public:
-    virtual ~IObject() {}
     virtual int getID()const = 0;
     virtual int addRef() = 0;
     virtual int release() = 0;
     virtual int getRef() const = 0;
     virtual void setName(const char* name) = 0;
     virtual const char* getName() const = 0;
+protected:
+    virtual ~IObject() {}
 };
 
 
@@ -278,19 +280,24 @@ using ICameraPtr = ref_ptr<ICamera>;
 class IBlendshapeFrame
 {
 public:
-    virtual ~IBlendshapeFrame() {}
     virtual void setDeltaPoints(const float3* v, size_t n) = 0;
     virtual void setDeltaNormals(const float3* v, size_t n) = 0;
     virtual void setDeltaTangents(const float3* v, size_t n) = 0;
     virtual void setDeltaUV(const float2* v, size_t n) = 0;
+protected:
+    virtual ~IBlendshapeFrame() {}
 };
 
 class IBlendshape
 {
 public:
-    virtual ~IBlendshape() {}
     virtual void setName(const char* name) = 0;
+    virtual int getFrameCount() const = 0;
+    virtual IBlendshapeFrame* getFrame(int i) = 0;
     virtual IBlendshapeFrame* addFrame(float weight = 1.0f) = 0;
+    virtual void clearFrames() = 0;
+protected:
+    virtual ~IBlendshape() {}
 };
 
 class IMesh : public IObject

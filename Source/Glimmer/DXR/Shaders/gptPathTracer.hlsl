@@ -104,7 +104,8 @@ vertex_t HitVertex(float2 barycentric)
 
 float3 HitPosition()
 {
-    return offset_ray(WorldRayOrigin() + (WorldRayDirection() * RayTCurrent()), FaceNormal());
+    float3 pos = WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
+    return offset_ray(pos, FaceNormal());
 }
 
 float3 GetDiffuseColor(MaterialData md, float2 uv)
@@ -280,9 +281,9 @@ bool ShootOcclusionRay(uint flags, in RayDesc ray)
 [shader("closesthit")]
 void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    float3 P = HitPosition();
-    float3 N = FaceNormal();
     vertex_t V = HitVertex(attr.barycentrics);
+    float3 P = HitPosition();
+    float3 N = V.normal;
     payload.t = RayTCurrent();
 
     {

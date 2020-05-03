@@ -30,6 +30,7 @@ class GlimmerTest : public gpt::IWindowCallback
 public:
     void onMouseMove(int x, int y, int button) override;
     void onMouseWheel(float wheel, int buttons) override;
+    void onKeyDown(int key) override;
 
     bool init();
     void messageLoop();
@@ -43,22 +44,22 @@ private:
     gpt::ICameraPtr m_camera;
     gpt::ILightPtr m_light;
 
+    gpt::IMaterialPtr m_mat_checker;
+    gpt::IMaterialPtr m_mat_diffuse;
     gpt::IMaterialPtr m_mat_reflective;
     gpt::IMaterialPtr m_mat_emissive;
-    gpt::IMaterialPtr m_mat_checker;
 
     gpt::IMeshPtr m_mesh_floor;
     gpt::IMeshPtr m_mesh_triangle;
     gpt::IMeshPtr m_mesh_deformable;
     gpt::IMeshPtr m_mesh_cube;
+    gpt::IMeshPtr m_mesh_ico;
     gpt::IMeshPtr m_mesh_sphere;
 
-    gpt::IMeshInstancePtr m_inst_floor;
     gpt::IMeshInstancePtr m_inst_triangle;
     gpt::IMeshInstancePtr m_inst_deformable;
-    gpt::IMeshInstancePtr m_inst_cube;
-    gpt::IMeshInstancePtr m_inst_sphere;
 
+    int m_frame = 0;
     int2 m_mouse_pos{};
     int2 m_mouse_move{};
 
@@ -116,6 +117,10 @@ void GlimmerTest::onMouseWheel(float wheel, int buttons)
     }
 }
 
+void GlimmerTest::onKeyDown(int key)
+{
+}
+
 
 bool GlimmerTest::init()
 {
@@ -151,9 +156,10 @@ bool GlimmerTest::init()
     m_scene->addLight(m_light);
 
     auto texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
+    m_mat_checker = m_ctx->createMaterial();
+    m_mat_diffuse = m_ctx->createMaterial();
     m_mat_reflective = m_ctx->createMaterial();
     m_mat_emissive = m_ctx->createMaterial();
-    m_mat_checker = m_ctx->createMaterial();
 
 
     {
@@ -163,15 +169,20 @@ bool GlimmerTest::init()
         texture->upload(image.cdata());
     }
 
-    m_mat_reflective->setDiffuse(float3{ 1.0f, 1.0f, 1.0f });
+    m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
+    m_mat_checker->setRoughness(0.8f);
+    m_mat_checker->setDiffuseTexture(texture);
+    //m_mat_checker->setEmissiveTexture(texture);
+
+    m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
+    m_mat_diffuse->setRoughness(0.5f);
+
+    m_mat_reflective->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
     m_mat_reflective->setRoughness(0.02f);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
-    m_mat_emissive->setEmissive(float3{ 0.9f, 0.8f, 1.2f });
+    m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
 
-    m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
-    m_mat_checker->setDiffuseTexture(texture);
-    //m_mat_checker->setEmissiveTexture(texture);
     {
         m_camera_position = { 0.0f, 2.0f, -8.0f };
         m_camera_target = { 0.0f, 0.0f, 0.0f };
@@ -179,13 +190,13 @@ bool GlimmerTest::init()
         m_camera->setDirection(mu::normalize(m_camera_target - m_camera_position));
     }
     {
-        float3 pos{ 2.0f, 10.0f, -2.0f };
+        float3 pos{ 2.0f, 10.0f, 4.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
         float3 color{ 0.95f, 0.925f, 1.0f };
         m_light->setType(gpt::LightType::Point);
         m_light->setPosition(pos);
         m_light->setDirection(mu::normalize(target - pos));
-        m_light->setColor(color * 1.0f);
+        m_light->setColor(color * 0.8f);
     }
 
     // create meshes
@@ -212,9 +223,9 @@ bool GlimmerTest::init()
         m_mesh_floor->setIndices(indices, _countof(indices));
 
         // add a instance with default transform
-        m_inst_floor = m_ctx->createMeshInstance(m_mesh_floor);
-        m_inst_floor->setMaterial(m_mat_checker);
-        m_scene->addMesh(m_inst_floor);
+        auto inst = m_ctx->createMeshInstance(m_mesh_floor);
+        inst->setMaterial(m_mat_checker);
+        m_scene->addMesh(inst);
     }
 
     {
@@ -235,7 +246,7 @@ bool GlimmerTest::init()
 
         m_inst_triangle = m_ctx->createMeshInstance(m_mesh_triangle);
         m_inst_triangle->setMaterial(m_mat_reflective);
-        m_scene->addMesh(m_inst_triangle);
+        //m_scene->addMesh(m_inst_triangle);
     }
 
     {
@@ -299,8 +310,93 @@ bool GlimmerTest::init()
         m_inst_deformable->setMaterial(m_mat_emissive);
         m_inst_deformable->setJointMatrices(joint_matrices);
         m_inst_deformable->setBlendshapeWeights(bs_weights);
-        m_scene->addMesh(m_inst_deformable);
+        //m_scene->addMesh(m_inst_deformable);
     }
+
+    {
+        RawVector<int> indices;
+        RawVector<float3> points;
+        RawVector<float3> normals;
+        RawVector<float2> uv;
+        GenerateCubeMesh(indices, points, normals, uv, 0.5f);
+
+        m_mesh_cube = m_ctx->createMesh();
+        m_mesh_cube->setName("Cube");
+        m_mesh_cube->setIndices(indices.data(), indices.size());
+        m_mesh_cube->setPoints(points.data(), points.size());
+        m_mesh_cube->setNormals(normals.data(), normals.size());
+        m_mesh_cube->setUV(uv.data(), uv.size());
+
+        auto inst = m_ctx->createMeshInstance(m_mesh_cube);
+        inst->setTransform(mu::transform(float3{2.0f, 0.5f, 0.0f}, quatf::identity()));
+        inst->setMaterial(m_mat_diffuse);
+        m_scene->addMesh(inst);
+
+        inst = m_ctx->createMeshInstance(m_mesh_cube);
+        inst->setTransform(mu::transform(float3{ 0.8f, 1.5f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
+        inst->setMaterial(m_mat_reflective);
+        m_scene->addMesh(inst);
+
+        inst = m_ctx->createMeshInstance(m_mesh_cube);
+        inst->setTransform(mu::transform(float3{ -1.2f, 1.0f, 2.0f }, mu::rotate_y(45.0f * mu::DegToRad), float3{ 1.0f, 2.0f, 1.0f }));
+        inst->setMaterial(m_mat_diffuse);
+        m_scene->addMesh(inst);
+    }
+
+    {
+        RawVector<int> indices;
+        RawVector<float3> points, points_expanded;
+        RawVector<float3> normals;
+        RawVector<float2> uv;
+        GenerateIcoSphereMesh(indices, points, normals, 0.5f, 0);
+
+        size_t ni = indices.size();
+        points_expanded.resize_discard(ni);
+        for (size_t i = 0; i < ni; ++i)
+            points_expanded[i] = points[indices[i]];
+        std::iota(indices.begin(), indices.end(), 0);
+
+        m_mesh_ico = m_ctx->createMesh();
+        m_mesh_ico->setName("Ico");
+        m_mesh_ico->setIndices(indices.data(), indices.size());
+        m_mesh_ico->setPoints(points_expanded.data(), points_expanded.size());
+
+        auto inst = m_ctx->createMeshInstance(m_mesh_ico);
+        inst->setTransform(mu::transform(float3{ -1.7f, 0.5f, -1.5f }, quatf::identity()));
+        inst->setMaterial(m_mat_reflective);
+        m_scene->addMesh(inst);
+
+        inst = m_ctx->createMeshInstance(m_mesh_ico);
+        inst->setTransform(mu::transform(float3{ -0.2f, 0.5f, -2.0f }, quatf::identity()));
+        inst->setMaterial(m_mat_diffuse);
+        m_scene->addMesh(inst);
+    }
+
+    {
+        RawVector<int> indices;
+        RawVector<float3> points;
+        RawVector<float3> normals;
+        RawVector<float2> uv;
+        GenerateIcoSphereMesh(indices, points, normals, 0.5f, 3);
+
+        m_mesh_sphere = m_ctx->createMesh();
+        m_mesh_sphere->setName("Sphere");
+        m_mesh_sphere->setIndices(indices.data(), indices.size());
+        m_mesh_sphere->setPoints(points.data(), points.size());
+        m_mesh_sphere->setNormals(normals.data(), normals.size());
+        m_mesh_sphere->setUV(uv.data(), uv.size());
+
+        auto inst = m_ctx->createMeshInstance(m_mesh_sphere);
+        inst->setTransform(mu::transform(float3{ -2.0f, 0.5f, 0.0f }, quatf::identity()));
+        inst->setMaterial(m_mat_reflective);
+        m_scene->addMesh(inst);
+
+        inst = m_ctx->createMeshInstance(m_mesh_sphere);
+        inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
+        inst->setMaterial(m_mat_emissive);
+        m_scene->addMesh(inst);
+    }
+
     return true;
 }
 
@@ -308,22 +404,26 @@ void GlimmerTest::messageLoop()
 {
 #ifdef EnableWindow
     {
-        int frame = 0;
         while (!m_window->isClosed()) {
             m_window->processMessages();
             m_ctx->render();
             m_ctx->finish();
 
-            float bs_weights[]{
-                sin((float)frame * 0.001f) * 0.5f + 0.5f,
-            };
-            m_inst_deformable->setBlendshapeWeights(bs_weights);
-            //m_inst_deformable->setEnabled(frame % 60 < 30);
+            //float bs_weights[]{
+            //    sin((float)m_frame * 0.001f) * 0.5f + 0.5f,
+            //};
+            //m_inst_deformable->setBlendshapeWeights(bs_weights);
+            ////m_inst_deformable->setEnabled(m_frame % 60 < 30);
+            //m_inst_triangle->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)m_frame * 0.002f)));
 
-            m_inst_triangle->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)frame * 0.002f)));
+            float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
+            m_mat_emissive->setEmissive(float3{
+                s * 0.8f,
+                s * 0.7f,
+                s * 1.5f });
 
             printf("%s\n", m_ctx->getTimestampLog());
-            ++frame;
+            ++m_frame;
         }
     }
 #else

@@ -26,3 +26,4 @@
 #include <random>
 #include <regex>
 #include <iterator>
+#include <numeric>

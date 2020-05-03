@@ -503,9 +503,11 @@ public:
 
     Blendshape(Mesh* mesh);
     void setName(const char* name) override;
+    int getFrameCount() const override;
     IBlendshapeFrame* addFrame(float weight) override;
+    IBlendshapeFrame* getFrame(int i) override;
+    void clearFrames() override;
 
-    int getFrameCount() const;
     void exportDelta(int frame, vertex_t* dst) const;
 
 

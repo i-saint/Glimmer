@@ -25,6 +25,7 @@ void GenerateCubeMesh(
 void GenerateIcoSphereMesh(
     RawVector<int>& indices,
     RawVector<float3>& points,
+    RawVector<float3>& normals,
     float radius,
     int iteration);
 
