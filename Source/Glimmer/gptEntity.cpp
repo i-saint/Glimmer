@@ -810,10 +810,9 @@ const SceneData& Scene::getData()
     m_data.samples_per_frame = Globals::getInstance().getSamplesPerFrame();
     m_data.max_trace_depth = Globals::getInstance().getMaxTraceDepth();
 
-    if (m_camera && m_camera->isDirty()) {
-        m_data.camera_prev = m_data.camera;
+    m_data.camera_prev = m_data.camera;
+    if (m_camera && m_camera->isDirty())
         m_data.camera = m_camera->getData();
-    }
 
     int nlights = std::min((int)m_lights.size(), gptMaxLights);
     m_data.light_count = nlights;

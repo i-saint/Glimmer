@@ -29,6 +29,7 @@ class GlimmerTest : public gpt::IWindowCallback
 {
 public:
     void onMouseMove(int x, int y, int button) override;
+    void onMouseWheel(float wheel, int buttons) override;
 
     bool init();
     void messageLoop();
@@ -60,6 +61,9 @@ private:
 
     int2 m_mouse_pos{};
     int2 m_mouse_move{};
+
+    float3 m_camera_position;
+    float3 m_camera_target;
 };
 
 
@@ -69,14 +73,46 @@ void GlimmerTest::onMouseMove(int x, int y, int button)
     m_mouse_move = new_pos - m_mouse_pos;
     m_mouse_pos = new_pos;
 
-    if (button & 1 != 0) {
-        float3 pos = m_camera->getPosition();
-        float3 target{ 0.0f, 0.0f, 0.0f };
-        float3 axis = mu::cross(mu::normalize(target - pos), float3::up());
-        pos = mu::to_mat3x3(mu::rotate_y((float)-m_mouse_move.x * 0.001f)) * pos;
-        pos = mu::to_mat3x3(mu::rotate(axis, (float)m_mouse_move.y * 0.001f)) * pos;
-        m_camera->setPosition(pos);
-        m_camera->setDirection(mu::normalize(target - pos));
+    // handle mouse drag
+    if ((button & 0x2) != 0) {
+        // rotate
+        float3 axis = mu::cross(mu::normalize(m_camera_target - m_camera_position), float3::up());
+        m_camera_position = mu::to_mat3x3(mu::rotate_y((float)-m_mouse_move.x * mu::DegToRad * 0.1f)) * m_camera_position;
+        m_camera_position = mu::to_mat3x3(mu::rotate(axis, (float)m_mouse_move.y * mu::DegToRad * 0.1f)) * m_camera_position;
+        m_camera->setPosition(m_camera_position);
+        m_camera->setDirection(mu::normalize(m_camera_target - m_camera_position));
+
+        //// zoom
+        //float s = float(m_mouse_move.x + m_mouse_move.y) * 0.002f + 1.0f;
+        //float d = mu::length(m_camera_target - m_camera_position) * s;
+        //float3 dir = mu::normalize(m_camera_position - m_camera_target);
+        //m_camera_position = m_camera_target + (dir * d);
+        //m_camera->setPosition(m_camera_position);
+    }
+    else if ((button & 0x4) != 0) {
+        // move
+        float len = mu::length(m_camera_target - m_camera_position);
+        float3 move = float3{ (float)-m_mouse_move.x, (float)m_mouse_move.y, 0.0f } *0.001f * len;
+
+        float3 dir = mu::normalize(m_camera_target - m_camera_position);
+        quatf rot = mu::look_quat(dir, float3::up());
+        move = to_mat3x3(rot) * move;
+
+        m_camera_position += move;
+        m_camera_target += move;
+        m_camera->setPosition(m_camera_position);
+    }
+}
+
+void GlimmerTest::onMouseWheel(float wheel, int buttons)
+{
+    {
+        // zoom
+        float s = -wheel * 0.1f + 1.0f;
+        float d = mu::length(m_camera_target - m_camera_position) * s;
+        float3 dir = mu::normalize(m_camera_position - m_camera_target);
+        m_camera_position = m_camera_target + (dir * d);
+        m_camera->setPosition(m_camera_position);
     }
 }
 
@@ -137,10 +173,10 @@ bool GlimmerTest::init()
     m_mat_checker->setDiffuseTexture(texture);
     //m_mat_checker->setEmissiveTexture(texture);
     {
-        float3 pos{ 0.0f, 2.0f, -8.0f };
-        float3 target{ 0.0f, 0.0f, 0.0f };
-        m_camera->setPosition(pos);
-        m_camera->setDirection(mu::normalize(target - pos));
+        m_camera_position = { 0.0f, 2.0f, -8.0f };
+        m_camera_target = { 0.0f, 0.0f, 0.0f };
+        m_camera->setPosition(m_camera_position);
+        m_camera->setDirection(mu::normalize(m_camera_target - m_camera_position));
     }
     {
         float3 pos{ 2.0f, 10.0f, -2.0f };

@@ -40,6 +40,16 @@ static LRESULT CALLBACK gptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             handled = true;
         }
     };
+    auto wparam_to_button_mask = [wParam]() {
+        int button = 0;
+        if (wParam & MK_LBUTTON)
+            button |= 0x1;
+        if (wParam & MK_RBUTTON)
+            button |= 0x2;
+        if (wParam & MK_MBUTTON)
+            button |= 0x4;
+        return button;
+    };
 
     switch (msg)
     {
@@ -72,14 +82,13 @@ static LRESULT CALLBACK gptMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
     case WM_MOUSEMOVE:
         handle([&](Window* w) {
-            int button = 0;
-            if (wParam & MK_LBUTTON)
-                button |= 1;
-            if (wParam & MK_RBUTTON)
-                button |= 2;
-            if (wParam & MK_MBUTTON)
-                button |= 3;
-            w->onMouseMove(LOWORD(lParam), HIWORD(lParam), button);
+            w->onMouseMove(LOWORD(lParam), HIWORD(lParam), wparam_to_button_mask());
+        });
+        break;
+    case WM_MOUSEWHEEL:
+        handle([&](Window* w) {
+            short v = HIWORD(wParam);
+            w->onMouseWheel((float)v / (float)WHEEL_DELTA, wparam_to_button_mask());
         });
         break;
     case WM_LBUTTONDOWN:
@@ -257,6 +266,12 @@ void Window::onMouseMove(int x, int y, int buttons)
 {
     eachCallback([&](IWindowCallback* cb) {
         cb->onMouseMove(x, y, buttons);
+    });
+}
+void Window::onMouseWheel(float wheel, int buttons)
+{
+    eachCallback([&](IWindowCallback* cb) {
+        cb->onMouseWheel(wheel, buttons);
     });
 }
 void Window::onMouseDown(int button)

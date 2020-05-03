@@ -30,6 +30,7 @@ public:
     void onKeyDown(int key);
     void onKeyUp(int key);
     void onMouseMove(int x, int y, int buttons);
+    void onMouseWheel(float wheel, int buttons);
     void onMouseDown(int button);
     void onMouseUp(int button);
 
