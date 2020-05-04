@@ -82,14 +82,14 @@ void GenerateNormalsTriangleSoA(float3 *dst,
     const float *v3x, const float *v3y, const float *v3z,
     const int *indices, int num_triangles, int num_vertices);
 
-void GenerateTangentsTriangleIndexed(float4 *dst,
+void GenerateTangentsTriangleIndexed(float3 *dst,
     const float3 *vertices, const float2 *uv, const float3 *normals, const int *indices,
     int num_triangles, int num_vertices);
 // vertices and uv must be flattened, * normals must not be flattened *
-void GenerateTangentsTriangleFlattened(float4 *dst,
+void GenerateTangentsTriangleFlattened(float3*dst,
     const float3 *vertices, const float2 *uv, const float3 *normals, const int *indices,
     int num_triangles, int num_vertices);
-void GenerateTangentsTriangleSoA(float4 *dst,
+void GenerateTangentsTriangleSoA(float3*dst,
     const float *v1x, const float *v1y, const float *v1z,
     const float *v2x, const float *v2y, const float *v2z,
     const float *v3x, const float *v3y, const float *v3z,
@@ -233,35 +233,35 @@ void GenerateNormalsTriangleSoA_ISPC(float3 *dst,
     const int *indices,
     int num_triangles, int num_vertices);
 
-void GenerateTangentsTriangleIndexed_Generic(float4 *dst,
-    const float3 *vertices, const float2 *uv, const float3 *normals, const int *indices,
+void GenerateTangentsTriangleIndexed_Generic(float3* dst,
+    const float3* vertices, const float2* uv, const float3* normals, const int* indices,
     int num_triangles, int num_vertices);
-void GenerateTangentsTriangleIndexed_ISPC(float4 *dst,
-    const float3 *vertices, const float2 *uv, const float3 *normals, const int *indices,
+void GenerateTangentsTriangleIndexed_ISPC(float3* dst,
+    const float3* vertices, const float2* uv, const float3* normals, const int* indices,
     int num_triangles, int num_vertices);
-void GenerateTangentsTriangleFlattened_Generic(float4 *dst,
-    const float3 *vertices, const float2 *uv, const float3 *normals, const int *indices,
+void GenerateTangentsTriangleFlattened_Generic(float3* dst,
+    const float3* vertices, const float2* uv, const float3* normals, const int* indices,
     int num_triangles, int num_vertices);
-void GenerateTangentsTriangleFlattened_ISPC(float4 *dst,
-    const float3 *vertices, const float2 *uv, const float3 *normals, const int *indices,
+void GenerateTangentsTriangleFlattened_ISPC(float3* dst,
+    const float3* vertices, const float2* uv, const float3* normals, const int* indices,
     int num_triangles, int num_vertices);
-void GenerateTangentsTriangleSoA_Generic(float4 *dst,
-    const float *v1x, const float *v1y, const float *v1z,
-    const float *v2x, const float *v2y, const float *v2z,
-    const float *v3x, const float *v3y, const float *v3z,
-    const float *u1x, const float *u1y,
-    const float *u2x, const float *u2y,
-    const float *u3x, const float *u3y,
-    const float3 *normals, const int *indices,
+void GenerateTangentsTriangleSoA_Generic(float3* dst,
+    const float* v1x, const float* v1y, const float* v1z,
+    const float* v2x, const float* v2y, const float* v2z,
+    const float* v3x, const float* v3y, const float* v3z,
+    const float* u1x, const float* u1y,
+    const float* u2x, const float* u2y,
+    const float* u3x, const float* u3y,
+    const float3* normals, const int* indices,
     int num_triangles, int num_vertices);
-void GenerateTangentsTriangleSoA_ISPC(float4 *dst,
-    const float *v1x, const float *v1y, const float *v1z,
-    const float *v2x, const float *v2y, const float *v2z,
-    const float *v3x, const float *v3y, const float *v3z,
-    const float *u1x, const float *u1y,
-    const float *u2x, const float *u2y,
-    const float *u3x, const float *u3y,
-    const float3 *normals, const int *indices,
+void GenerateTangentsTriangleSoA_ISPC(float3* dst,
+    const float* v1x, const float* v1y, const float* v1z,
+    const float* v2x, const float* v2y, const float* v2z,
+    const float* v3x, const float* v3y, const float* v3z,
+    const float* u1x, const float* u1y,
+    const float* u2x, const float* u2y,
+    const float* u3x, const float* u3y,
+    const float3* normals, const int* indices,
     int num_triangles, int num_vertices);
 
 

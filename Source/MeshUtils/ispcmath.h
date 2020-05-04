@@ -457,7 +457,7 @@ static inline void compute_triangle_tangents(
     }
 }
 
-static inline float4 orthogonalize_tangent(float3 tangent, float3 binormal, float3 normal)
+static inline float3 orthogonalize_tangent(float3 tangent, float3 binormal, float3 normal)
 {
     float NdotT = dot(normal, tangent);
     tangent = tangent - normal * NdotT;
@@ -497,11 +497,11 @@ static inline float4 orthogonalize_tangent(float3 tangent, float3 binormal, floa
         tangent = normalize_estimate(axis1 - normal * dot(normal, axis1));
         binormal = normalize_estimate(axis2 - normal * dot(normal, axis2) - normalize_estimate(tangent) * dot(tangent, axis2));
     }
-    return float4_(tangent.x, tangent.y, tangent.z,
-        select(dot(cross(normal, tangent), binormal) > 0.0f, 1.0f, -1.0f) );
+    float f = select(dot(cross(normal, tangent), binormal) > 0.0f, 1.0f, -1.0f);
+    return float3_(tangent.x, tangent.y, tangent.z) * f;
 }
 
-static inline uniform float4 orthogonalize_tangent(
+static inline uniform float3 orthogonalize_tangent(
     uniform float3 tangent, uniform float3 binormal, uniform float3 normal)
 {
     uniform float NdotT = dot(normal, tangent);
@@ -542,8 +542,8 @@ static inline uniform float4 orthogonalize_tangent(
         tangent = normalize_estimate(axis1 - normal * dot(normal, axis1));
         binormal = normalize_estimate(axis2 - normal * dot(normal, axis2) - normalize_estimate(tangent) * dot(tangent, axis2));
     }
-    return float4_(tangent.x, tangent.y, tangent.z,
-        select(dot(cross(normal, tangent), binormal) > 0.0f, 1.0f, -1.0f));
+    uniform float f = select(dot(cross(normal, tangent), binormal) > 0.0f, 1.0f, -1.0f);
+    return float3_(tangent.x, tangent.y, tangent.z) * f;
 }
 
 

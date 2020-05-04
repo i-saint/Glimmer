@@ -29,6 +29,7 @@ Globals& Globals::getInstance()
 
 Globals::Globals()
 {
+    enableGenerateTangents(true);
 }
 
 Globals::~Globals()
@@ -45,17 +46,21 @@ bool Globals::getFlag(GlobalFlag f) const
     return get_flag(m_flags, f);
 }
 
+void Globals::enableGenerateTangents(bool v)
+{
+    setFlag(GlobalFlag::GenerateTangents, v);
+}
 void Globals::enableStrictUpdateCheck(bool v)
 {
     setFlag(GlobalFlag::StrictUpdateCheck, v);
 }
-void Globals::enablePowerStableState(bool v)
-{
-    setFlag(GlobalFlag::PowerStableState, v);
-}
 void Globals::enableTimestamp(bool v)
 {
     setFlag(GlobalFlag::Timestamp, v);
+}
+void Globals::enablePowerStableState(bool v)
+{
+    setFlag(GlobalFlag::PowerStableState, v);
 }
 void Globals::enableForceUpdateAS(bool v)
 {
@@ -70,17 +75,21 @@ void Globals::setMaxTraceDepth(int v)
     m_max_trace_depth = v;
 }
 
+bool Globals::isGenerateTangentsEnabled() const
+{
+    return getFlag(GlobalFlag::GenerateTangents);
+}
 bool Globals::isStrictUpdateCheckEnabled() const
 {
     return getFlag(GlobalFlag::StrictUpdateCheck);
 }
-bool Globals::isPowerStableStateEnabled() const
-{
-    return getFlag(GlobalFlag::PowerStableState);
-}
 bool Globals::isTimestampEnabled() const
 {
     return getFlag(GlobalFlag::Timestamp);
+}
+bool Globals::isPowerStableStateEnabled() const
+{
+    return getFlag(GlobalFlag::PowerStableState);
 }
 bool Globals::isForceUpdateASEnabled() const
 {
@@ -192,6 +201,13 @@ void Material::setEmissiveTexture(ITexture* v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setNormalTexture(ITexture* v)
+{
+    m_tex_normal = base_t(v);
+    m_data.normal_tex = GetID(m_tex_normal);
+    markDirty(DirtyFlag::Material);
+}
+
 MaterialType Material::getType() const { return m_data.type; }
 float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
@@ -199,6 +215,7 @@ float3 Material::getEmissive() const { return m_data.emissive; }
 ITexture* Material::getDiffuseTexture() const { return m_tex_diffuse; }
 ITexture* Material::getRoughnessTexture() const { return m_tex_roughness; }
 ITexture* Material::getEmissiveTexture() const { return m_tex_emissive; }
+ITexture* Material::getNormalTexture() const { return m_tex_normal; }
 
 const MaterialData& Material::getData()
 {
@@ -591,6 +608,11 @@ void Mesh::exportVertices(vertex_t* dst) const
         auto& normals = const_cast<RawVector<float3>&>(m_normals); // ...
         normals.resize_discard(getVertexCount());
         mu::GenerateNormalsTriangleIndexed(normals.data(), m_points.data(), m_indices.data(), getFaceCount(), getVertexCount());
+    }
+    if (Globals::getInstance().isGenerateTangentsEnabled() && m_uv.size() == m_points.size() && m_tangents.size() != m_points.size()) {
+        auto& tangents = const_cast<RawVector<float3>&>(m_tangents); // ...
+        tangents.resize_discard(getVertexCount());
+        mu::GenerateTangentsTriangleIndexed(tangents.data(), m_points.data(), m_uv.data(), m_normals.data(), m_indices.data(), getFaceCount(), getVertexCount());
     }
 
     int vc = getVertexCount();

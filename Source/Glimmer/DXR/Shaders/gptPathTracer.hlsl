@@ -138,6 +138,21 @@ float3 GetRoughness(MaterialData md, float2 uv)
     return r;
 }
 
+float3 GetNormal(vertex_t V, MaterialData md)
+{
+    float3 normal = V.normal;
+    int tid = md.normal_tex;
+    if (tid != -1) {
+        float3 tangent = V.tangent;
+        float3 binormal = normalize(cross(normal, tangent));
+        float3x3 tbn = float3x3(tangent, binormal, normal);
+
+        float3 tn = g_textures[tid].SampleLevel(g_sampler_default, V.uv, 0).xyz * 2.0f - 1.0f;
+        normal = mul(tbn, tn);
+    }
+    return normal;
+}
+
 
 
 struct RadiancePayload
@@ -294,15 +309,14 @@ bool ShootOcclusionRay(uint flags, in RayDesc ray)
 [shader("closesthit")]
 void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
+    MaterialData md = FaceMaterial();
     vertex_t V = HitVertex(attr.barycentrics);
     float3 P = HitPosition();
-    float3 N = V.normal;
+    float3 N = GetNormal(V, md);
     uint seed = payload.seed;
     payload.t = RayTCurrent();
 
     {
-        MaterialData md = FaceMaterial();
-
         // prepare next ray
         ONB onb;
         onb.init(N);

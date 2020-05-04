@@ -205,9 +205,10 @@ class IWindow;
 class IGlobals
 {
 public:
+    virtual void enableGenerateTangents(bool v) = 0;
     virtual void enableStrictUpdateCheck(bool v) = 0;
-    virtual void enablePowerStableState(bool v) = 0;
     virtual void enableTimestamp(bool v) = 0;
+    virtual void enablePowerStableState(bool v) = 0;
     virtual void enableForceUpdateAS(bool v) = 0;
     virtual void setSamplesPerFrame(int v) = 0;
     virtual void setMaxTraceDepth(int v) = 0;
@@ -274,6 +275,7 @@ public:
     virtual void setDiffuseTexture(ITexture* v) = 0;
     virtual void setRoughnessTexture(ITexture* v) = 0;
     virtual void setEmissiveTexture(ITexture* v) = 0;
+    virtual void setNormalTexture(ITexture* v) = 0;
 
     virtual MaterialType getType() const = 0;
     virtual float3       getDiffuse() const = 0;
@@ -282,6 +284,7 @@ public:
     virtual ITexture*    getDiffuseTexture() const = 0;
     virtual ITexture*    getRoughnessTexture() const = 0;
     virtual ITexture*    getEmissiveTexture() const = 0;
+    virtual ITexture*    getNormalTexture() const = 0;
 };
 using IMaterialPtr = ref_ptr<IMaterial>;
 

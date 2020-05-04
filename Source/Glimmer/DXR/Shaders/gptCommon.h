@@ -77,6 +77,8 @@ struct MaterialData
     int diffuse_tex;
     int roughness_tex;
     int emissive_tex;
+    int normal_tex;
+    int3 pad;
 };
 
 struct BlendshapeData

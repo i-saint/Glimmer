@@ -9,10 +9,11 @@ namespace gpt {
 
 enum class GlobalFlag : uint32_t
 {
-    StrictUpdateCheck   = 0x00000001,
-    PowerStableState    = 0x00000002,
+    GenerateTangents    = 0x00000001,
+    StrictUpdateCheck   = 0x00000002,
     Timestamp           = 0x00000004,
-    ForceUpdateAS       = 0x00000008,
+    PowerStableState    = 0x00000008,
+    ForceUpdateAS       = 0x00000010,
 };
 
 enum class RenderFlag : uint32_t
@@ -120,6 +121,8 @@ struct MaterialData
     int diffuse_tex = -1;
     int roughness_tex = -1;
     int emissive_tex = -1;
+    int normal_tex = -1;
+    int3 pad{};
 
     gptDefCompare(MaterialData);
 };
@@ -322,16 +325,18 @@ class Globals : public IGlobals
 public:
     static Globals& getInstance();
 
+    void enableGenerateTangents(bool v) override;
     void enableStrictUpdateCheck(bool v) override;
-    void enablePowerStableState(bool v) override;
     void enableTimestamp(bool v) override;
+    void enablePowerStableState(bool v) override;
     void enableForceUpdateAS(bool v) override;
     void setSamplesPerFrame(int v) override;
     void setMaxTraceDepth(int v) override;
 
+    bool isGenerateTangentsEnabled() const;
     bool isStrictUpdateCheckEnabled() const;
-    bool isPowerStableStateEnabled() const;
     bool isTimestampEnabled() const;
+    bool isPowerStableStateEnabled() const;
     bool isForceUpdateASEnabled() const;
     int getSamplesPerFrame() const;
     int getMaxTraceDepth() const;
@@ -408,6 +413,7 @@ public:
     void setDiffuseTexture(ITexture* v) override;
     void setRoughnessTexture(ITexture* v) override;
     void setEmissiveTexture(ITexture* v) override;
+    void setNormalTexture(ITexture* v) override;
 
     MaterialType getType() const override;
     float3       getDiffuse() const override;
@@ -416,6 +422,7 @@ public:
     ITexture*    getDiffuseTexture() const override;
     ITexture*    getRoughnessTexture() const override;
     ITexture*    getEmissiveTexture() const override;
+    ITexture*    getNormalTexture() const override;
 
     const MaterialData& getData();
 
@@ -424,6 +431,7 @@ protected:
     TexturePtr m_tex_diffuse;
     TexturePtr m_tex_roughness;
     TexturePtr m_tex_emissive;
+    TexturePtr m_tex_normal;
 };
 gptDefRefPtr(Material);
 gptDefBaseT(Material, IMaterial)

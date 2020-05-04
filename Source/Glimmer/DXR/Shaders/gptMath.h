@@ -96,7 +96,7 @@ inline float3 offset_ray(float3 ray_pos, float3 face_normal)
 
 inline bool near_equal(float a, float b, float t)
 {
-    return abs(a - b) < t;
+    return abs(a - b) <= t;
 }
 
 inline float3 mul_p(float4x4 m, float3 v)
@@ -113,7 +113,6 @@ inline float angle_between(float3 a, float3 b)
 {
     return acos(clamp(dot(a, b), 0, 1));
 }
-
 
 inline float2 barycentric_interpolation(float2 barycentric, float2 p0, float2 p1, float2 p2)
 {

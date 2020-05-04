@@ -1689,7 +1689,7 @@ template<class T> inline void compute_triangle_tangent(
     }
 }
 
-template<class T> inline tvec4<T> orthogonalize_tangent(
+template<class T> inline tvec3<T> orthogonalize_tangent(
     tvec3<T> tangent, tvec3<T> binormal, tvec3<T> normal)
 {
     auto NdotT = dot(normal, tangent);
@@ -1740,8 +1740,8 @@ template<class T> inline tvec4<T> orthogonalize_tangent(
         binormal = normalize(axis2 - normal * dot(normal, axis2) - normalize(tangent) * dot(tangent, axis2));
     }
 
-    return { tangent.x, tangent.y, tangent.z,
-        dot(cross(normal, tangent), binormal) > T(0.0) ? T(1.0) : -T(1.0) };
+    T f = dot(cross(normal, tangent), binormal) > T(0.0) ? T(1.0) : -T(1.0);
+    return tvec3<T>{ tangent.x, tangent.y, tangent.z } * f;
 }
 
 template<class T>
