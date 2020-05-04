@@ -272,19 +272,19 @@ public:
     virtual void setDiffuse(float3 v) = 0;
     virtual void setRoughness(float v) = 0;
     virtual void setEmissive(float3 v) = 0;
-    virtual void setDiffuseTexture(ITexture* v) = 0;
-    virtual void setRoughnessTexture(ITexture* v) = 0;
-    virtual void setEmissiveTexture(ITexture* v) = 0;
-    virtual void setNormalTexture(ITexture* v) = 0;
+    virtual void setDiffuseMap(ITexture* v) = 0;
+    virtual void setRoughnessMap(ITexture* v) = 0;
+    virtual void setEmissiveMap(ITexture* v) = 0;
+    virtual void setNormalMap(ITexture* v) = 0;
 
     virtual MaterialType getType() const = 0;
     virtual float3       getDiffuse() const = 0;
     virtual float        getRoughness() const = 0;
     virtual float3       getEmissive() const = 0;
-    virtual ITexture*    getDiffuseTexture() const = 0;
-    virtual ITexture*    getRoughnessTexture() const = 0;
-    virtual ITexture*    getEmissiveTexture() const = 0;
-    virtual ITexture*    getNormalTexture() const = 0;
+    virtual ITexture*    getDiffuseMap() const = 0;
+    virtual ITexture*    getRoughnessMap() const = 0;
+    virtual ITexture*    getEmissiveMap() const = 0;
+    virtual ITexture*    getNormalMap() const = 0;
 };
 using IMaterialPtr = ref_ptr<IMaterial>;
 

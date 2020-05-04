@@ -180,28 +180,28 @@ void Material::setEmissive(float3 v)
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setDiffuseTexture(ITexture* v)
+void Material::setDiffuseMap(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
     m_data.diffuse_tex = GetID(m_tex_diffuse);
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setRoughnessTexture(ITexture* v)
+void Material::setRoughnessMap(ITexture* v)
 {
     m_tex_roughness = base_t(v);
     m_data.roughness_tex = GetID(m_tex_roughness);
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setEmissiveTexture(ITexture* v)
+void Material::setEmissiveMap(ITexture* v)
 {
     m_tex_emissive = base_t(v);
     m_data.emissive_tex = GetID(m_tex_emissive);
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setNormalTexture(ITexture* v)
+void Material::setNormalMap(ITexture* v)
 {
     m_tex_normal = base_t(v);
     m_data.normal_tex = GetID(m_tex_normal);
@@ -212,10 +212,10 @@ MaterialType Material::getType() const { return m_data.type; }
 float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
-ITexture* Material::getDiffuseTexture() const { return m_tex_diffuse; }
-ITexture* Material::getRoughnessTexture() const { return m_tex_roughness; }
-ITexture* Material::getEmissiveTexture() const { return m_tex_emissive; }
-ITexture* Material::getNormalTexture() const { return m_tex_normal; }
+ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }
+ITexture* Material::getRoughnessMap() const { return m_tex_roughness; }
+ITexture* Material::getEmissiveMap() const { return m_tex_emissive; }
+ITexture* Material::getNormalMap() const { return m_tex_normal; }
 
 const MaterialData& Material::getData()
 {

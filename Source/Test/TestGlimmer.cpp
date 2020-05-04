@@ -158,8 +158,9 @@ bool GlimmerTest::init()
     m_scene->addLight(m_directional_light);
     m_scene->addLight(m_point_light);
 
-    auto checker_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
-    auto dot_normal_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
+    auto checker_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
+    auto dot_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
+    auto dot_normal_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
     m_mat_checker = m_ctx->createMaterial();
     m_mat_diffuse = m_ctx->createMaterial();
     m_mat_reflective = m_ctx->createMaterial();
@@ -167,27 +168,29 @@ bool GlimmerTest::init()
 
 
     {
-        RawVector<unorm8x4> image;
+        RawVector<half4> image;
         image.resize(checker_texture->getWidth() * checker_texture->getHeight());
         GenerateCheckerImage(image.data(), checker_texture->getWidth(), checker_texture->getHeight(), 32);
         checker_texture->upload(image.cdata());
     }
     {
-        RawVector<unorm8x4> height;
-        RawVector<unorm8x4> normals;
+        RawVector<half4> height;
+        RawVector<half4> normals;
         height.resize(checker_texture->getWidth() * checker_texture->getHeight());
         normals.resize(checker_texture->getWidth() * checker_texture->getHeight());
         GeneratePolkaDotImage(height.data(), checker_texture->getWidth(), checker_texture->getHeight(), 32);
         GenerateNormalMapFromHeightMap(normals.data(), height.data(), checker_texture->getWidth(), checker_texture->getHeight());
+        dot_texture->upload(height.cdata());
         dot_normal_texture->upload(normals.cdata());
     }
 
     m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
     m_mat_checker->setRoughness(0.8f);
-    m_mat_checker->setRoughnessTexture(checker_texture);
-    m_mat_checker->setDiffuseTexture(checker_texture);
-    m_mat_checker->setNormalTexture(dot_normal_texture);
-    //m_mat_checker->setEmissiveTexture(texture);
+    //m_mat_checker->setRoughnessMap(checker_texture);
+    m_mat_checker->setDiffuseMap(checker_texture);
+    //m_mat_checker->setDiffuseMap(dot_normal_texture);
+    m_mat_checker->setNormalMap(dot_normal_texture);
+    //m_mat_checker->setEmissiveMap(dot_normal_texture);
 
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
     m_mat_diffuse->setRoughness(0.5f);

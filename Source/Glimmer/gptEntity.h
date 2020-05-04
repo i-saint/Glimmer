@@ -410,19 +410,19 @@ public:
     void setDiffuse(float3 v) override;
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;
-    void setDiffuseTexture(ITexture* v) override;
-    void setRoughnessTexture(ITexture* v) override;
-    void setEmissiveTexture(ITexture* v) override;
-    void setNormalTexture(ITexture* v) override;
+    void setDiffuseMap(ITexture* v) override;
+    void setRoughnessMap(ITexture* v) override;
+    void setEmissiveMap(ITexture* v) override;
+    void setNormalMap(ITexture* v) override;
 
     MaterialType getType() const override;
     float3       getDiffuse() const override;
     float        getRoughness() const override;
     float3       getEmissive() const override;
-    ITexture*    getDiffuseTexture() const override;
-    ITexture*    getRoughnessTexture() const override;
-    ITexture*    getEmissiveTexture() const override;
-    ITexture*    getNormalTexture() const override;
+    ITexture*    getDiffuseMap() const override;
+    ITexture*    getRoughnessMap() const override;
+    ITexture*    getEmissiveMap() const override;
+    ITexture*    getNormalMap() const override;
 
     const MaterialData& getData();
 

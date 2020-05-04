@@ -33,8 +33,9 @@ void GeneratePolkaDotImage(T* pixels, int width, int height, int block_size)
                 (float(ix % block_size) / float(block_size)) * 2.0f - 1.0f,
                 (float(iy % block_size) / float(block_size)) * 2.0f - 1.0f
             };
-            float d = std::max((1.0f - mu::length(pos)) - 0.2f, 0.0f);
-            float c = 1.0f - pow(d, 0.6f);
+            float d = 1.0f - mu::length(pos);
+            d = std::max(d - 0.3f, 0.0f) * (1.0f / 0.3f);
+            float c = d;
             pixels[ip] = { c, c, c, c };
         }
     }
@@ -58,14 +59,13 @@ void GenerateNormalMapFromHeightMap(T* dst, const T* src, int width, int height)
 
             float s01 = sample(-1, 0);
             float s21 = sample( 1, 0);
-            float s11 = sample( 0, 0);
             float s10 = sample( 0,-1);
             float s12 = sample( 0, 1);
             auto va = mu::normalize(float3{ 2.0f, 0.0f, s21 - s01 });
             auto vb = mu::normalize(float3{ 0.0f, 2.0f, s12 - s10 });
             auto dir = mu::cross(va, vb);
             auto color = dir * 0.5f + 0.5f;
-            dst[ip] = { color.x, color.y, color.z, s01 };
+            dst[ip] = { color.x, color.y, color.z, 1.0f };
         }
     }
 }
