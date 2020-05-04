@@ -197,7 +197,8 @@ bool GlimmerTest::init()
         m_light->setType(gpt::LightType::Point);
         m_light->setPosition(pos);
         m_light->setDirection(mu::normalize(target - pos));
-        m_light->setColor(color * 0.8f);
+        m_light->setColor(color);
+        m_light->setIntensity(0.8f);
     }
 
     // create meshes

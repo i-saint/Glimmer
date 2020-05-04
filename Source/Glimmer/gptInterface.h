@@ -206,7 +206,7 @@ class IGlobals
 {
 public:
     virtual void enableStrictUpdateCheck(bool v) = 0;
-    virtual void enablePowerStableState(bool v) = 0; // must be called before create context
+    virtual void enablePowerStableState(bool v) = 0;
     virtual void enableTimestamp(bool v) = 0;
     virtual void enableForceUpdateAS(bool v) = 0;
     virtual void setSamplesPerFrame(int v) = 0;
@@ -295,6 +295,7 @@ public:
     virtual void setRange(float v) = 0;
     virtual void setSpotAngle(float v) = 0;
     virtual void setColor(float3 v) = 0;
+    virtual void setIntensity(float v) = 0;
 
     virtual LightType getType() const = 0;
     virtual float3    getPosition() const = 0;
@@ -302,6 +303,7 @@ public:
     virtual float     getRange() const = 0;
     virtual float     getSpotAngle() const = 0;
     virtual float3    getColor() const = 0;
+    virtual float     getIntensity() const = 0;
 };
 using ILightPtr = ref_ptr<ILight>;
 

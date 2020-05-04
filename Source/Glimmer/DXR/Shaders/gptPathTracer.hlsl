@@ -9,13 +9,13 @@ ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
 StructuredBuffer<MeshData>      g_meshes        : register(t1, space1);
 StructuredBuffer<MaterialData>  g_materials     : register(t2, space1);
-SamplerState                    g_sampler_default : register(s0, space1);
 
 StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space2);
 StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space3);
 StructuredBuffer<face_t>        g_faces[]       : register(t0, space4);
 Texture2D<float4>               g_textures[]    : register(t0, space5);
 
+SamplerState g_sampler_default : register(s0, space1);
 
 
 uint  FrameCount()          { return g_scene.frame; }
@@ -111,7 +111,7 @@ float3 HitPosition()
     return offset_ray(pos, FaceNormal());
 }
 
-float3 GetDiffuseColor(MaterialData md, float2 uv)
+float3 GetDiffuse(MaterialData md, float2 uv)
 {
     float3 r = md.diffuse;
     int tid = md.diffuse_tex;
@@ -120,7 +120,7 @@ float3 GetDiffuseColor(MaterialData md, float2 uv)
     return r;
 }
 
-float3 GetEmissiveColor(MaterialData md, float2 uv)
+float3 GetEmissive(MaterialData md, float2 uv)
 {
     float3 r = md.emissive;
     int tid = md.emissive_tex;
@@ -316,8 +316,8 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         payload.origin = P;
 
         // handle diffuse & emissive
-        payload.attenuation *= GetDiffuseColor(md, V.uv);
-        payload.radiance += GetEmissiveColor(md, V.uv);
+        payload.attenuation *= GetDiffuse(md, V.uv);
+        payload.radiance += GetEmissive(md, V.uv);
     }
 
 
@@ -380,7 +380,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
             }
         }
 
-        payload.radiance += light.color * max(weight, 0.0f);
+        payload.radiance += light.radiance * max(weight, 0.0f);
     }
     payload.seed = seed;
 }

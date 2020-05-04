@@ -68,22 +68,25 @@ inline float rnd55(inout uint prev)
 
 
 // "A Fast and Robust Method for Avoiding Self-Intersection":
-// http://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.5.pdf
-inline float3 offset_ray(const float3 p, const float3 n)
+// http://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.7.pdf
+inline float3 offset_ray(const float3 ray_pos, const float3 face_normal)
 {
     const float origin = 1.0f / 32.0f;
     const float float_scale = 1.0f / 65536.0f;
     const float int_scale = 256.0f;
 
-    int3 of_i = int3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
+    int3 of_i = int3(
+        int_scale * face_normal.x,
+        int_scale * face_normal.y,
+        int_scale * face_normal.z);
     float3 p_i = float3(
-        asfloat(asint(p.x) + (p.x < 0 ? -of_i.x : of_i.x)),
-        asfloat(asint(p.y) + (p.y < 0 ? -of_i.y : of_i.y)),
-        asfloat(asint(p.z) + (p.z < 0 ? -of_i.z : of_i.z)));
+        asfloat(asint(ray_pos.x) + (ray_pos.x < 0 ? -of_i.x : of_i.x)),
+        asfloat(asint(ray_pos.y) + (ray_pos.y < 0 ? -of_i.y : of_i.y)),
+        asfloat(asint(ray_pos.z) + (ray_pos.z < 0 ? -of_i.z : of_i.z)));
     return float3(
-        abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,
-        abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,
-        abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+        abs(ray_pos.x) < origin ? ray_pos.x + float_scale * face_normal.x : p_i.x,
+        abs(ray_pos.y) < origin ? ray_pos.y + float_scale * face_normal.y : p_i.y,
+        abs(ray_pos.z) < origin ? ray_pos.z + float_scale * face_normal.z : p_i.z);
 }
 
 

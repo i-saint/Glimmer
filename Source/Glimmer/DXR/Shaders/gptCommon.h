@@ -61,7 +61,9 @@ struct LightData
     float3 direction;
     float range;
     float3 color;
+    float intensity;
     float spot_angle; // radian
+    float3 radiance;
 };
 
 struct MaterialData

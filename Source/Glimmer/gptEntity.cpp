@@ -305,15 +305,25 @@ void Light::setColor(float3 v)
     markDirty(DirtyFlag::Light);
 }
 
+void Light::setIntensity(float v)
+{
+    m_data.intensity = v;
+    markDirty(DirtyFlag::Light);
+}
+
 LightType Light::getType() const { return m_data.type; }
 float3 Light::getPosition() const { return m_data.position; }
 float3 Light::getDirection() const { return m_data.direction; }
 float Light::getRange() const { return m_data.range; }
 float Light::getSpotAngle() const { return m_data.spot_angle; }
 float3 Light::getColor() const { return m_data.color; }
+float Light::getIntensity() const { return m_data.intensity; }
 
 const LightData& Light::getData()
 {
+    if (isDirty(DirtyFlag::Light)) {
+        m_data.radiance = m_data.color * m_data.intensity;
+    }
     return m_data;
 }
 
