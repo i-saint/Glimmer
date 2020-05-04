@@ -155,7 +155,7 @@ bool GlimmerTest::init()
     m_render_target->enableReadback(true);
     m_camera->setRenderTarget(m_render_target);
     m_scene->addCamera(m_camera);
-    //m_scene->addLight(m_directional_light);
+    m_scene->addLight(m_directional_light);
     m_scene->addLight(m_point_light);
 
     auto texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
@@ -197,7 +197,7 @@ bool GlimmerTest::init()
 
     // lights
     {
-        float3 pos{ 2.0f, 7.0f, 4.0f };
+        float3 pos{ 2.0f, 7.0f, -8.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
         float3 color{ 0.95f, 0.925f, 1.0f };
         m_directional_light->setType(gpt::LightType::Directional);
@@ -205,6 +205,7 @@ bool GlimmerTest::init()
         m_directional_light->setColor(color);
         m_directional_light->setIntensity(0.8f);
         m_directional_light->setDisperse(0.2f);
+        m_directional_light->setEnabled(false);
     }
     {
         float3 pos{ 2.0f, 7.0f, 4.0f };
@@ -432,8 +433,8 @@ void GlimmerTest::messageLoop()
             //    sin((float)m_frame * 0.001f) * 0.5f + 0.5f,
             //};
             //m_inst_deformable->setBlendshapeWeights(bs_weights);
-            ////m_inst_deformable->setEnabled(m_frame % 60 < 30);
             //m_inst_triangle->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)m_frame * 0.002f)));
+            //m_directional_light->setEnabled(m_frame % 240 < 120);
 
             float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
             m_mat_emissive->setEmissive(float3{

@@ -73,11 +73,11 @@ inline float3 rnd_dir(inout uint prev)
 
 // "A Fast and Robust Method for Avoiding Self-Intersection":
 // http://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.7.pdf
-inline float3 offset_ray(const float3 ray_pos, const float3 face_normal)
+inline float3 offset_ray(float3 ray_pos, float3 face_normal)
 {
-    const float origin = 1.0f / 32.0f;
-    const float float_scale = 1.0f / 65536.0f;
-    const float int_scale = 256.0f;
+    float origin = 1.0f / 32.0f;
+    float float_scale = 1.0f / 65536.0f;
+    float int_scale = 256.0f;
 
     int3 of_i = int3(
         int_scale * face_normal.x,

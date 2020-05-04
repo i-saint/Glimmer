@@ -461,6 +461,7 @@ class Light : public EntityBase<ILight>
 {
 public:
     Light();
+    void setEnabled(bool v) override;
     void setType(LightType v) override;
     void setPosition(float3 v) override;
     void setDirection(float3 v) override;
@@ -470,6 +471,7 @@ public:
     void setIntensity(float v) override;
     void setDisperse(float v) override;
 
+    bool      isEnabled() const override;
     LightType getType() const override;
     float3    getPosition() const override;
     float3    getDirection() const override;
@@ -482,6 +484,7 @@ public:
     const LightData& getData();
 
 protected:
+    bool m_enabled = true;
     LightData m_data;
 };
 gptDefRefPtr(Light);

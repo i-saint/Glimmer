@@ -289,6 +289,7 @@ using IMaterialPtr = ref_ptr<IMaterial>;
 class ILight : public IObject
 {
 public:
+    virtual void setEnabled(bool v) = 0;
     virtual void setType(LightType v) = 0;
     virtual void setPosition(float3 v) = 0;
     virtual void setDirection(float3 v) = 0;
@@ -298,6 +299,7 @@ public:
     virtual void setIntensity(float v) = 0;
     virtual void setDisperse(float v) = 0;
 
+    virtual bool      isEnabled() const = 0;
     virtual LightType getType() const = 0;
     virtual float3    getPosition() const = 0;
     virtual float3    getDirection() const = 0;

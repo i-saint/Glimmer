@@ -269,6 +269,12 @@ Light::Light()
     markDirty(DirtyFlag::Light);
 }
 
+void Light::setEnabled(bool v)
+{
+    m_enabled = v;
+    markDirty(DirtyFlag::Light);
+}
+
 void Light::setType(LightType v)
 {
     m_data.type = v;
@@ -317,6 +323,7 @@ void Light::setDisperse(float v)
     markDirty(DirtyFlag::Light);
 }
 
+bool Light::isEnabled() const { return m_enabled; }
 LightType Light::getType() const { return m_data.type; }
 float3 Light::getPosition() const { return m_data.position; }
 float3 Light::getDirection() const { return m_data.direction; }
@@ -908,10 +915,15 @@ const SceneData& Scene::getData()
     if (!m_cameras.empty() && m_cameras.front()->isDirty())
         m_data.camera = m_cameras.front()->getData();
 
-    int nlights = std::min((int)m_lights.size(), gptMaxLights);
-    m_data.light_count = nlights;
-    for (int li = 0; li < nlights; ++li)
-        m_data.lights[li] = m_lights[li]->getData();
+    int active_light_count = 0;
+    for (auto& plight : m_lights) {
+        if (!plight->isEnabled())
+            continue;
+        m_data.lights[active_light_count++] = plight->getData();
+        if (active_light_count == gptMaxLights)
+            break;
+    }
+    m_data.light_count = active_light_count;
 
     return m_data;
 }
