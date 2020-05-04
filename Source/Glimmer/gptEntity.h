@@ -158,10 +158,10 @@ struct InstanceData
 {
     float4x4 transform = float4x4::identity();
     float4x4 itransform = float4x4::identity();
+    int enabled = 1;
     int mesh_id = -1;
     int deform_id = -1;
     int instance_flags = 0; // combination of InstanceFlags
-    int layer_mask = 0;
     int material_ids[32]{};
 
     gptDefCompare(InstanceData);
@@ -172,7 +172,7 @@ struct SceneData
     int frame = 0;
     int samples_per_frame = 16;
     int max_trace_depth = 8;
-    int render_flags = 0; // combination of RenderFlag
+    int instance_count = 0;
     int light_count = 0;
     float3 bg_color = {0.1f, 0.1f, 0.1f};
 

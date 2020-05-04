@@ -278,8 +278,8 @@ bool GlimmerTest::init()
         m_mesh_triangle->setPoints(points, _countof(points));
         m_mesh_triangle->setIndices(indices, _countof(indices));
 
-        m_inst_triangle = m_ctx->createMeshInstance(m_mesh_triangle);
-        m_inst_triangle->setMaterial(m_mat_reflective);
+        //m_inst_triangle = m_ctx->createMeshInstance(m_mesh_triangle);
+        //m_inst_triangle->setMaterial(m_mat_reflective);
         //m_scene->addMesh(m_inst_triangle);
     }
 
@@ -340,10 +340,10 @@ bool GlimmerTest::init()
             1.0f,
         };
 
-        m_inst_deformable = m_ctx->createMeshInstance(m_mesh_deformable);
-        m_inst_deformable->setMaterial(m_mat_emissive);
-        m_inst_deformable->setJointMatrices(joint_matrices);
-        m_inst_deformable->setBlendshapeWeights(bs_weights);
+        //m_inst_deformable = m_ctx->createMeshInstance(m_mesh_deformable);
+        //m_inst_deformable->setMaterial(m_mat_emissive);
+        //m_inst_deformable->setJointMatrices(joint_matrices);
+        //m_inst_deformable->setBlendshapeWeights(bs_weights);
         //m_scene->addMesh(m_inst_deformable);
     }
 

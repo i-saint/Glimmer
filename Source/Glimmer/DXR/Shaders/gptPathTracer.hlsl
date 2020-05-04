@@ -1,6 +1,13 @@
 #include "gptMath.h"
 #include "gptCommon.h"
 
+enum RayType
+{
+    RT_RADIANCE,
+    RT_OCCLUSION,
+    RT_EMISSIVE,
+};
+
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
 RWStructuredBuffer<accum_t>     g_accum_buffer  : register(u1, space0);
 RaytracingAccelerationStructure g_tlas          : register(t0, space0);
@@ -21,16 +28,7 @@ SamplerState g_sampler_default : register(s0, space1);
 uint  FrameCount()          { return g_scene.frame; }
 uint  SamplesPerFrame()     { return g_scene.samples_per_frame; }
 uint  MaxTraceDepth()       { return g_scene.max_trace_depth; }
-uint  RenderFlags()         { return g_scene.render_flags; }
 float3 BackgroundColor()    { return g_scene.bg_color; }
-
-int LightCount()            { return g_scene.light_count; }
-LightData GetLight(int i)   { return g_scene.lights[i]; }
-
-uint InstanceFlags()        { return g_instances[InstanceID()].instance_flags; }
-uint InstanceLayerMask()    { return g_instances[InstanceID()].layer_mask; }
-int  MeshID()               { return g_instances[InstanceID()].mesh_id; }
-int  DeformID()             { return g_instances[InstanceID()].deform_id; }
 
 float3 FaceNormal(int instance_id, int face_id)
 {
@@ -72,10 +70,8 @@ MaterialData FaceMaterial()
     return FaceMaterial(instance_id, face_id);
 }
 
-vertex_t HitVertex(float2 barycentric)
+vertex_t HitVertex(int instance_id, int face_id, float2 barycentric)
 {
-    int instance_id = InstanceID();
-    int face_id = PrimitiveIndex();
     int mesh_id = g_instances[instance_id].mesh_id;
     int deform_id = g_instances[instance_id].deform_id;
     int3 indices = g_faces[mesh_id][face_id].indices;
@@ -95,14 +91,18 @@ vertex_t HitVertex(float2 barycentric)
             g_vertices[mesh_id][indices[1]],
             g_vertices[mesh_id][indices[2]]);
     }
-    if (HitKind() == HIT_KIND_TRIANGLE_BACK_FACE)
-        r.normal *= -1.0f;
+    //if (HitKind() == HIT_KIND_TRIANGLE_BACK_FACE)
+    //    r.normal *= -1.0f;
 
     float4x4 transform = g_instances[instance_id].transform;
     r.position = mul_p(transform, r.position);
     r.normal = normalize(mul_v(transform, r.normal));
     r.tangent = normalize(mul_v(transform, r.tangent));
     return r;
+}
+vertex_t HitVertex(float2 barycentric)
+{
+    return HitVertex(InstanceID(), PrimitiveIndex(), barycentric);
 }
 
 float3 HitPosition()
@@ -163,8 +163,8 @@ struct RadiancePayload
     float3 direction;
     float  t;
     uint   seed;
-    int    done;
-    int    pad;
+    uint   done;
+    uint   pad;
 
     void init()
     {
@@ -185,6 +185,20 @@ struct OcclusionPayload
     void init()
     {
         hit = false;
+    }
+};
+
+struct EmissivePayload
+{
+    int instance_id;
+    int face_id;
+    float2 barycentrics;
+
+    void init()
+    {
+        instance_id = -1;
+        face_id = -1;
+        barycentrics = 0.0f;
     }
 };
 
@@ -230,11 +244,7 @@ void ShootRadianceRay(inout RadiancePayload payload)
     ray.TMin = g_scene.camera.near_plane; // 
     ray.TMax = g_scene.camera.far_plane;  // todo: correct this
 
-    uint render_flags = RenderFlags();
     uint ray_flags = 0;
-    if (render_flags & RF_CULL_BACK_FACES)
-        ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-
     TraceRay(g_tlas, ray_flags, 0xff, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
 }
 
@@ -298,12 +308,24 @@ void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
 }
 
 
-bool ShootOcclusionRay(uint flags, in RayDesc ray)
+bool ShootOcclusionRay(in RayDesc ray)
 {
     OcclusionPayload payload;
     payload.init();
-    TraceRay(g_tlas, flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
+
+    uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    TraceRay(g_tlas, ray_flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     return payload.hit;
+}
+
+EmissivePayload ShootEmissiveRay(in RayDesc ray)
+{
+    EmissivePayload payload;
+    payload.init();
+
+    uint ray_flags = 0;
+    TraceRay(g_tlas, ray_flags, 0xff, RT_EMISSIVE, 0, RT_EMISSIVE, ray, payload);
+    return payload;
 }
 
 [shader("closesthit")]
@@ -315,6 +337,8 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     float3 N = GetNormal(V, md);
     uint seed = payload.seed;
     payload.t = RayTCurrent();
+
+    bool enable_mesh_light = false;
 
     {
         // prepare next ray
@@ -331,16 +355,16 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
         // handle diffuse & emissive
         payload.attenuation *= GetDiffuse(md, V.uv);
-        payload.radiance += GetEmissive(md, V.uv);
+        if (!enable_mesh_light)
+            payload.radiance += GetEmissive(md, V.uv);
     }
 
 
     // receive lights
-    uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_FORCE_NON_OPAQUE;
-    for (int li = 0; li < LightCount(); ++li) {
+    for (int li = 0; li < g_scene.light_count; ++li) {
 
         float weight = 0.0f;
-        const LightData light = GetLight(li);
+        const LightData light = g_scene.lights[li];
         if (light.type == LT_DIRECTIONAL) {
             // directional light
             float3 L = -light.direction;
@@ -351,7 +375,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
             ray.Direction = L;
             ray.TMin = 0.0f;
             ray.TMax = g_scene.camera.far_plane;
-            if (!ShootOcclusionRay(ray_flags, ray)) {
+            if (!ShootOcclusionRay(ray)) {
                 float nDl = dot(N, L);
                 weight = nDl;
             }
@@ -367,7 +391,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
                 ray.Direction = L;
                 ray.TMin = 0.0f;
                 ray.TMax = Ld;
-                if (!ShootOcclusionRay(ray_flags, ray)) {
+                if (!ShootOcclusionRay(ray)) {
                     float nDl = dot(N, L);
                     //weight = nDl / (PI * Ld * Ld);
 
@@ -387,7 +411,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
                 ray.Direction = L;
                 ray.TMin = 0.0f;
                 ray.TMax = Ld;
-                if (!ShootOcclusionRay(ray_flags, ray)) {
+                if (!ShootOcclusionRay(ray)) {
                     float nDl = dot(N, L);
                     //weight = nDl / (PI * Ld * Ld);
 
@@ -399,6 +423,35 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
         payload.radiance += (light.color * light.intensity) * max(weight, 0.0f);
     }
+
+
+    if (enable_mesh_light) {
+        for (int ii = 0; ii < g_scene.instance_count; ++ii) {
+            if (!g_instances[ii].enabled)
+                continue;
+
+            MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+            if (dot(md.emissive, md.emissive) != 0 || md.emissive_tex != -1) {
+                int mesh_id = g_instances[ii].mesh_id;
+                MeshData mesh = g_meshes[mesh_id];
+                int face = (int)((float)mesh.face_count * rnd01(seed));
+                float3 fpos = HitVertex(ii, face, float2(rnd01(seed), rnd01(seed))).position;
+
+                RayDesc ray;
+                ray.Origin = P;
+                ray.Direction = normalize(fpos - P);
+                ray.TMin = 0.0f;
+                ray.TMax = length(fpos - P) + 0.2f;
+
+                EmissivePayload epl = ShootEmissiveRay(ray);
+                if (epl.instance_id == ii) {
+                    vertex_t hv = HitVertex(epl.instance_id, epl.face_id, epl.barycentrics);
+                    payload.radiance += GetEmissive(md, hv.uv);
+                }
+            }
+        }
+    }
+
     payload.seed = seed;
 }
 
@@ -408,8 +461,22 @@ void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 {
 }
 
-[shader("anyhit")]
-void AnyHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+[shader("closesthit")]
+void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     payload.hit = true;
+}
+
+
+[shader("miss")]
+void MissEmissive(inout EmissivePayload payload : SV_RayPayload)
+{
+}
+
+[shader("closesthit")]
+void ClosestHitEmissive(inout EmissivePayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+{
+    payload.instance_id = InstanceID();
+    payload.face_id = PrimitiveIndex();
+    payload.barycentrics = attr.barycentrics;
 }

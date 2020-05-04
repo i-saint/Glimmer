@@ -16,12 +16,6 @@ enum MaterialType
     MT_TRANSLUCENT,
 };
 
-enum RayType
-{
-    RT_RADIANCE,
-    RT_OCCLUSION,
-};
-
 enum RenderFlag
 {
     RF_CULL_BACK_FACES = 0x00000001,
@@ -116,10 +110,10 @@ struct InstanceData
 {
     float4x4 transform;
     float4x4 itransform;
+    int enabled;
     int mesh_id;
     int deform_id;
     int instance_flags;
-    int layer_mask;
     int material_ids[32];
 };
 
@@ -128,7 +122,7 @@ struct SceneData
     int frame;
     int samples_per_frame;
     int max_trace_depth;
-    int render_flags;
+    int instance_count;
     int light_count;
     float3 bg_color;
 

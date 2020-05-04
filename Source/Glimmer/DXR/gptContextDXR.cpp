@@ -18,18 +18,22 @@ static const WCHAR* kRayGenShaders[]{
 static const WCHAR* kMissShaders[]{
     L"MissRadiance",
     L"MissOcclusion" ,
+    L"MissEmissive" ,
 };
 static const WCHAR* kHitGroups[]{
     L"Radiance",
     L"Occlusion" ,
+    L"Emissive" ,
 };
 static const WCHAR* kAnyHitShaders[]{
     nullptr,
-    L"AnyHitOcclusion",
+    nullptr,
+    nullptr,
 };
 static const WCHAR* kClosestHitShaders[]{
     L"ClosestHitRadiance",
-    nullptr,
+    L"ClosestHitOcclusion",
+    L"ClosestHitEmissive",
 };
 
 const D3D12_HEAP_PROPERTIES kDefaultHeapProps =

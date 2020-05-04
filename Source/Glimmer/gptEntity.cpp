@@ -836,6 +836,7 @@ Span<float>     MeshInstance::getBlendshapeWeights() const { return m_blendshape
 
 const InstanceData& MeshInstance::getData()
 {
+    m_data.enabled = isEnabled();
     return m_data;
 }
 
@@ -946,6 +947,14 @@ const SceneData& Scene::getData()
             break;
     }
     m_data.light_count = active_light_count;
+
+    int active_instance_count = 0;
+    for (auto& pinst : m_instances) {
+        if (!pinst->isEnabled())
+            continue;
+        ++active_instance_count;
+    }
+    m_data.instance_count = active_instance_count;
 
     return m_data;
 }
