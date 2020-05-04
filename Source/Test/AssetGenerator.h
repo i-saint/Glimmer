@@ -12,7 +12,13 @@ using mu::int2;
 
 // T: unorm8x4, half4, float4
 template<class T>
-void GenerateCheckerImage(T* pixels, int width, int height);
+void GenerateCheckerImage(T* pixels, int width, int height, int block_size);
+
+template<class T>
+void GeneratePolkaDotImage(T* pixels, int width, int height, int block_size);
+
+template<class T>
+void GenerateNormalMapFromHeightMap(T* dst, const T* src, int width, int height);
 
 void GenerateCubeMesh(
     RawVector<int>& indices,

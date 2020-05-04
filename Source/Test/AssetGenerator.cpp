@@ -2,11 +2,10 @@
 #include "AssetGenerator.h"
 
 template<class T>
-void GenerateCheckerImage(T* pixels, int width, int height)
+void GenerateCheckerImage(T* pixels, int width, int height, int block_size)
 {
     T black = { 0.2f, 0.2f, 0.2f, 0.2f };
     T white = { 0.8f, 0.8f, 0.8f, 0.8f };
-    const int block_size = 32;
     for (int iy = 0; iy < height; iy++) {
         for (int ix = 0; ix < width; ix++) {
             int ip = iy * width + ix;
@@ -20,9 +19,59 @@ void GenerateCheckerImage(T* pixels, int width, int height)
         }
     }
 }
-template void GenerateCheckerImage<unorm8x4>(unorm8x4* pixels, int width, int height);
-template void GenerateCheckerImage<half4>(half4* pixels, int width, int height);
-template void GenerateCheckerImage<float4>(float4* pixels, int width, int height);
+template void GenerateCheckerImage<unorm8x4>(unorm8x4* pixels, int width, int height, int block_size);
+template void GenerateCheckerImage<half4>(half4* pixels, int width, int height, int block_size);
+template void GenerateCheckerImage<float4>(float4* pixels, int width, int height, int block_size);
+
+template<class T>
+void GeneratePolkaDotImage(T* pixels, int width, int height, int block_size)
+{
+    for (int iy = 0; iy < height; iy++) {
+        for (int ix = 0; ix < width; ix++) {
+            int ip = iy * width + ix;
+            float2 pos = {
+                (float(ix % block_size) / float(block_size)) * 2.0f - 1.0f,
+                (float(iy % block_size) / float(block_size)) * 2.0f - 1.0f
+            };
+            float d = std::max((1.0f - mu::length(pos)) - 0.2f, 0.0f);
+            float c = 1.0f - pow(d, 0.6f);
+            pixels[ip] = { c, c, c, c };
+        }
+    }
+}
+template void GeneratePolkaDotImage<unorm8x4>(unorm8x4* pixels, int width, int height, int block_size);
+template void GeneratePolkaDotImage<half4>(half4* pixels, int width, int height, int block_size);
+template void GeneratePolkaDotImage<float4>(float4* pixels, int width, int height, int block_size);
+
+
+template<class T>
+void GenerateNormalMapFromHeightMap(T* dst, const T* src, int width, int height)
+{
+    for (int iy = 0; iy < height; iy++) {
+        for (int ix = 0; ix < width; ix++) {
+            int ip = iy * width + ix;
+            auto sample = [&](int xo, int yo) -> float {
+                int x = mu::clamp(ix + xo, 0, width - 1);
+                int y = mu::clamp(iy + yo, 0, height - 1);
+                return src[width * y + x].x;
+            };
+
+            float s01 = sample(-1, 0);
+            float s21 = sample( 1, 0);
+            float s11 = sample( 0, 0);
+            float s10 = sample( 0,-1);
+            float s12 = sample( 0, 1);
+            auto va = mu::normalize(float3{ 2.0f, 0.0f, s21 - s01 });
+            auto vb = mu::normalize(float3{ 0.0f, 2.0f, s12 - s10 });
+            auto dir = mu::cross(va, vb);
+            auto color = dir * 0.5f + 0.5f;
+            dst[ip] = { color.x, color.y, color.z, s01 };
+        }
+    }
+}
+template void GenerateNormalMapFromHeightMap<unorm8x4>(unorm8x4* dst, const unorm8x4* src, int width, int height);
+template void GenerateNormalMapFromHeightMap<half4>(half4* dst, const half4* src, int width, int height);
+template void GenerateNormalMapFromHeightMap<float4>(float4* dst, const float4* src, int width, int height);
 
 
 void GenerateCubeMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector<float3>& normals, RawVector<float2>& uv, float size)
