@@ -65,6 +65,10 @@ inline float rnd55(inout uint prev)
 {
     return rnd01(prev) - 0.5f;
 }
+inline float3 rnd_dir(inout uint prev)
+{
+    return normalize(float3(rnd55(prev), rnd55(prev), rnd55(prev)));
+}
 
 
 // "A Fast and Robust Method for Avoiding Self-Intersection":

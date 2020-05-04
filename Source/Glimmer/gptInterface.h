@@ -296,6 +296,7 @@ public:
     virtual void setSpotAngle(float v) = 0;
     virtual void setColor(float3 v) = 0;
     virtual void setIntensity(float v) = 0;
+    virtual void setDisperse(float v) = 0;
 
     virtual LightType getType() const = 0;
     virtual float3    getPosition() const = 0;
@@ -304,6 +305,7 @@ public:
     virtual float     getSpotAngle() const = 0;
     virtual float3    getColor() const = 0;
     virtual float     getIntensity() const = 0;
+    virtual float     getDisperse() const = 0;
 };
 using ILightPtr = ref_ptr<ILight>;
 

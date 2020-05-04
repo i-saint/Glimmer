@@ -330,6 +330,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         if (light.type == LT_DIRECTIONAL) {
             // directional light
             float3 L = -light.direction;
+            L = normalize(L + (rnd_dir(seed) * light.disperse));
 
             RayDesc ray;
             ray.Origin = P;
@@ -344,6 +345,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         else if (light.type == LT_POINT) {
             // point light
             float3 L = normalize(light.position - P);
+            L = normalize(L + (rnd_dir(seed) * light.disperse));
             float Ld = length(light.position - P);
             if (Ld <= light.range) {
                 RayDesc ray;
@@ -363,6 +365,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         else if (light.type == LT_SPOT) {
             // spot light
             float3 L = normalize(light.position - P);
+            L = normalize(L + (rnd_dir(seed) * light.disperse));
             float Ld = length(light.position - P);
             if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
                 RayDesc ray;
@@ -380,7 +383,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
             }
         }
 
-        payload.radiance += light.radiance * max(weight, 0.0f);
+        payload.radiance += (light.color * light.intensity) * max(weight, 0.0f);
     }
     payload.seed = seed;
 }

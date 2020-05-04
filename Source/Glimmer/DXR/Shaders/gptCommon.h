@@ -63,7 +63,8 @@ struct LightData
     float3 color;
     float intensity;
     float spot_angle; // radian
-    float3 radiance;
+    float disperse;
+    float2 pad;
 };
 
 struct MaterialData

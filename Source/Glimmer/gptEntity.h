@@ -104,7 +104,8 @@ struct LightData
     float3 color = float3::one();
     float intensity = 1.0f;
     float spot_angle = 0.0f; // radian
-    float3 radiance{};
+    float disperse = 0.1f;
+    float2 pad{};
 
     gptDefCompare(LightData);
 };
@@ -467,6 +468,7 @@ public:
     void setSpotAngle(float v) override;
     void setColor(float3 v) override;
     void setIntensity(float v) override;
+    void setDisperse(float v) override;
 
     LightType getType() const override;
     float3    getPosition() const override;
@@ -475,6 +477,7 @@ public:
     float     getSpotAngle() const override;
     float3    getColor() const override;
     float     getIntensity() const override;
+    float     getDisperse() const override;
 
     const LightData& getData();
 

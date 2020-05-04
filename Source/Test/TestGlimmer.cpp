@@ -42,7 +42,8 @@ private:
     gpt::IScenePtr m_scene;
     gpt::IRenderTargetPtr m_render_target;
     gpt::ICameraPtr m_camera;
-    gpt::ILightPtr m_light;
+    gpt::ILightPtr m_directional_light;
+    gpt::ILightPtr m_point_light;
 
     gpt::IMaterialPtr m_mat_checker;
     gpt::IMaterialPtr m_mat_diffuse;
@@ -148,12 +149,14 @@ bool GlimmerTest::init()
 
     m_scene = m_ctx->createScene();
     m_camera = m_ctx->createCamera();
-    m_light = m_ctx->createLight();
+    m_directional_light = m_ctx->createLight();
+    m_point_light = m_ctx->createLight();
 
     m_render_target->enableReadback(true);
     m_camera->setRenderTarget(m_render_target);
     m_scene->addCamera(m_camera);
-    m_scene->addLight(m_light);
+    //m_scene->addLight(m_directional_light);
+    m_scene->addLight(m_point_light);
 
     auto texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAu8);
     m_mat_checker = m_ctx->createMaterial();
@@ -184,21 +187,35 @@ bool GlimmerTest::init()
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
 
+    // camera
     {
         m_camera_position = { 0.0f, 2.0f, -8.0f };
         m_camera_target = { 0.0f, 0.0f, 0.0f };
         m_camera->setPosition(m_camera_position);
         m_camera->setDirection(mu::normalize(m_camera_target - m_camera_position));
     }
+
+    // lights
     {
-        float3 pos{ 2.0f, 10.0f, 4.0f };
+        float3 pos{ 2.0f, 7.0f, 4.0f };
         float3 target{ 0.0f, 0.0f, 0.0f };
         float3 color{ 0.95f, 0.925f, 1.0f };
-        m_light->setType(gpt::LightType::Point);
-        m_light->setPosition(pos);
-        m_light->setDirection(mu::normalize(target - pos));
-        m_light->setColor(color);
-        m_light->setIntensity(0.8f);
+        m_directional_light->setType(gpt::LightType::Directional);
+        m_directional_light->setDirection(mu::normalize(target - pos));
+        m_directional_light->setColor(color);
+        m_directional_light->setIntensity(0.8f);
+        m_directional_light->setDisperse(0.2f);
+    }
+    {
+        float3 pos{ 2.0f, 7.0f, 4.0f };
+        float3 target{ 0.0f, 0.0f, 0.0f };
+        float3 color{ 0.95f, 0.925f, 1.0f };
+        m_point_light->setType(gpt::LightType::Point);
+        m_point_light->setPosition(pos);
+        m_point_light->setDirection(mu::normalize(target - pos));
+        m_point_light->setColor(color);
+        m_point_light->setIntensity(0.8f);
+        m_point_light->setDisperse(0.3f);
     }
 
     // create meshes
