@@ -123,13 +123,12 @@ struct SceneData
     int frame;
     int samples_per_frame;
     int max_trace_depth;
-    int instance_count;
     int light_count;
+    int meshlight_count;
     float3 bg_color;
 
     CameraData camera;
     CameraData camera_prev;
-    LightData lights[kMaxLights];
 };
 
 struct vertex_t

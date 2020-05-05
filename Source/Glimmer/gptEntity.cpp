@@ -753,6 +753,12 @@ void MeshInstance::setEnabled(bool v)
     markDirty(DirtyFlag::Transform);
 }
 
+void MeshInstance::setFlag(InstanceFlag f, bool v)
+{
+    set_flag(m_data.instance_flags, f, v);
+    markDirty(DirtyFlag::Flags);
+}
+
 void MeshInstance::setMaterial(IMaterial* v, int slot)
 {
     if (slot < 0 || slot >= _countof(m_data.material_ids)) {
@@ -794,9 +800,18 @@ void MeshInstance::setBlendshapeWeights(const float* v)
     }
 }
 
-bool MeshInstance::hasFlag(InstanceFlag v) const
+bool MeshInstance::isLightSource() const
 {
-    return get_flag(m_instance_flags, v);
+    if (isEnabled() && getFlag(InstanceFlag::LightSource)) {
+        for (auto& pmat : m_materials) {
+            if (!pmat)
+                continue;
+            float3 e = pmat->getEmissive();
+            if ((e.x + e.y + e.z) != 0 || pmat->getEmissiveMap())
+                return true;
+        }
+    }
+    return false;
 }
 
 void MeshInstance::exportJointMatrices(float4x4* dst)
@@ -836,6 +851,7 @@ void MeshInstance::exportBlendshapeWeights(float* dst)
 
 IMesh*          MeshInstance::getMesh() const  { return m_mesh; }
 bool            MeshInstance::isEnabled() const { return m_enabled; }
+bool            MeshInstance::getFlag(InstanceFlag f) const { return get_flag(m_data.instance_flags, f); }
 IMaterial*      MeshInstance::getMaterial(int slot) const { return m_materials[slot]; }
 float4x4        MeshInstance::getTransform() const { return m_data.transform; }
 Span<float4x4>  MeshInstance::getJointMatrices() const { return m_joint_matrices; }
@@ -911,25 +927,25 @@ void Scene::removeLight(ILight* v)
         markDirty(DirtyFlag::Light);
 }
 
-int Scene::getMeshCount() const
+int Scene::getInstanceCount() const
 {
     return (int)m_instances.size();
 }
 
-IMeshInstance* Scene::getMesh(int i) const
+IMeshInstance* Scene::getInstance(int i) const
 {
     if (i < 0 || i >= m_instances.size())
         return nullptr;
     return m_instances[i];
 }
 
-void Scene::addMesh(IMeshInstance* v)
+void Scene::addInstance(IMeshInstance* v)
 {
     m_instances.push_back(base_t(v));
     markDirty(DirtyFlag::Instance);
 }
 
-void Scene::removeMesh(IMeshInstance* v)
+void Scene::removeInstance(IMeshInstance* v)
 {
     if (erase(m_instances, v))
         markDirty(DirtyFlag::Instance);
@@ -944,24 +960,6 @@ const SceneData& Scene::getData()
     m_data.camera_prev = m_data.camera;
     if (!m_cameras.empty() && m_cameras.front()->isDirty())
         m_data.camera = m_cameras.front()->getData();
-
-    int active_light_count = 0;
-    for (auto& plight : m_lights) {
-        if (!plight->isEnabled())
-            continue;
-        m_data.lights[active_light_count++] = plight->getData();
-        if (active_light_count == gptMaxLights)
-            break;
-    }
-    m_data.light_count = active_light_count;
-
-    int active_instance_count = 0;
-    for (auto& pinst : m_instances) {
-        if (!pinst->isEnabled())
-            continue;
-        ++active_instance_count;
-    }
-    m_data.instance_count = active_instance_count;
 
     return m_data;
 }

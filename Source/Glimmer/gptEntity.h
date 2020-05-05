@@ -3,7 +3,6 @@
 #include "Foundation/gptUtils.h"
 
 #define gptDefRefPtr(T) using T##Ptr = ref_ptr<T, InternalReleaser<T>>
-#define gptMaxLights 32
 
 namespace gpt {
 
@@ -29,31 +28,19 @@ enum class MeshFlag : uint32_t
     IsDynamic       = 0x00000004,
 };
 
-enum class InstanceFlag : uint32_t
-{
-    ReceiveShadows  = 0x00000001,
-    ShadowsOnly     = 0x00000002,
-    CastShadows     = 0x00000004,
-    CullFront       = 0x00000010,
-    CullBack        = 0x00000020,
-    CullFrontShadow = 0x00000040,
-    CullBackShadow  = 0x00000080,
-
-    Default = ReceiveShadows | CastShadows | CullBack,
-};
-
 enum class DirtyFlag : uint32_t
 {
     None        = 0x00000000,
     Transform   = 0x00000001,
     Blendshape  = 0x00000002,
     Joints      = 0x00000004,
+    Flags       = 0x00000008,
 
-    Indices     = 0x00000010,
-    Points      = 0x00000020,
-    Normals     = 0x00000040,
-    Tangents    = 0x00000080,
-    UV          = 0x00000100,
+    Indices     = 0x00000100,
+    Points      = 0x00000200,
+    Normals     = 0x00000400,
+    Tangents    = 0x00000800,
+    UV          = 0x00001000,
 
     Camera      = 0x00010000,
     Light       = 0x00020000,
@@ -162,7 +149,7 @@ struct InstanceData
     int enabled = 1;
     int mesh_id = -1;
     int deform_id = -1;
-    int instance_flags = 0; // combination of InstanceFlags
+    int instance_flags = (int)InstanceFlag::Default;
     int material_ids[32]{};
 
     gptDefCompare(InstanceData);
@@ -173,21 +160,14 @@ struct SceneData
     int frame = 0;
     int samples_per_frame = 16;
     int max_trace_depth = 8;
-    int instance_count = 0;
     int light_count = 0;
+    int meshlight_count = 0;
     float3 bg_color = {0.1f, 0.1f, 0.1f};
 
     CameraData camera;
     CameraData camera_prev;
-    LightData lights[gptMaxLights];
 
     gptDefCompare(SceneData);
-    template<class Body>
-    void eachLight(const Body& body)
-    {
-        for (int li = 0; li < light_count; ++li)
-            body(lights[li]);
-    }
 };
 
 struct vertex_t
@@ -637,19 +617,21 @@ class MeshInstance : public EntityBase<IMeshInstance>
 public:
     MeshInstance(IMesh* v = nullptr);
     void setEnabled(bool v) override;
+    void setFlag(InstanceFlag f, bool v) override;
     void setMaterial(IMaterial* v, int slot) override;
     void setTransform(const float4x4& v) override;
     void setJointMatrices(const float4x4* v) override;
     void setBlendshapeWeights(const float* v) override;
-    bool hasFlag(InstanceFlag flag) const;
 
     IMesh*          getMesh() const override;
     bool            isEnabled() const override;
+    bool            getFlag(InstanceFlag f) const override;
     IMaterial*      getMaterial(int slot) const override;
     float4x4        getTransform() const override;
     Span<float4x4>  getJointMatrices() const override;
     Span<float>     getBlendshapeWeights() const override;
 
+    bool isLightSource() const;
     void exportJointMatrices(float4x4* dst);
     void exportBlendshapeWeights(float* dst);
     const InstanceData& getData();
@@ -687,10 +669,10 @@ public:
     void            addLight(ILight* v) override;
     void            removeLight(ILight* v) override;
 
-    int             getMeshCount() const override;
-    IMeshInstance*  getMesh(int i) const override;
-    void            addMesh(IMeshInstance* v) override;
-    void            removeMesh(IMeshInstance* v) override;
+    int             getInstanceCount() const override;
+    IMeshInstance*  getInstance(int i) const override;
+    void            addInstance(IMeshInstance* v) override;
+    void            removeInstance(IMeshInstance* v) override;
 
     const SceneData& getData();
     void incrementFrameCount();

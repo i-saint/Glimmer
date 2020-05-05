@@ -200,13 +200,18 @@ public:
 
 public:
     ID3D12GraphicsCommandList4Ptr m_cl_deform;
-    DescriptorHandleDXR m_srv_tlas;
-    DescriptorHandleDXR m_cbv_scene;
 
     ID3D12ResourcePtr m_tlas_instance_desc;
     ID3D12ResourcePtr m_tlas_scratch;
     ID3D12ResourcePtr m_tlas;
+    ID3D12ResourcePtr m_buf_lights, m_buf_lights_staging;
+    ID3D12ResourcePtr m_buf_meshlights, m_buf_meshlights_staging;
     ID3D12ResourcePtr m_buf_scene, m_buf_scene_staging;
+
+    DescriptorHandleDXR m_srv_tlas;
+    DescriptorHandleDXR m_srv_lights;
+    DescriptorHandleDXR m_srv_meshlights;
+    DescriptorHandleDXR m_cbv_scene;
 
     uint32_t m_render_flags = 0;
 };

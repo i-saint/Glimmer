@@ -487,20 +487,62 @@ void SceneDXR::updateResources()
     // desc heap
     if (!m_srv_tlas) {
         auto& desc_alloc = ctx->m_desc_alloc_srv;
-        m_srv_tlas  = desc_alloc.allocate();
+        m_srv_tlas = desc_alloc.allocate();
+        m_srv_lights = desc_alloc.allocate();
+        m_srv_meshlights = desc_alloc.allocate();
         m_cbv_scene = desc_alloc.allocate();
     }
 
-    // scene constant buffer
-    // size of constant buffer must be multiple of 256
-    int cb_size = align_to(256, sizeof(SceneData));
-    bool allocated = ctx->updateBuffer(m_buf_scene, m_buf_scene_staging, cb_size, [this](SceneData* mapped) {
+    // light buffer
+    if (!m_buf_lights) {
+        size_t size = sizeof(LightData) * gptDXRMaxLightCount;
+        m_buf_lights = ctx->createBuffer(size);
+        m_buf_lights_staging = ctx->createUploadBuffer(size);
+        ctx->createBufferSRV(m_srv_lights, m_buf_lights, size);
+    }
+    ctx->updateBuffer(m_buf_lights, m_buf_lights_staging, sizeof(LightData), [this](LightData* mapped) {
+        int count = 0;
+        for (auto& plight : m_lights) {
+            if (plight->isEnabled()) {
+                *mapped++ = plight->getData();
+                ++count;
+            }
+        }
+        m_data.light_count = count;
+    });
+
+    // mesh light buffer
+    if (!m_buf_meshlights) {
+        size_t size = sizeof(int) * gptDXRMaxMeshLightCount;
+        m_buf_meshlights = ctx->createBuffer(size);
+        m_buf_meshlights_staging = ctx->createUploadBuffer(size);
+        ctx->createBufferSRV(m_srv_meshlights, m_buf_meshlights, size);
+    }
+    ctx->updateBuffer(m_buf_meshlights, m_buf_meshlights_staging, sizeof(int), [this](int* mapped) {
+        int count = 0;
+        for (auto& pinst : m_instances) {
+            if (pinst->isLightSource()) {
+                *mapped++ = pinst->getID();
+                if (++count >= gptDXRMaxMeshLightCount)
+                    break;
+            }
+        }
+        m_data.meshlight_count = count;
+    });
+
+    // scene buffer
+    if (!m_buf_scene) {
+        // scene constant buffer
+        // size of constant buffer must be multiple of 256
+        size_t size = align_to(256, sizeof(SceneData));
+        m_buf_scene = ctx->createBuffer(size);
+        m_buf_scene_staging = ctx->createUploadBuffer(size);
+        gptSetName(m_buf_scene, m_name + " Scene Buffer");
+        ctx->createCBV(m_cbv_scene, m_buf_scene, size);
+    }
+    ctx->updateBuffer(m_buf_scene, m_buf_scene_staging, sizeof(SceneData), [this](SceneData* mapped) {
         *mapped = getData();
     });
-    if (allocated) {
-        gptSetName(m_buf_scene, m_name + " Scene Buffer");
-        ctx->createCBV(m_cbv_scene, m_buf_scene, cb_size);
-    }
 }
 
 void SceneDXR::updateTLAS()

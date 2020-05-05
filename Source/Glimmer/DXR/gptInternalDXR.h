@@ -11,6 +11,8 @@
 #define gptDXRMaxInstanceCount 65536
 #define gptDXRMaxDeformMeshCount 512
 #define gptDXRMaxDeformInstanceCount 2048
+#define gptDXRMaxLightCount 256
+#define gptDXRMaxMeshLightCount 256
 #define gptDXRMaxTextureCount 2048
 #define gptDXRMaxShaderRecords 64
 #define gptDXRSwapChainBuffers 2

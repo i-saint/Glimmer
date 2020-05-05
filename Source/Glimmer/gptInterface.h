@@ -36,6 +36,18 @@ enum class MaterialType : uint32_t
     Translucent,
 };
 
+enum class InstanceFlag : uint32_t
+{
+    Visible     = 0x00000001,
+    CastShadows = 0x00000002,
+    LightSource = 0x00000004,
+    CullFront   = 0x00000008,
+    CullBack    = 0x00000010,
+
+    Default = Visible | CastShadows,
+};
+
+
 enum class WindowFlag : uint32_t
 {
     None            = 0x00000000,
@@ -401,6 +413,7 @@ class IMeshInstance : public IObject
 {
 public:
     virtual void setEnabled(bool v) = 0;
+    virtual void setFlag(InstanceFlag f, bool v) = 0;
     virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
     virtual void setTransform(const float4x4& v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
@@ -408,6 +421,7 @@ public:
 
     virtual IMesh*          getMesh() const = 0;
     virtual bool            isEnabled() const = 0;
+    virtual bool            getFlag(InstanceFlag f) const = 0;
     virtual IMaterial*      getMaterial(int slot = 0) const = 0;
     virtual float4x4        getTransform() const = 0;
     virtual Span<float4x4>  getJointMatrices() const = 0;
@@ -434,10 +448,10 @@ public:
     virtual void            addLight(ILight* v) = 0;
     virtual void            removeLight(ILight* v) = 0;
 
-    virtual int             getMeshCount() const = 0;
-    virtual IMeshInstance*  getMesh(int i) const = 0;
-    virtual void            addMesh(IMeshInstance* v) = 0;
-    virtual void            removeMesh(IMeshInstance* v) = 0;
+    virtual int             getInstanceCount() const = 0;
+    virtual IMeshInstance*  getInstance(int i) const = 0;
+    virtual void            addInstance(IMeshInstance* v) = 0;
+    virtual void            removeInstance(IMeshInstance* v) = 0;
 };
 using IScenePtr = ref_ptr<IScene>;
 

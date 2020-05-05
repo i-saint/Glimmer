@@ -256,7 +256,7 @@ bool GlimmerTest::init()
         // add a instance with default transform
         auto inst = m_ctx->createMeshInstance(m_mesh_floor);
         inst->setMaterial(m_mat_checker);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
     }
 
     {
@@ -361,17 +361,17 @@ bool GlimmerTest::init()
         auto inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{2.0f, 0.5f, 0.0f}, quatf::identity()));
         inst->setMaterial(m_mat_diffuse);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ 0.8f, 1.5f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
         inst->setMaterial(m_mat_diffuse);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ -1.2f, 1.0f, 2.0f }, mu::rotate_y(45.0f * mu::DegToRad), float3{ 1.0f, 2.0f, 1.0f }));
         inst->setMaterial(m_mat_reflective);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
     }
 
     {
@@ -395,12 +395,12 @@ bool GlimmerTest::init()
         auto inst = m_ctx->createMeshInstance(m_mesh_ico);
         inst->setTransform(mu::transform(float3{ -1.7f, 0.5f, -1.5f }, quatf::identity()));
         inst->setMaterial(m_mat_reflective);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_ico);
         inst->setTransform(mu::transform(float3{ -0.2f, 0.5f, -2.0f }, quatf::identity()));
         inst->setMaterial(m_mat_diffuse);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
     }
 
     {
@@ -420,12 +420,13 @@ bool GlimmerTest::init()
         auto inst = m_ctx->createMeshInstance(m_mesh_sphere);
         inst->setTransform(mu::transform(float3{ -2.0f, 0.5f, 0.0f }, quatf::identity()));
         inst->setMaterial(m_mat_reflective);
-        m_scene->addMesh(inst);
+        m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_sphere);
         inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
         inst->setMaterial(m_mat_emissive);
-        m_scene->addMesh(inst);
+        inst->setFlag(gpt::InstanceFlag::LightSource, true);
+        m_scene->addInstance(inst);
     }
 
     return true;
@@ -448,10 +449,7 @@ void GlimmerTest::messageLoop()
             //m_directional_light->setEnabled(m_frame % 240 < 120);
 
             float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
-            m_mat_emissive->setEmissive(float3{
-                s * 0.4f,
-                s * 0.4f,
-                s * 1.0f } * 1.5f);
+            m_mat_emissive->setEmissive(float3{ 0.4f, 0.4f, 1.0f } * (1.5f * s));
 
             printf("%s\n", m_ctx->getTimestampLog());
             ++m_frame;

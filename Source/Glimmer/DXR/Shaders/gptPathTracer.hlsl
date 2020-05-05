@@ -11,6 +11,8 @@ enum RayType
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
 RWStructuredBuffer<accum_t>     g_accum_buffer  : register(u1, space0);
 RaytracingAccelerationStructure g_tlas          : register(t0, space0);
+StructuredBuffer<LightData>     g_lights        : register(t1, space0);
+StructuredBuffer<int>           g_meshlights    : register(t2, space0);
 ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
@@ -363,7 +365,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     for (int li = 0; li < g_scene.light_count; ++li) {
 
         float weight = 0.0f;
-        const LightData light = g_scene.lights[li];
+        const LightData light = g_lights[li];
         if (light.type == LT_DIRECTIONAL) {
             // directional light
             float3 L = -light.direction;
@@ -425,8 +427,9 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
 
     if (enable_mesh_light) {
-        for (int ii = 0; ii < g_scene.instance_count; ++ii) {
-            if (!g_instances[ii].enabled || ii == InstanceID())
+        for (int i = 0; i < g_scene.meshlight_count; ++i) {
+            int ii = g_meshlights[i];
+            if (ii == InstanceID())
                 continue;
 
             MaterialData md = g_materials[g_instances[ii].material_ids[0]];
