@@ -181,7 +181,7 @@ bool GlimmerTest::init()
     m_mat_checker->setRoughness(0.8f);
     //m_mat_checker->setRoughnessMap(checker_texture);
     m_mat_checker->setDiffuseMap(checker_texture);
-    //m_mat_checker->setDiffuseMap(dot_normal_texture);
+    //m_mat_checker->setDiffuseMap(dot_texture);
     m_mat_checker->setNormalMap(dot_normal_texture);
     //m_mat_checker->setEmissiveMap(dot_normal_texture);
 

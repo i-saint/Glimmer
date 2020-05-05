@@ -11,4 +11,7 @@
     <ClInclude Include="Test.h" />
     <ClInclude Include="AssetGenerator.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\MeshUtils\MeshUtils.natvis" />
+  </ItemGroup>
 </Project>

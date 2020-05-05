@@ -31,6 +31,9 @@
       <Project>{fd3fe1ff-abe5-40db-b867-144e9dd9b23c}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\MeshUtils\MeshUtils.natvis" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{11990C37-1C63-418F-9AB1-74076C470584}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

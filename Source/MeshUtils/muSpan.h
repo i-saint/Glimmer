@@ -29,7 +29,6 @@ public:
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
-    const T* cdata() const { return m_data; }
 
     T& operator[](size_t i) { return m_data[i]; }
     const T& operator[](size_t i) const { return m_data[i]; }
@@ -97,7 +96,6 @@ public:
 
     T* data() { return m_data; }
     const T* data() const { return m_data; }
-    const T* cdata() const { return m_data; }
 
     T& operator[](size_t i) { return m_data[m_indices[i]]; }
     const T& operator[](size_t i) const { return m_data[m_indices[i]]; }

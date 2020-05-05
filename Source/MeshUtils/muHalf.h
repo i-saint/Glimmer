@@ -27,15 +27,15 @@ struct half
         return *this;
     }
 
-    operator float() const
+    float to_float() const
     {
         uint32_t sign_bit = (value & 0x8000) << 16;
         uint32_t exponent = ((((value >> 10) & 0x1f) - 15 + 127) & 0xff) << 23;
         uint32_t mantissa = (value & 0x3ff) << (23 - 10);
-
         uint32_t r = sign_bit | exponent | mantissa;
         return (float&)r;
     }
+    operator float() const { return to_float(); }
 
     static half zero() { return half(0.0f); }
     static half one() { return half(1.0f); }
@@ -63,7 +63,9 @@ struct snorm8
         *this = snorm8(v);
         return *this;
     }
-    operator float() const { return (float)value * R; }
+
+    float to_float() const { return (float)value * R; }
+    operator float() const { return to_float(); }
 
     static snorm8 zero() { return snorm8(0.0f); }
     static snorm8 one() { return snorm8(1.0f); }
@@ -86,7 +88,9 @@ struct unorm8
         *this = unorm8(v);
         return *this;
     }
-    operator float() const { return (float)value * R; }
+
+    float to_float() const { return (float)value * R; }
+    operator float() const { return to_float(); }
 
     static unorm8 zero() { return unorm8(0.0f); }
     static unorm8 one() { return unorm8(1.0f); }
@@ -110,7 +114,9 @@ struct unorm8n
         *this = unorm8n(v);
         return *this;
     }
-    operator float() const { return (float)value * R * 2.0f - 1.0f; }
+
+    float to_float() const { return (float)value * R * 2.0f - 1.0f; }
+    operator float() const { return to_float(); }
 
     static unorm8n zero() { return unorm8n(0.0f); }
     static unorm8n one() { return unorm8n(1.0f); }
@@ -133,7 +139,9 @@ struct snorm16
         *this = snorm16(v);
         return *this;
     }
-    operator float() const { return (float)value * R; }
+
+    float to_float() const { return (float)value * R; }
+    operator float() const { return to_float(); }
 
     static snorm16 zero() { return snorm16(0.0f); }
     static snorm16 one() { return snorm16(1.0f); }
@@ -156,7 +164,9 @@ struct unorm16
         *this = unorm16(v);
         return *this;
     }
-    operator float() const { return (float)value * R; }
+
+    float to_float() const { return (float)value * R; }
+    operator float() const { return to_float(); }
 
     static unorm16 zero() { return unorm16(0.0f); }
     static unorm16 one() { return unorm16(1.0f); }
@@ -191,11 +201,13 @@ struct snorm24
         *this = snorm24(v);
         return *this;
     }
-    operator float() const
+
+    float to_float() const
     {
         int i32 = (value[0] << 8) | (value[1] << 16) | (value[2] << 24);
         return float((double)i32 * R);
     }
+    operator float() const { return to_float(); }
 
     static snorm24 zero() { return snorm24(0.0f); }
     static snorm24 one() { return snorm24(1.0f); }
@@ -219,7 +231,9 @@ struct snorm32
         *this = snorm32(v);
         return *this;
     }
-    operator float() const { return float((double)value * R); }
+
+    float to_float() const { return float((double)value * R); }
+    operator float() const { return to_float(); }
 
     static snorm32 zero() { return snorm32(0.0f); }
     static snorm32 one() { return snorm32(1.0f); }

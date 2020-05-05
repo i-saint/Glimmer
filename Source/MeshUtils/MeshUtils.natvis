@@ -3,8 +3,8 @@
     <Type Name="RawVector&lt;*&gt;">
         <DisplayString>{{ size={m_size} }}</DisplayString>
         <Expand>
-            <Item Name="[size]" ExcludeView="simple">m_size</Item>
-            <Item Name="[capacity]" ExcludeView="simple">m_capacity</Item>
+            <Item Name="[size]">m_size</Item>
+            <Item Name="[capacity]">m_capacity</Item>
             <ArrayItems>
                 <Size>m_size</Size>
                 <ValuePointer>m_data</ValuePointer>
@@ -14,22 +14,32 @@
     <Type Name="SharedVector&lt;*&gt;">
         <DisplayString>{{ size={m_size} }}</DisplayString>
         <Expand>
-            <Item Name="[size]" ExcludeView="simple">m_size</Item>
-            <Item Name="[capacity]" ExcludeView="simple">m_capacity</Item>
+            <Item Name="[size]">m_size</Item>
+            <Item Name="[capacity]">m_capacity</Item>
             <ArrayItems>
                 <Size>m_size</Size>
                 <ValuePointer>m_data</ValuePointer>
             </ArrayItems>
         </Expand>
     </Type>
-    <Type Name="IntrusiveArray&lt;*&gt;">
+    <Type Name="Span&lt;*&gt;">
         <DisplayString>{{ size={m_size} }}</DisplayString>
         <Expand>
-            <Item Name="[size]" ExcludeView="simple">m_size</Item>
+            <Item Name="[size]">m_size</Item>
             <ArrayItems>
                 <Size>m_size</Size>
                 <ValuePointer>m_data</ValuePointer>
             </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="IndexedSpan&lt;*&gt;">
+        <DisplayString>{{ size={m_size} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]">m_size</Item>
+            <IndexListItems>
+                <Size>m_size</Size>
+                <ValueNode>m_data[m_indices[$i]]</ValueNode>
+            </IndexListItems>
         </Expand>
     </Type>
 </AutoVisualizer>
