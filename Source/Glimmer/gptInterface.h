@@ -477,7 +477,7 @@ public:
     virtual void onMaximize() {}
     virtual void onKeyDown(int key) {}
     virtual void onKeyUp(int key) {}
-    virtual void onMouseMove(int x, int y, int buttons) {}
+    virtual void onMouseMove(float2 pos, float2 move, int buttons) {}
     virtual void onMouseWheel(float wheel, int buttons) {}
     virtual void onMouseDown(int button) {}
     virtual void onMouseUp(int button) {}

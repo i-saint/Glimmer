@@ -45,6 +45,8 @@ public:
 public:
     int m_width = 0;
     int m_height = 0;
+    float2 m_mouse_pos{};
+    float2 m_mouse_move{};
     std::vector<IWindowCallback*> m_callbacks;
 
 #ifdef _WIN32

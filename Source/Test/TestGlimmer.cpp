@@ -28,7 +28,7 @@ TestCase(TestMath)
 class GlimmerTest : public gpt::IWindowCallback
 {
 public:
-    void onMouseMove(int x, int y, int button) override;
+    void onMouseMove(float2 pos, float2 move, int buttons) override;
     void onMouseWheel(float wheel, int buttons) override;
     void onKeyDown(int key) override;
 
@@ -61,47 +61,40 @@ private:
     gpt::IMeshInstancePtr m_inst_deformable;
 
     int m_frame = 0;
-    int2 m_mouse_pos{};
-    int2 m_mouse_move{};
-
     float3 m_camera_position;
     float3 m_camera_target;
 };
 
 
-void GlimmerTest::onMouseMove(int x, int y, int button)
+void GlimmerTest::onMouseMove(float2 pos, float2 move, int buttons)
 {
-    int2 new_pos{ x,y };
-    m_mouse_move = new_pos - m_mouse_pos;
-    m_mouse_pos = new_pos;
-
     // handle mouse drag
-    if ((button & 0x2) != 0) {
+    if ((buttons & 0x2) != 0) {
         // rotate
         float3 axis = mu::cross(mu::normalize(m_camera_target - m_camera_position), float3::up());
-        m_camera_position = mu::to_mat3x3(mu::rotate_y((float)-m_mouse_move.x * mu::DegToRad * 0.1f)) * m_camera_position;
-        m_camera_position = mu::to_mat3x3(mu::rotate(axis, (float)m_mouse_move.y * mu::DegToRad * 0.1f)) * m_camera_position;
+        m_camera_position = mu::to_mat3x3(mu::rotate_y(-move.x * mu::DegToRad * 0.1f)) * m_camera_position;
+        m_camera_position = mu::to_mat3x3(mu::rotate(axis, move.y * mu::DegToRad * 0.1f)) * m_camera_position;
         m_camera->setPosition(m_camera_position);
         m_camera->setDirection(mu::normalize(m_camera_target - m_camera_position));
 
         //// zoom
-        //float s = float(m_mouse_move.x + m_mouse_move.y) * 0.002f + 1.0f;
+        //float s = (move.x + move.y) * 0.002f + 1.0f;
         //float d = mu::length(m_camera_target - m_camera_position) * s;
         //float3 dir = mu::normalize(m_camera_position - m_camera_target);
         //m_camera_position = m_camera_target + (dir * d);
         //m_camera->setPosition(m_camera_position);
     }
-    else if ((button & 0x4) != 0) {
+    else if ((buttons & 0x4) != 0) {
         // move
         float len = mu::length(m_camera_target - m_camera_position);
-        float3 move = float3{ (float)-m_mouse_move.x, (float)m_mouse_move.y, 0.0f } *0.001f * len;
+        float3 t = float3{ -move.x, move.y, 0.0f } *0.001f * len;
 
         float3 dir = mu::normalize(m_camera_target - m_camera_position);
         quatf rot = mu::look_quat(dir, float3::up());
-        move = to_mat3x3(rot) * move;
+        t = to_mat3x3(rot) * t;
 
-        m_camera_position += move;
-        m_camera_target += move;
+        m_camera_position += t;
+        m_camera_target += t;
         m_camera->setPosition(m_camera_position);
     }
 }

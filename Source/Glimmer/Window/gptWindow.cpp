@@ -264,8 +264,11 @@ void Window::onKeyUp(int key)
 
 void Window::onMouseMove(int x, int y, int buttons)
 {
+    float2 pos{ (float)x, (float)y };
+    m_mouse_move = pos - m_mouse_pos;
+    m_mouse_pos = pos;
     eachCallback([&](IWindowCallback* cb) {
-        cb->onMouseMove(x, y, buttons);
+        cb->onMouseMove(m_mouse_pos, m_mouse_move, buttons);
     });
 }
 void Window::onMouseWheel(float wheel, int buttons)
