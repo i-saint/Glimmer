@@ -338,7 +338,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     uint seed = payload.seed;
     payload.t = RayTCurrent();
 
-    bool enable_mesh_light = false;
+    const bool enable_mesh_light = true;
 
     {
         // prepare next ray
@@ -355,8 +355,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
         // handle diffuse & emissive
         payload.attenuation *= GetDiffuse(md, V.uv);
-        if (!enable_mesh_light)
-            payload.radiance += GetEmissive(md, V.uv);
+        payload.radiance += GetEmissive(md, V.uv);
     }
 
 
@@ -427,7 +426,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
     if (enable_mesh_light) {
         for (int ii = 0; ii < g_scene.instance_count; ++ii) {
-            if (!g_instances[ii].enabled)
+            if (!g_instances[ii].enabled || ii == InstanceID())
                 continue;
 
             MaterialData md = g_materials[g_instances[ii].material_ids[0]];
@@ -436,17 +435,26 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
                 MeshData mesh = g_meshes[mesh_id];
                 int face = (int)((float)mesh.face_count * rnd01(seed));
                 float3 fpos = HitVertex(ii, face, float2(rnd01(seed), rnd01(seed))).position;
+                float distance = length(fpos - P);
+                if (distance >= md.emissive_range)
+                    continue;
 
                 RayDesc ray;
                 ray.Origin = P;
                 ray.Direction = normalize(fpos - P);
                 ray.TMin = 0.0f;
-                ray.TMax = length(fpos - P) + 0.2f;
+                ray.TMax = distance + 0.01f;
 
                 EmissivePayload epl = ShootEmissiveRay(ray);
                 if (epl.instance_id == ii) {
                     vertex_t hv = HitVertex(epl.instance_id, epl.face_id, epl.barycentrics);
-                    payload.radiance += GetEmissive(md, hv.uv);
+
+                    float Ld = length(hv.position - P);
+                    float nDl = dot(N, ray.Direction);
+                    float a = (md.emissive_range - Ld) / md.emissive_range;
+                    float weight = max(nDl, 0.0f) * (a * a);
+
+                    payload.radiance += GetEmissive(md, hv.uv) * weight;
                 }
             }
         }

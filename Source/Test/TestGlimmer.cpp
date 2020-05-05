@@ -200,6 +200,7 @@ bool GlimmerTest::init()
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
+    m_mat_emissive->setEmissiveRange(100.0f);
 
     // camera
     {
@@ -230,7 +231,8 @@ bool GlimmerTest::init()
         m_point_light->setDirection(mu::normalize(target - pos));
         m_point_light->setColor(color);
         m_point_light->setIntensity(0.8f);
-        m_point_light->setDisperse(0.3f);
+        m_point_light->setDisperse(0.1f);
+        //m_point_light->setEnabled(false);
     }
 
     // create meshes

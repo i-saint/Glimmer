@@ -180,6 +180,12 @@ void Material::setEmissive(float3 v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setEmissiveRange(float v)
+{
+    m_data.emissive_range = v;
+    markDirty(DirtyFlag::Material);
+}
+
 void Material::setDiffuseMap(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
@@ -212,6 +218,7 @@ MaterialType Material::getType() const { return m_data.type; }
 float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
+float Material::getEmissiveRange() const { return m_data.emissive_range; }
 ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }
 ITexture* Material::getRoughnessMap() const { return m_tex_roughness; }
 ITexture* Material::getEmissiveMap() const { return m_tex_emissive; }
