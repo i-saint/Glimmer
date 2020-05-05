@@ -294,7 +294,7 @@ void RayGenRadiance()
     prev.accum = accum;
     prev.t = t;
 
-    g_frame_buffer[si] = float4(radiance / accum, 0.0f);
+    g_frame_buffer[si] = float4(linear_to_srgb(radiance / accum), 1.0f);
     //g_frame_buffer[si] = d * 100.0f;
     g_accum_buffer[si1] = prev;
 }

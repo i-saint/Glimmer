@@ -134,4 +134,15 @@ inline float4 barycentric_interpolation(float2 barycentric, float4 p0, float4 p1
     return p0 + ((p1 - p0) * barycentric.x) + ((p2 - p0) * barycentric.y);
 }
 
-
+// Based on http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
+inline float3 srgb_to_linear(float3 c)
+{
+    return c * (c * (c * 0.305306011f + 0.682171111f) + 0.012522878f);
+}
+inline float3 linear_to_srgb(float3 c)
+{
+    float3 sq1 = sqrt(c);
+    float3 sq2 = sqrt(sq1);
+    float3 sq3 = sqrt(sq2);
+    return (0.662002687f * sq1) + (0.684122060f * sq2) - (0.323583601f * sq3) - (0.0225411470f * c);
+}

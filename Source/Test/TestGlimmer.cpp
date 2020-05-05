@@ -147,6 +147,8 @@ bool GlimmerTest::init()
 
     m_render_target->enableReadback(true);
     m_camera->setRenderTarget(m_render_target);
+
+    m_scene->setBackgroundColor(float3{0.01f, 0.01f, 0.01f });
     m_scene->addCamera(m_camera);
     m_scene->addLight(m_directional_light);
     m_scene->addLight(m_point_light);
@@ -211,7 +213,7 @@ bool GlimmerTest::init()
         m_directional_light->setType(gpt::LightType::Directional);
         m_directional_light->setDirection(mu::normalize(target - pos));
         m_directional_light->setColor(color);
-        m_directional_light->setIntensity(0.8f);
+        m_directional_light->setIntensity(0.5f);
         m_directional_light->setDisperse(0.2f);
         m_directional_light->setEnabled(false);
     }
@@ -223,7 +225,7 @@ bool GlimmerTest::init()
         m_point_light->setPosition(pos);
         m_point_light->setDirection(mu::normalize(target - pos));
         m_point_light->setColor(color);
-        m_point_light->setIntensity(0.8f);
+        m_point_light->setIntensity(0.5f);
         m_point_light->setDisperse(0.1f);
         //m_point_light->setEnabled(false);
     }
@@ -447,9 +449,9 @@ void GlimmerTest::messageLoop()
 
             float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
             m_mat_emissive->setEmissive(float3{
-                s * 0.8f,
-                s * 0.7f,
-                s * 1.5f });
+                s * 0.4f,
+                s * 0.4f,
+                s * 1.0f } * 1.5f);
 
             printf("%s\n", m_ctx->getTimestampLog());
             ++m_frame;

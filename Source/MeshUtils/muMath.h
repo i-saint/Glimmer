@@ -1602,14 +1602,17 @@ inline bool ray_triangle_intersection(
     auto e2 = p3 - p1;
     auto p = cross(dir, e2);
     auto det = dot(e1, p);
-    if (abs(det) < epsdet) return false;
+    if (abs(det) < epsdet)
+        return false;
     auto inv_det = T(1.0) / det;
     auto t = pos - p1;
     auto u = dot(t, p) * inv_det;
-    if (u < -eps || u  > 1 + eps) return false;
+    if (u < -eps || u  > 1 + eps)
+        return false;
     auto q = cross(t, e1);
     auto v = dot(dir, q) * inv_det;
-    if (v < -eps || u + v > 1 + eps) return false;
+    if (v < -eps || u + v > 1 + eps)
+        return false;
 
     distance = dot(e2, q) * inv_det;
     return distance >= T(0.0);

@@ -4,7 +4,7 @@
 template<class T>
 void GenerateCheckerImage(T* pixels, int width, int height, int block_size)
 {
-    T black = { 0.2f, 0.2f, 0.2f, 0.2f };
+    T black = { 0.1f, 0.1f, 0.1f, 0.1f };
     T white = { 0.8f, 0.8f, 0.8f, 0.8f };
     for (int iy = 0; iy < height; iy++) {
         for (int ix = 0; ix < width; ix++) {
