@@ -69,6 +69,13 @@ inline float3 rnd_dir(inout uint prev)
 {
     return normalize(float3(rnd55(prev), rnd55(prev), rnd55(prev)));
 }
+inline float2 rnd_bc(inout uint prev)
+{
+    float2 r = float2(rnd55(prev), rnd55(prev));
+    if (length(r > 1.0f))
+        r = 1.0f - r;
+    return r;
+}
 
 
 // "A Fast and Robust Method for Avoiding Self-Intersection":

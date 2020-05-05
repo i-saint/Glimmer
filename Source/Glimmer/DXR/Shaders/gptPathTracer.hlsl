@@ -434,16 +434,17 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
                 int mesh_id = g_instances[ii].mesh_id;
                 MeshData mesh = g_meshes[mesh_id];
                 int face = (int)((float)mesh.face_count * rnd01(seed));
-                float3 fpos = HitVertex(ii, face, float2(rnd01(seed), rnd01(seed))).position;
-                float distance = length(fpos - P);
-                if (distance >= md.emissive_range)
+                float3 fpos = HitVertex(ii, face, rnd_bc(seed)).position;
+                float3 L = normalize(fpos - P);
+                float Ld = length(fpos - P);
+                if (Ld >= md.emissive_range)
                     continue;
 
                 RayDesc ray;
                 ray.Origin = P;
-                ray.Direction = normalize(fpos - P);
+                ray.Direction = L;
                 ray.TMin = 0.0f;
-                ray.TMax = distance + 0.01f;
+                ray.TMax = Ld + 0.01f;
 
                 EmissivePayload epl = ShootEmissiveRay(ray);
                 if (epl.instance_id == ii) {
