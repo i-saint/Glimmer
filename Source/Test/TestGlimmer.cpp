@@ -400,6 +400,8 @@ bool GlimmerTest::init()
         inst = m_ctx->createMeshInstance(m_mesh_ico);
         inst->setTransform(mu::transform(float3{ -0.2f, 0.5f, -2.0f }, quatf::identity()));
         inst->setMaterial(m_mat_diffuse);
+        //inst->setFlag(gpt::InstanceFlag::Visible, false);
+        //inst->setFlag(gpt::InstanceFlag::CastShadows, true);
         m_scene->addInstance(inst);
     }
 
@@ -425,6 +427,7 @@ bool GlimmerTest::init()
         inst = m_ctx->createMeshInstance(m_mesh_sphere);
         inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
         inst->setMaterial(m_mat_emissive);
+        //inst->setFlag(gpt::InstanceFlag::Visible, false);
         inst->setFlag(gpt::InstanceFlag::LightSource, true);
         m_scene->addInstance(inst);
     }

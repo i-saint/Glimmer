@@ -247,7 +247,7 @@ void ShootRadianceRay(inout RadiancePayload payload)
     ray.TMax = g_scene.camera.far_plane;  // todo: correct this
 
     uint ray_flags = 0;
-    TraceRay(g_tlas, ray_flags, 0xff, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
+    TraceRay(g_tlas, ray_flags, LM_VISIBLE, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
 }
 
 [shader("raygeneration")]
@@ -316,7 +316,7 @@ bool ShootOcclusionRay(in RayDesc ray)
     payload.init();
 
     uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
-    TraceRay(g_tlas, ray_flags, 0xff, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
+    TraceRay(g_tlas, ray_flags, LM_SHADOW, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     return payload.hit;
 }
 
@@ -326,7 +326,7 @@ EmissivePayload ShootEmissiveRay(in RayDesc ray)
     payload.init();
 
     uint ray_flags = 0;
-    TraceRay(g_tlas, ray_flags, 0xff, RT_EMISSIVE, 0, RT_EMISSIVE, ray, payload);
+    TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_EMISSIVE, 0, RT_EMISSIVE, ray, payload);
     return payload;
 }
 

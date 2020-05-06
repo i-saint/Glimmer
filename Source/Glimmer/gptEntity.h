@@ -60,6 +60,14 @@ enum class DirtyFlag : uint32_t
 };
 inline DirtyFlag operator|(DirtyFlag a, DirtyFlag b) { return (DirtyFlag)((uint32_t)a | (uint32_t)b); }
 
+enum LayerMask : uint32_t
+{
+    Visible     = 0x00000001,
+    Shadow      = 0x00000002,
+    LightSource = 0x00000004,
+};
+inline LayerMask operator|(LayerMask a, LayerMask b) { return (LayerMask)((uint32_t)a | (uint32_t)b); }
+
 
 int GetTexelSize(Format v);
 

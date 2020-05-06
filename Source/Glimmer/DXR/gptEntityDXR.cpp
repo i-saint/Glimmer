@@ -590,7 +590,13 @@ void SceneDXR::updateTLAS()
 
             (float3x4&)desc.Transform = to_mat3x4(inst.getData().transform);
             desc.InstanceID = inst.getID();
-            desc.InstanceMask = ~0;
+            desc.InstanceMask = 0;
+            if (inst.getFlag(InstanceFlag::Visible))
+                desc.InstanceMask |= LayerMask::Visible;
+            if (inst.getFlag(InstanceFlag::CastShadows))
+                desc.InstanceMask |= LayerMask::Shadow;
+            if (inst.getFlag(InstanceFlag::LightSource))
+                desc.InstanceMask |= LayerMask::LightSource;
             desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
             desc.AccelerationStructure = blas->GetGPUVirtualAddress();
             *instance_descs++ = desc;

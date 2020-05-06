@@ -21,18 +21,18 @@ enum RenderFlag
     RF_CULL_BACK_FACES = 0x00000001,
 };
 
-enum InstanceFlag
-{
-    IF_RECEIVE_SHADOWS  = 0x00000001,
-    IF_SHADOWS_ONLY     = 0x00000002,
-    IF_CAST_SHADOWS     = 0x00000004,
-};
-
 enum MeshFlag
 {
     MF_HAS_BLENDSHAPES  = 0x00000001,
     MF_HAS_JOINTS       = 0x00000002,
     MF_IS_DYNAMIC       = 0x00000004,
+};
+
+enum LayerMask
+{
+    LM_VISIBLE      = 0x00000001,
+    LM_SHADOW       = 0x00000002,
+    LM_LIGHT_SOURCE = 0x00000004,
 };
 
 
