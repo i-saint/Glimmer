@@ -200,6 +200,7 @@ bool GlimmerTest::init()
     m_mat_transparent->setRoughness(0.0f);
     m_mat_transparent->setOpacity(0.5f);
     m_mat_transparent->setRefractionIndex(1.5f); // https://en.wikipedia.org/wiki/List_of_refractive_indices
+    //m_mat_transparent->setNormalMap(dot_normal_texture);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
@@ -368,7 +369,7 @@ bool GlimmerTest::init()
         m_mesh_cube->setUV(uv.data(), uv.size());
 
         auto inst = m_ctx->createMeshInstance(m_mesh_cube);
-        inst->setTransform(mu::transform(float3{2.0f, 0.5f, 0.0f}, quatf::identity()));
+        inst->setTransform(mu::transform(float3{2.0f, 0.7f, 0.0f}, quatf::identity()));
         inst->setMaterial(m_mat_transparent);
         m_scene->addInstance(inst);
 

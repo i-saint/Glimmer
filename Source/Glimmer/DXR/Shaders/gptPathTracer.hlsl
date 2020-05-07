@@ -453,7 +453,10 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         // prepare next ray
 
         if (md.type == MT_TRANSPARENT) {
-            float3 dir = refract_(payload.direction, N, md.refraction_index);
+            // assume reflection index of air is 1.0f
+            float3 dir = backface ?
+                refract(payload.direction, -N, md.refraction_index) :
+                refract(payload.direction, N, 1.0f / md.refraction_index);
             if (length_sq(dir) == 0.0f) {
                 // perfect reflection
                 payload.direction = reflect(payload.direction, N);
@@ -463,6 +466,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
                 payload.direction = dir;
                 payload.origin = offset_ray(P_, backface ? Nf : -Nf);
             }
+            return; // todo: handle lights
         }
         else {
             float3 reflect_dir = reflect(payload.direction, N);

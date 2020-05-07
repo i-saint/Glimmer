@@ -161,21 +161,3 @@ inline float3 linear_to_srgb(float3 c)
     float3 sq3 = sqrt(sq2);
     return (0.662002687f * sq1) + (0.684122060f * sq2) - (0.323583601f * sq3) - (0.0225411470f * c);
 }
-
-float3 refract_(float3 I, float3 N, float ior)
-{
-    float cosi = clamp(-1.0f, 1.0f, dot(I, N));
-    float etai = 1.0f;
-    float etat = ior;
-    if (cosi < 0) {
-        cosi = -cosi;
-    }
-    else {
-        swap(etai, etat);
-        N *= -1.0f;
-    }
-    float eta = etai / etat;
-    float k = 1.0f - eta * eta * (1.0f - cosi * cosi);
-    return k < 0.0f ? 0.0f : (I * eta) + (eta * cosi - sqrt(k)) * N;
-}
-
