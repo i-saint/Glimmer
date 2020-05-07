@@ -286,7 +286,10 @@ public:
     virtual void setEmissive(float3 v) = 0;
     virtual void setEmissiveRange(float v) = 0;
     virtual void setEmissiveSampleCount(int v) = 0;
+    virtual void setOpacity(float v) = 0;
+    virtual void setRefractionIndex(float v) = 0;
     virtual void setDiffuseMap(ITexture* v) = 0;
+    virtual void setOpacityMap(ITexture* v) = 0;
     virtual void setRoughnessMap(ITexture* v) = 0;
     virtual void setEmissiveMap(ITexture* v) = 0;
     virtual void setNormalMap(ITexture* v) = 0;
@@ -297,7 +300,10 @@ public:
     virtual float3       getEmissive() const = 0;
     virtual float        getEmissiveRange() const = 0;
     virtual int          getEmissiveSampleCount() const = 0;
+    virtual float        getOpacity() const = 0;
+    virtual float        getRefractionIndex() const = 0;
     virtual ITexture*    getDiffuseMap() const = 0;
+    virtual ITexture*    getOpacityMap() const = 0;
     virtual ITexture*    getRoughnessMap() const = 0;
     virtual ITexture*    getEmissiveMap() const = 0;
     virtual ITexture*    getNormalMap() const = 0;

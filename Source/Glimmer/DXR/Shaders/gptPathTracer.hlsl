@@ -74,8 +74,7 @@ MaterialData FaceMaterial()
 
 float3 HitPosition()
 {
-    float3 pos = WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
-    return offset_ray(pos, FaceNormal());
+    return WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
 }
 
 vertex_t GetInterpolatedVertex(int instance_id, int face_id, float2 barycentric)
@@ -243,10 +242,11 @@ void ShootRadianceRay(inout RadiancePayload payload)
     RayDesc ray;
     ray.Origin = payload.origin;
     ray.Direction = payload.direction;
-    ray.TMin = g_scene.camera.near_plane; // 
+    ray.TMin = 0.0f;
     ray.TMax = g_scene.camera.far_plane;  // todo: correct this
 
     uint ray_flags = 0;
+    //ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
     TraceRay(g_tlas, ray_flags, LM_VISIBLE, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
 }
 
@@ -439,40 +439,54 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 {
     MaterialData md = FaceMaterial();
     vertex_t V = GetInterpolatedVertex(attr.barycentrics);
-    float3 P = HitPosition();
+
+    bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+    float3 Nf = FaceNormal();
     float3 N = GetNormal(V, md);
+
+    float3 P_ = HitPosition();
+    float3 P = offset_ray(P_, Nf);
     uint seed = payload.seed;
     payload.t = RayTCurrent();
 
     {
         // prepare next ray
-        ONB onb;
-        onb.init(N);
-        float3 dir = cosine_sample_hemisphere(rnd01(seed), rnd01(seed));
-        dir = onb.inverse_transform(dir);
 
-        float3 ref = reflect(payload.direction, N);
-        dir = normalize(lerp(ref, dir, GetRoughness(md, V.uv)));
-
-        payload.direction = dir;
-        payload.origin = P;
+        if (md.type == MT_TRANSPARENT) {
+            float3 dir = refract_(payload.direction, N, md.refraction_index);
+            if (length_sq(dir) == 0.0f) {
+                // perfect reflection
+                payload.direction = reflect(payload.direction, N);
+                payload.origin = offset_ray(P_, backface ? -Nf : Nf);
+            }
+            else {
+                payload.direction = dir;
+                payload.origin = offset_ray(P_, backface ? Nf : -Nf);
+            }
+        }
+        else {
+            float3 reflect_dir = reflect(payload.direction, N);
+            float3 diffuse_dir = onb_inverse_transform(cosine_sample_hemisphere(rnd01(seed), rnd01(seed)), N);
+            payload.direction = normalize(lerp(reflect_dir, diffuse_dir, GetRoughness(md, V.uv)));
+            payload.origin = P;
+        }
 
         // handle diffuse & emissive
         payload.attenuation *= GetDiffuse(md, V.uv);
         payload.radiance += GetEmissive(md, V.uv);
     }
 
-
+    float3 radiance = 0.0f;
     // receive lights
     for (int li = 0; li < g_scene.light_count; ++li) {
-        payload.radiance += GetLightRadiance(P, N, li, seed);
+        radiance += GetLightRadiance(P, N, li, seed);
     }
-
     // receive mesh lights
     for (int mli = 0; mli < g_scene.meshlight_count; ++mli) {
-        payload.radiance += GetMeshLightRadiance(P, N, mli, seed);
+        radiance += GetMeshLightRadiance(P, N, mli, seed);
     }
 
+    payload.radiance += radiance;
     payload.seed = seed;
 }
 

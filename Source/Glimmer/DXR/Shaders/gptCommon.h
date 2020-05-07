@@ -70,11 +70,13 @@ struct MaterialData
     float opacity;
     float emissive_range;
     int emissive_sample_count;
+    float refraction_index;
     int diffuse_tex;
+    int opacity_tex;
     int roughness_tex;
     int emissive_tex;
     int normal_tex;
-    int pad;
+    float3 pad;
 };
 
 struct BlendshapeData

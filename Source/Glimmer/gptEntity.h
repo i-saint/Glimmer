@@ -115,11 +115,13 @@ struct MaterialData
     float opacity = 1.0f;
     float emissive_range = 10.0f;
     int emissive_sample_count = 1;
+    float refraction_index = 1.0f;
     int diffuse_tex = -1;
+    int opacity_tex = -1;
     int roughness_tex = -1;
     int emissive_tex = -1;
     int normal_tex = -1;
-    int pad{};
+    float3 pad{};
 
     gptDefCompare(MaterialData);
 };
@@ -401,7 +403,10 @@ public:
     void setRoughness(float v) override;
     void setEmissive(float3 v) override;
     void setEmissiveRange(float v) override;
+    void setRefractionIndex(float v) override;
+    void setOpacity(float v) override;
     void setDiffuseMap(ITexture* v) override;
+    void setOpacityMap(ITexture* v) override;
     void setRoughnessMap(ITexture* v) override;
     void setEmissiveMap(ITexture* v) override;
     void setEmissiveSampleCount(int v) override;
@@ -413,7 +418,10 @@ public:
     float3       getEmissive() const override;
     float        getEmissiveRange() const override;
     int          getEmissiveSampleCount() const override;
+    float        getRefractionIndex() const override;
+    float        getOpacity() const override;
     ITexture*    getDiffuseMap() const override;
+    ITexture*    getOpacityMap() const override;
     ITexture*    getRoughnessMap() const override;
     ITexture*    getEmissiveMap() const override;
     ITexture*    getNormalMap() const override;
@@ -423,6 +431,7 @@ public:
 protected:
     MaterialData m_data;
     TexturePtr m_tex_diffuse;
+    TexturePtr m_tex_opacity;
     TexturePtr m_tex_roughness;
     TexturePtr m_tex_emissive;
     TexturePtr m_tex_normal;

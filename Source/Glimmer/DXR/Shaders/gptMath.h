@@ -25,6 +25,14 @@ struct ONB
     float3 normal;
 };
 
+inline float3 onb_inverse_transform(float3 v, float3 n)
+{
+    ONB onb;
+    onb.init(n);
+    return onb.inverse_transform(v);
+}
+
+
 inline float3 cosine_sample_hemisphere(float u1, float u2)
 {
     // Uniformly sample disk.
@@ -134,6 +142,13 @@ inline float4 barycentric_interpolation(float2 barycentric, float4 p0, float4 p1
     return p0 + ((p1 - p0) * barycentric.x) + ((p2 - p0) * barycentric.y);
 }
 
+void swap(inout float a, inout float b) { float t = a; a = b; b = t; }
+void swap(inout float2 a, inout float2 b) { float2 t = a; a = b; b = t; }
+void swap(inout float3 a, inout float3 b) { float3 t = a; a = b; b = t; }
+void swap(inout float4 a, inout float4 b) { float4 t = a; a = b; b = t; }
+float length_sq(float2 a) { return dot(a, a); }
+float length_sq(float3 a) { return dot(a, a); }
+
 // Based on http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
 inline float3 srgb_to_linear(float3 c)
 {
@@ -146,3 +161,21 @@ inline float3 linear_to_srgb(float3 c)
     float3 sq3 = sqrt(sq2);
     return (0.662002687f * sq1) + (0.684122060f * sq2) - (0.323583601f * sq3) - (0.0225411470f * c);
 }
+
+float3 refract_(float3 I, float3 N, float ior)
+{
+    float cosi = clamp(-1.0f, 1.0f, dot(I, N));
+    float etai = 1.0f;
+    float etat = ior;
+    if (cosi < 0) {
+        cosi = -cosi;
+    }
+    else {
+        swap(etai, etat);
+        N *= -1.0f;
+    }
+    float eta = etai / etat;
+    float k = 1.0f - eta * eta * (1.0f - cosi * cosi);
+    return k < 0.0f ? 0.0f : (I * eta) + (eta * cosi - sqrt(k)) * N;
+}
+

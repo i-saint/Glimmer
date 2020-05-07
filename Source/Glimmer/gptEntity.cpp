@@ -186,6 +186,18 @@ void Material::setEmissiveRange(float v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setRefractionIndex(float v)
+{
+    m_data.refraction_index = v;
+    markDirty(DirtyFlag::Material);
+}
+
+void Material::setOpacity(float v)
+{
+    m_data.opacity = v;
+    markDirty(DirtyFlag::Material);
+}
+
 void Material::setEmissiveSampleCount(int v)
 {
     m_data.emissive_sample_count = v;
@@ -196,6 +208,13 @@ void Material::setDiffuseMap(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
     m_data.diffuse_tex = GetID(m_tex_diffuse);
+    markDirty(DirtyFlag::Material);
+}
+
+void Material::setOpacityMap(ITexture* v)
+{
+    m_tex_opacity = base_t(v);
+    m_data.opacity_tex = GetID(m_tex_opacity);
     markDirty(DirtyFlag::Material);
 }
 
@@ -226,7 +245,10 @@ float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
 float Material::getEmissiveRange() const { return m_data.emissive_range; }
 int Material::getEmissiveSampleCount() const { return m_data.emissive_sample_count; }
+float Material::getRefractionIndex() const { return m_data.refraction_index; }
+float Material::getOpacity() const { return m_data.opacity; }
 ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }
+ITexture* Material::getOpacityMap() const { return m_tex_opacity; }
 ITexture* Material::getRoughnessMap() const { return m_tex_roughness; }
 ITexture* Material::getEmissiveMap() const { return m_tex_emissive; }
 ITexture* Material::getNormalMap() const { return m_tex_normal; }

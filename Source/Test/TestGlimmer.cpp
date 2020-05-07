@@ -48,6 +48,7 @@ private:
     gpt::IMaterialPtr m_mat_checker;
     gpt::IMaterialPtr m_mat_diffuse;
     gpt::IMaterialPtr m_mat_reflective;
+    gpt::IMaterialPtr m_mat_transparent;
     gpt::IMaterialPtr m_mat_emissive;
 
     gpt::IMeshPtr m_mesh_floor;
@@ -159,6 +160,7 @@ bool GlimmerTest::init()
     m_mat_checker = m_ctx->createMaterial();
     m_mat_diffuse = m_ctx->createMaterial();
     m_mat_reflective = m_ctx->createMaterial();
+    m_mat_transparent = m_ctx->createMaterial();
     m_mat_emissive = m_ctx->createMaterial();
 
 
@@ -192,6 +194,12 @@ bool GlimmerTest::init()
 
     m_mat_reflective->setDiffuse(float3{ 0.5f, 0.5f, 0.7f });
     m_mat_reflective->setRoughness(0.02f);
+
+    m_mat_transparent->setType(gpt::MaterialType::Transparent);
+    m_mat_transparent->setDiffuse(float3{ 0.6f, 0.6f, 0.7f });
+    m_mat_transparent->setRoughness(0.0f);
+    m_mat_transparent->setOpacity(0.5f);
+    m_mat_transparent->setRefractionIndex(1.5f); // https://en.wikipedia.org/wiki/List_of_refractive_indices
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
@@ -361,7 +369,7 @@ bool GlimmerTest::init()
 
         auto inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{2.0f, 0.5f, 0.0f}, quatf::identity()));
-        inst->setMaterial(m_mat_diffuse);
+        inst->setMaterial(m_mat_transparent);
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
@@ -400,7 +408,8 @@ bool GlimmerTest::init()
 
         inst = m_ctx->createMeshInstance(m_mesh_ico);
         inst->setTransform(mu::transform(float3{ -0.2f, 0.5f, -2.0f }, quatf::identity()));
-        inst->setMaterial(m_mat_diffuse);
+        //inst->setMaterial(m_mat_diffuse);
+        inst->setMaterial(m_mat_transparent);
         //inst->setFlag(gpt::InstanceFlag::Visible, false);
         //inst->setFlag(gpt::InstanceFlag::CastShadows, true);
         m_scene->addInstance(inst);
@@ -422,7 +431,7 @@ bool GlimmerTest::init()
 
         auto inst = m_ctx->createMeshInstance(m_mesh_sphere);
         inst->setTransform(mu::transform(float3{ -2.0f, 0.5f, 0.0f }, quatf::identity()));
-        inst->setMaterial(m_mat_reflective);
+        inst->setMaterial(m_mat_transparent);
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_sphere);
@@ -454,6 +463,8 @@ void GlimmerTest::messageLoop()
 
             float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
             m_mat_emissive->setEmissive(float3{ 0.4f, 0.4f, 1.0f } * (1.5f * s));
+
+            //m_mat_transparent->setRefractionIndex(0.5f + s);
 
             printf("%s\n", m_ctx->getTimestampLog());
             ++m_frame;
