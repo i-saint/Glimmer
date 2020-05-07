@@ -196,6 +196,7 @@ bool GlimmerTest::init()
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
     m_mat_emissive->setEmissiveRange(100.0f);
+    //m_mat_emissive->setEmissiveSampleCount(4);
 
     // camera
     {

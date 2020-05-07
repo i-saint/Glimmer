@@ -72,7 +72,13 @@ MaterialData FaceMaterial()
     return FaceMaterial(instance_id, face_id);
 }
 
-vertex_t HitVertex(int instance_id, int face_id, float2 barycentric)
+float3 HitPosition()
+{
+    float3 pos = WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
+    return offset_ray(pos, FaceNormal());
+}
+
+vertex_t GetInterpolatedVertex(int instance_id, int face_id, float2 barycentric)
 {
     int mesh_id = g_instances[instance_id].mesh_id;
     int deform_id = g_instances[instance_id].deform_id;
@@ -102,15 +108,9 @@ vertex_t HitVertex(int instance_id, int face_id, float2 barycentric)
     r.tangent = normalize(mul_v(transform, r.tangent));
     return r;
 }
-vertex_t HitVertex(float2 barycentric)
+vertex_t GetInterpolatedVertex(float2 barycentric)
 {
-    return HitVertex(InstanceID(), PrimitiveIndex(), barycentric);
-}
-
-float3 HitPosition()
-{
-    float3 pos = WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
-    return offset_ray(pos, FaceNormal());
+    return GetInterpolatedVertex(InstanceID(), PrimitiveIndex(), barycentric);
 }
 
 float3 GetDiffuse(MaterialData md, float2 uv)
@@ -330,17 +330,119 @@ EmissivePayload ShootEmissiveRay(in RayDesc ray)
     return payload;
 }
 
+float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
+{
+    float weight = 0.0f;
+    const LightData light = g_lights[light_index];
+    if (light.type == LT_DIRECTIONAL) {
+        // directional light
+        float3 L = -light.direction;
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+
+        RayDesc ray;
+        ray.Origin = P;
+        ray.Direction = L;
+        ray.TMin = 0.0f;
+        ray.TMax = g_scene.camera.far_plane;
+        if (!ShootOcclusionRay(ray)) {
+            float nDl = dot(N, L);
+            weight = nDl;
+        }
+    }
+    else if (light.type == LT_POINT) {
+        // point light
+        float3 L = normalize(light.position - P);
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+        float Ld = length(light.position - P);
+        if (Ld <= light.range) {
+            RayDesc ray;
+            ray.Origin = P;
+            ray.Direction = L;
+            ray.TMin = 0.0f;
+            ray.TMax = Ld;
+            if (!ShootOcclusionRay(ray)) {
+                float nDl = dot(N, L);
+                //weight = nDl / (PI * Ld * Ld);
+
+                float a = (light.range - Ld) / light.range;
+                weight = nDl * (a * a);
+            }
+        }
+    }
+    else if (light.type == LT_SPOT) {
+        // spot light
+        float3 L = normalize(light.position - P);
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+        float Ld = length(light.position - P);
+        if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
+            RayDesc ray;
+            ray.Origin = P;
+            ray.Direction = L;
+            ray.TMin = 0.0f;
+            ray.TMax = Ld;
+            if (!ShootOcclusionRay(ray)) {
+                float nDl = dot(N, L);
+                //weight = nDl / (PI * Ld * Ld);
+
+                float a = (light.range - Ld) / light.range;
+                weight = nDl * (a * a);
+            }
+        }
+    }
+
+    return (light.color * light.intensity) * max(weight, 0.0f);
+}
+
+float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint seed)
+{
+    int ii = g_meshlights[meshlight_index];
+    if (ii == InstanceID())
+        return 0.0f;
+
+    int mesh_id = g_instances[ii].mesh_id;
+    MeshData mesh = g_meshes[mesh_id];
+    MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+
+    float3 radiance = 0.0f;
+    for (int esi = 0; esi < md.emissive_sample_count; ++esi) {
+        int face = (int)((float)mesh.face_count * rnd01(seed));
+        float3 fpos = GetInterpolatedVertex(ii, face, rnd_bc(seed)).position;
+        float3 L = normalize(fpos - P);
+        float Ld = length(fpos - P);
+        if (Ld >= md.emissive_range)
+            continue;
+
+        RayDesc ray;
+        ray.Origin = P;
+        ray.Direction = L;
+        ray.TMin = 0.0f;
+        ray.TMax = Ld + 0.01f; // todo: improve offset
+
+        EmissivePayload epl = ShootEmissiveRay(ray);
+        if (epl.instance_id == ii) {
+            vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
+
+            float Ld = length(hv.position - P);
+            float nDl = dot(N, ray.Direction);
+            float a = (md.emissive_range - Ld) / md.emissive_range;
+            float weight = max(nDl, 0.0f) * (a * a);
+
+            radiance += GetEmissive(md, hv.uv) * weight;
+        }
+    }
+    radiance /= md.emissive_sample_count;
+    return radiance;
+}
+
 [shader("closesthit")]
 void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     MaterialData md = FaceMaterial();
-    vertex_t V = HitVertex(attr.barycentrics);
+    vertex_t V = GetInterpolatedVertex(attr.barycentrics);
     float3 P = HitPosition();
     float3 N = GetNormal(V, md);
     uint seed = payload.seed;
     payload.t = RayTCurrent();
-
-    const bool enable_mesh_light = true;
 
     {
         // prepare next ray
@@ -363,105 +465,12 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
     // receive lights
     for (int li = 0; li < g_scene.light_count; ++li) {
-
-        float weight = 0.0f;
-        const LightData light = g_lights[li];
-        if (light.type == LT_DIRECTIONAL) {
-            // directional light
-            float3 L = -light.direction;
-            L = normalize(L + (rnd_dir(seed) * light.disperse));
-
-            RayDesc ray;
-            ray.Origin = P;
-            ray.Direction = L;
-            ray.TMin = 0.0f;
-            ray.TMax = g_scene.camera.far_plane;
-            if (!ShootOcclusionRay(ray)) {
-                float nDl = dot(N, L);
-                weight = nDl;
-            }
-        }
-        else if (light.type == LT_POINT) {
-            // point light
-            float3 L = normalize(light.position - P);
-            L = normalize(L + (rnd_dir(seed) * light.disperse));
-            float Ld = length(light.position - P);
-            if (Ld <= light.range) {
-                RayDesc ray;
-                ray.Origin = P;
-                ray.Direction = L;
-                ray.TMin = 0.0f;
-                ray.TMax = Ld;
-                if (!ShootOcclusionRay(ray)) {
-                    float nDl = dot(N, L);
-                    //weight = nDl / (PI * Ld * Ld);
-
-                    float a = (light.range - Ld) / light.range;
-                    weight = nDl * (a * a);
-                }
-            }
-        }
-        else if (light.type == LT_SPOT) {
-            // spot light
-            float3 L = normalize(light.position - P);
-            L = normalize(L + (rnd_dir(seed) * light.disperse));
-            float Ld = length(light.position - P);
-            if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
-                RayDesc ray;
-                ray.Origin = P;
-                ray.Direction = L;
-                ray.TMin = 0.0f;
-                ray.TMax = Ld;
-                if (!ShootOcclusionRay(ray)) {
-                    float nDl = dot(N, L);
-                    //weight = nDl / (PI * Ld * Ld);
-
-                    float a = (light.range - Ld) / light.range;
-                    weight = nDl * (a * a);
-                }
-            }
-        }
-
-        payload.radiance += (light.color * light.intensity) * max(weight, 0.0f);
+        payload.radiance += GetLightRadiance(P, N, li, seed);
     }
 
-
-    if (enable_mesh_light) {
-        for (int i = 0; i < g_scene.meshlight_count; ++i) {
-            int ii = g_meshlights[i];
-            if (ii == InstanceID())
-                continue;
-
-            MaterialData md = g_materials[g_instances[ii].material_ids[0]];
-            if (dot(md.emissive, md.emissive) != 0 || md.emissive_tex != -1) {
-                int mesh_id = g_instances[ii].mesh_id;
-                MeshData mesh = g_meshes[mesh_id];
-                int face = (int)((float)mesh.face_count * rnd01(seed));
-                float3 fpos = HitVertex(ii, face, rnd_bc(seed)).position;
-                float3 L = normalize(fpos - P);
-                float Ld = length(fpos - P);
-                if (Ld >= md.emissive_range)
-                    continue;
-
-                RayDesc ray;
-                ray.Origin = P;
-                ray.Direction = L;
-                ray.TMin = 0.0f;
-                ray.TMax = Ld + 0.01f;
-
-                EmissivePayload epl = ShootEmissiveRay(ray);
-                if (epl.instance_id == ii) {
-                    vertex_t hv = HitVertex(epl.instance_id, epl.face_id, epl.barycentrics);
-
-                    float Ld = length(hv.position - P);
-                    float nDl = dot(N, ray.Direction);
-                    float a = (md.emissive_range - Ld) / md.emissive_range;
-                    float weight = max(nDl, 0.0f) * (a * a);
-
-                    payload.radiance += GetEmissive(md, hv.uv) * weight;
-                }
-            }
-        }
+    // receive mesh lights
+    for (int mli = 0; mli < g_scene.meshlight_count; ++mli) {
+        payload.radiance += GetMeshLightRadiance(P, N, mli, seed);
     }
 
     payload.seed = seed;

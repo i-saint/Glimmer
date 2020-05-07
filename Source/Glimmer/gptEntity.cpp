@@ -186,6 +186,12 @@ void Material::setEmissiveRange(float v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setEmissiveSampleCount(int v)
+{
+    m_data.emissive_sample_count = v;
+    markDirty(DirtyFlag::Material);
+}
+
 void Material::setDiffuseMap(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
@@ -219,6 +225,7 @@ float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
 float Material::getEmissiveRange() const { return m_data.emissive_range; }
+int Material::getEmissiveSampleCount() const { return m_data.emissive_sample_count; }
 ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }
 ITexture* Material::getRoughnessMap() const { return m_tex_roughness; }
 ITexture* Material::getEmissiveMap() const { return m_tex_emissive; }
