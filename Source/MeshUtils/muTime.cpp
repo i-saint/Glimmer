@@ -1,17 +1,28 @@
-#include "muDebugTimer.h"
 #include "pch.h"
-#include "muDebugTimer.h"
+#include "muMisc.h"
+#include "muTime.h"
 
 namespace mu {
 
-ScopedTimer::ScopedTimer()
+nanosec Now()
+{
+    using namespace std::chrono;
+    return duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
+Timer::Timer()
+{
+    reset();
+}
+
+void Timer::reset()
 {
     m_begin = Now();
 }
 
-float ScopedTimer::elapsed() const
+float Timer::elapsed() const
 {
-    return NS2MS(Now() - m_begin);
+    return NS2S(Now() - m_begin);
 }
 
 
@@ -28,7 +39,7 @@ ProfileTimer::ProfileTimer(const char *mes, ...)
 
 ProfileTimer::~ProfileTimer()
 {
-    float t = elapsed();
+    float t = elapsed() * 1000.0f;
     Print("%s - %.2fms\n", m_message.c_str(), t);
 }
 

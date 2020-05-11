@@ -27,7 +27,6 @@
     <ClInclude Include="muCompression.h" />
     <ClInclude Include="muConcurrency.h" />
     <ClInclude Include="muConfig.h" />
-    <ClInclude Include="muDebugTimer.h" />
     <ClInclude Include="muHalf.h" />
     <ClInclude Include="ispcmath.h" />
     <ClInclude Include="muIterator.h" />
@@ -39,6 +38,7 @@
     <ClInclude Include="muSIMDConfig.h" />
     <ClInclude Include="muSpan.h" />
     <ClInclude Include="muStream.h" />
+    <ClInclude Include="muTime.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="MeshUtils.h" />
     <ClInclude Include="muRawVector.h" />
@@ -48,11 +48,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="muCompression.cpp" />
-    <ClCompile Include="muDebugTimer.cpp" />
     <ClCompile Include="muMemory.cpp" />
     <ClCompile Include="muMeshRefiner.cpp" />
     <ClCompile Include="muMisc.cpp" />
     <ClCompile Include="muStream.cpp" />
+    <ClCompile Include="muTime.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

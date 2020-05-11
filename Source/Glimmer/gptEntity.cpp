@@ -985,6 +985,7 @@ const SceneData& Scene::getData()
 {
     m_data.samples_per_frame = Globals::getInstance().getSamplesPerFrame();
     m_data.max_trace_depth = Globals::getInstance().getMaxTraceDepth();
+    m_data.time = m_timer.elapsed();
 
     m_data.camera_prev = m_data.camera;
     if (!m_cameras.empty() && m_cameras.front()->isDirty())

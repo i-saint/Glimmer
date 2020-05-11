@@ -13,10 +13,10 @@
 #include "muColor.h"
 #include "muTLS.h"
 #include "muMisc.h"
+#include "muTime.h"
 #include "muConcurrency.h"
 #include "muCompression.h"
 #include "muStream.h"
-#include "muDebugTimer.h"
 
 namespace mu {
 

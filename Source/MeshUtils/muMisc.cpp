@@ -18,12 +18,6 @@
 
 namespace mu {
 
-nanosec Now()
-{
-    using namespace std::chrono;
-    return duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
-}
-
 static std::function<void(const char*)> g_print_handler;
 static std::function<void(const wchar_t*)> g_wprint_handler;
 static const int g_print_buf_size = 1024 * 4;

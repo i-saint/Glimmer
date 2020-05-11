@@ -1,6 +1,7 @@
 #pragma once
 
 static const float PI = 3.14159265f;
+static const float DegToRad = PI / 180.0f;
 static const float FLT_EPSILON = 1.192092896e-07;
 static const float FLT_MIN = 1.175494351e-38;
 static const float FLT_MAX = 3.402823466e+38;

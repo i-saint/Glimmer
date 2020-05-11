@@ -213,6 +213,19 @@ void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, float
     float2 screen_pos = ((float2(si) + offset + 0.5f) / float2(sd)) * 2.0f - 1.0f;
     screen_pos.x *= aspect_ratio;
 
+    //// swirl effect
+    //{
+    //    float attenuation = max(1.0f - length(screen_pos), 0.0);
+    //    float angle = (180.0f * sin(g_scene.time * 0.3f) * DegToRad) * (attenuation * attenuation);
+    //    float c = cos(angle);
+    //    float s = sin(angle);
+    //    float2x2 rot= float2x2(
+    //        c,-s,
+    //        s, c
+    //    );
+    //    screen_pos = mul(rot, screen_pos);
+    //}
+
     origin = cam.position;
     float3 r = cam.view[0].xyz;
     float3 u = -cam.view[1].xyz;
@@ -453,7 +466,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         // prepare next ray
 
         if (md.type == MT_TRANSPARENT) {
-            // assume reflection index of air is 1.0f
+            // assume refraction index of air is 1.0f
             float3 dir = backface ?
                 refract(payload.direction, -N, md.refraction_index) :
                 refract(payload.direction, N, 1.0f / md.refraction_index);
@@ -466,18 +479,26 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
                 payload.direction = dir;
                 payload.origin = offset_ray(P_, backface ? Nf : -Nf);
             }
-            return; // todo: handle lights
+
+            if (backface) {
+                payload.attenuation *= GetDiffuse(md, V.uv) * ((1.0f - md.opacity) / (1.0f + payload.t * payload.t));
+            }
+            else {
+                //// diffuse & emissive
+                //payload.attenuation *= GetDiffuse(md, V.uv);
+                //payload.radiance += GetEmissive(md, V.uv);
+            }
         }
         else {
             float3 reflect_dir = reflect(payload.direction, N);
             float3 diffuse_dir = onb_inverse_transform(cosine_sample_hemisphere(rnd01(seed), rnd01(seed)), N);
             payload.direction = normalize(lerp(reflect_dir, diffuse_dir, GetRoughness(md, V.uv)));
             payload.origin = P;
-        }
 
-        // handle diffuse & emissive
-        payload.attenuation *= GetDiffuse(md, V.uv);
-        payload.radiance += GetEmissive(md, V.uv);
+            // diffuse & emissive
+            payload.attenuation *= GetDiffuse(md, V.uv);
+            payload.radiance += GetEmissive(md, V.uv);
+        }
     }
 
     float3 radiance = 0.0f;
@@ -490,7 +511,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         radiance += GetMeshLightRadiance(P, N, mli, seed);
     }
 
-    payload.radiance += radiance;
+    payload.radiance += radiance * md.opacity;
     payload.seed = seed;
 }
 

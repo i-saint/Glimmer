@@ -62,9 +62,12 @@ inline DirtyFlag operator|(DirtyFlag a, DirtyFlag b) { return (DirtyFlag)((uint3
 
 enum LayerMask : uint32_t
 {
-    Visible     = 0x00000001,
-    Shadow      = 0x00000002,
-    LightSource = 0x00000004,
+    Visible     = 0x01,
+    Shadow      = 0x02,
+    LightSource = 0x04,
+    Opaque      = 0x08,
+    Transparent = 0x10,
+    Translucent = 0x20,
 };
 inline LayerMask operator|(LayerMask a, LayerMask b) { return (LayerMask)((uint32_t)a | (uint32_t)b); }
 
@@ -174,6 +177,8 @@ struct SceneData
     int light_count = 0;
     int meshlight_count = 0;
     float3 bg_color = {0.1f, 0.1f, 0.1f};
+    float time = 0.0f;
+    float3 pad;
 
     CameraData camera;
     CameraData camera_prev;
@@ -700,6 +705,7 @@ public:
 protected:
     bool m_enabled = true;
     SceneData m_data;
+    mu::Timer m_timer;
     std::vector<CameraPtr> m_cameras;
     std::vector<LightPtr> m_lights;
     std::vector<MeshInstancePtr> m_instances;

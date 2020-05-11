@@ -129,6 +129,8 @@ struct SceneData
     int light_count;
     int meshlight_count;
     float3 bg_color;
+    float time;
+    float3 pad;
 
     CameraData camera;
     CameraData camera_prev;
