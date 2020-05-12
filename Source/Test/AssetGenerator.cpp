@@ -61,8 +61,8 @@ void GenerateNormalMapFromHeightMap(T* dst, const T* src, int width, int height)
             float s21 = sample( 1, 0);
             float s10 = sample( 0,-1);
             float s12 = sample( 0, 1);
-            auto va = mu::normalize(float3{ 2.0f, 0.0f, s01 - s21 });
-            auto vb = mu::normalize(float3{ 0.0f, 2.0f, s12 - s10 });
+            auto va = mu::normalize(float3{ 2.0f, 0.0f, s21 - s01 });
+            auto vb = mu::normalize(float3{ 0.0f, 2.0f, s10 - s12 });
             auto dir = mu::cross(va, vb);
             auto color = dir * 0.5f + 0.5f;
             dst[ip] = { color.x, color.y, color.z, 1.0f };

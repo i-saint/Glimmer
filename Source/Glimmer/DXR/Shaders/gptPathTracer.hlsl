@@ -149,6 +149,7 @@ float3 GetNormal(vertex_t V, MaterialData md)
         float3x3 tbn = float3x3(tangent, binormal, normal);
 
         float3 tn = g_textures[tid].SampleLevel(g_sampler_default, V.uv, 0).xyz * 2.0f - 1.0f;
+        tn.xy *= -1.0f;
         normal = mul(tbn, tn);
     }
     return normal;
@@ -213,19 +214,6 @@ void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, float
     float2 screen_pos = ((float2(si) + offset + 0.5f) / float2(sd)) * 2.0f - 1.0f;
     screen_pos.x *= aspect_ratio;
 
-    //// swirl effect
-    //{
-    //    float attenuation = max(1.0f - length(screen_pos), 0.0);
-    //    float angle = (180.0f * sin(g_scene.time * 0.3f) * DegToRad) * (attenuation * attenuation);
-    //    float c = cos(angle);
-    //    float s = sin(angle);
-    //    float2x2 rot= float2x2(
-    //        c,-s,
-    //        s, c
-    //    );
-    //    screen_pos = mul(rot, screen_pos);
-    //}
-
     origin = cam.position;
     float3 r = cam.view[0].xyz;
     float3 u = -cam.view[1].xyz;
@@ -236,6 +224,16 @@ void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, float
         r * screen_pos.x +
         u * screen_pos.y +
         f * focal);
+
+    //// swirl effect
+    //{
+    //    float attenuation = max(1.0f - length(screen_pos), 0.0);
+    //    float angle = (180.0f * sin(g_scene.time * 0.3f) * DegToRad) * (attenuation * attenuation);
+
+    //    float3 axis= normalize(f * focal);
+    //    float4 rot = rotate_axis(axis, angle);
+    //    direction = mul(quat_to_mat33(rot), direction);
+    //}
 }
 
 float3 GetCameraRayPosition(CameraData cam, float t)
@@ -310,7 +308,6 @@ void RayGenRadiance()
     prev.t = t;
 
     g_frame_buffer[si] = float4(linear_to_srgb(radiance / accum), 1.0f);
-    //g_frame_buffer[si] = d * 100.0f;
     g_accum_buffer[si1] = prev;
 }
 

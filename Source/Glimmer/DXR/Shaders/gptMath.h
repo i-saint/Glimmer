@@ -162,3 +162,22 @@ inline float3 linear_to_srgb(float3 c)
     float3 sq3 = sqrt(sq2);
     return (0.662002687f * sq1) + (0.684122060f * sq2) - (0.323583601f * sq3) - (0.0225411470f * c);
 }
+
+
+inline float4 rotate_axis(float3 axis, float angle)
+{
+    return float4(
+        axis.x * sin(angle * 0.5f),
+        axis.y * sin(angle * 0.5f),
+        axis.z * sin(angle * 0.5f),
+        cos(angle * 0.5f));
+}
+
+inline float3x3 quat_to_mat33(float4 q)
+{
+    return float3x3(
+        1.0f-2.0f*q.y*q.y - 2.0f*q.z*q.z,2.0f*q.x*q.y - 2.0f*q.z*q.w,         2.0f*q.x*q.z + 2.0f*q.y*q.w,        
+        2.0f*q.x*q.y + 2.0f*q.z*q.w,       1.0f - 2.0f*q.x*q.x - 2.0f*q.z*q.z,2.0f*q.y*q.z - 2.0f*q.x*q.w,        
+        2.0f*q.x*q.z - 2.0f*q.y*q.w,       2.0f*q.y*q.z + 2.0f*q.x*q.w,         1.0f - 2.0f*q.x*q.x - 2.0f*q.y*q.y
+    );
+}
