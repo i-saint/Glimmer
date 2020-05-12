@@ -36,24 +36,8 @@ enum class ImageFileFormat : uint32_t
     EXR,
 };
 
-inline int GetPixelSize(ImageFormat f)
-{
-    switch (f) {
-    case ImageFormat::Ru8: return 1;
-    case ImageFormat::RGu8: return 2;
-    case ImageFormat::RGBu8: return 3;
-    case ImageFormat::RGBAu8: return 4;
-    case ImageFormat::Rf16: return 2;
-    case ImageFormat::RGf16: return 4;
-    case ImageFormat::RGBf16: return 6;
-    case ImageFormat::RGBAf16: return 8;
-    case ImageFormat::Rf32: return 4;
-    case ImageFormat::RGf32: return 8;
-    case ImageFormat::RGBf32: return 12;
-    case ImageFormat::RGBAf32: return 16;
-    default: return 0;
-    }
-}
+int GetPixelSize(ImageFormat f);
+int GetChannelCount(ImageFormat f);
 
 inline float4 Color32toFloat4(uint32_t c)
 {
