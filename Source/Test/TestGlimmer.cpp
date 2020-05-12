@@ -31,9 +31,9 @@ TestCase(TestImage)
     mu::Image height_map(width, height, mu::ImageFormat::RGBAf16);
     mu::Image normal_map(width, height, mu::ImageFormat::RGBAf16);
 
-    GenerateCheckerImage(checker.getData<half4>().data(), width, height, 32);
-    GeneratePolkaDotImage(height_map.getData<half4>().data(), width, height, 32);
-    GenerateNormalMapFromHeightMap(normal_map.getData<half4>().data(), height_map.getData<half4>().data(), width, height);
+    MakeCheckerImage(checker.getData<half4>().data(), width, height, 32);
+    MakePolkaDotImage(height_map.getData<half4>().data(), width, height, 32);
+    MakeNormalMapFromHeightMap(normal_map.getData<half4>().data(), height_map.getData<half4>().data(), width, height);
     checker.write("checker.jpg");
     height_map.write("height_map.png");
     normal_map.write("normal_map.png");
@@ -73,6 +73,7 @@ private:
     gpt::IMeshPtr m_mesh_cube;
     gpt::IMeshPtr m_mesh_ico;
     gpt::IMeshPtr m_mesh_sphere;
+    gpt::IMeshPtr m_mesh_torus;
 
     gpt::IMeshInstancePtr m_inst_triangle;
     gpt::IMeshInstancePtr m_inst_deformable;
@@ -183,7 +184,7 @@ bool GlimmerTest::init()
     {
         RawVector<half4> image;
         image.resize(checker_texture->getWidth() * checker_texture->getHeight());
-        GenerateCheckerImage(image.data(), checker_texture->getWidth(), checker_texture->getHeight(), 32);
+        MakeCheckerImage(image.data(), checker_texture->getWidth(), checker_texture->getHeight(), 32);
         checker_texture->upload(image.cdata());
     }
     {
@@ -191,8 +192,8 @@ bool GlimmerTest::init()
         RawVector<half4> normals;
         height.resize(checker_texture->getWidth() * checker_texture->getHeight());
         normals.resize(checker_texture->getWidth() * checker_texture->getHeight());
-        GeneratePolkaDotImage(height.data(), checker_texture->getWidth(), checker_texture->getHeight(), 32);
-        GenerateNormalMapFromHeightMap(normals.data(), height.data(), checker_texture->getWidth(), checker_texture->getHeight());
+        MakePolkaDotImage(height.data(), checker_texture->getWidth(), checker_texture->getHeight(), 32);
+        MakeNormalMapFromHeightMap(normals.data(), height.data(), checker_texture->getWidth(), checker_texture->getHeight());
         dot_texture->upload(height.cdata());
         dot_normal_texture->upload(normals.cdata());
     }
@@ -375,7 +376,7 @@ bool GlimmerTest::init()
         RawVector<float3> points;
         RawVector<float3> normals;
         RawVector<float2> uv;
-        GenerateCubeMesh(indices, points, normals, uv, 0.5f);
+        MakeCubeMesh(indices, points, normals, uv, 0.5f);
 
         m_mesh_cube = m_ctx->createMesh();
         m_mesh_cube->setName("Cube");
@@ -405,7 +406,7 @@ bool GlimmerTest::init()
         RawVector<float3> points, points_expanded;
         RawVector<float3> normals;
         RawVector<float2> uv;
-        GenerateIcoSphereMesh(indices, points, normals, 0.5f, 0);
+        MakeIcoSphereMesh(indices, points, normals, 0.5f, 0);
 
         size_t ni = indices.size();
         points_expanded.resize_discard(ni);
@@ -437,7 +438,7 @@ bool GlimmerTest::init()
         RawVector<float3> points;
         RawVector<float3> normals;
         RawVector<float2> uv;
-        GenerateIcoSphereMesh(indices, points, normals, 0.5f, 3);
+        MakeIcoSphereMesh(indices, points, normals, 0.5f, 3);
 
         m_mesh_sphere = m_ctx->createMesh();
         m_mesh_sphere->setName("Sphere");
@@ -453,6 +454,33 @@ bool GlimmerTest::init()
 
         inst = m_ctx->createMeshInstance(m_mesh_sphere);
         inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
+        inst->setMaterial(m_mat_emissive);
+        //inst->setFlag(gpt::InstanceFlag::Visible, false);
+        inst->setFlag(gpt::InstanceFlag::LightSource, true);
+        m_scene->addInstance(inst);
+    }
+
+    {
+        RawVector<int> indices;
+        RawVector<float3> points;
+        RawVector<float3> normals;
+        RawVector<float2> uv;
+        MakeTorusMesh(indices, points, normals, uv, 0.4f, 0.6f, 32, 64);
+
+        m_mesh_torus = m_ctx->createMesh();
+        m_mesh_torus->setName("Torus");
+        m_mesh_torus->setIndices(indices.data(), indices.size());
+        m_mesh_torus->setPoints(points.data(), points.size());
+        m_mesh_torus->setNormals(normals.data(), normals.size());
+        m_mesh_torus->setUV(uv.data(), uv.size());
+
+        auto inst = m_ctx->createMeshInstance(m_mesh_torus);
+        inst->setTransform(mu::transform(float3{ -3.3f, 0.4f, 0.0f }, quatf::identity()));
+        inst->setMaterial(m_mat_transparent);
+        m_scene->addInstance(inst);
+
+        inst = m_ctx->createMeshInstance(m_mesh_torus);
+        inst->setTransform(mu::transform(float3{ -3.0f, 0.3f, -2.0f }, quatf::identity()));
         inst->setMaterial(m_mat_emissive);
         //inst->setFlag(gpt::InstanceFlag::Visible, false);
         inst->setFlag(gpt::InstanceFlag::LightSource, true);

@@ -2,7 +2,7 @@
 #include "AssetGenerator.h"
 
 template<class T>
-void GenerateCheckerImage(T* pixels, int width, int height, int block_size)
+void MakeCheckerImage(T* pixels, int width, int height, int block_size)
 {
     T black = { 0.1f, 0.1f, 0.1f, 1.0f };
     T white = { 0.8f, 0.8f, 0.8f, 1.0f };
@@ -19,12 +19,12 @@ void GenerateCheckerImage(T* pixels, int width, int height, int block_size)
         }
     }
 }
-template void GenerateCheckerImage<unorm8x4>(unorm8x4* pixels, int width, int height, int block_size);
-template void GenerateCheckerImage<half4>(half4* pixels, int width, int height, int block_size);
-template void GenerateCheckerImage<float4>(float4* pixels, int width, int height, int block_size);
+template void MakeCheckerImage<unorm8x4>(unorm8x4* pixels, int width, int height, int block_size);
+template void MakeCheckerImage<half4>(half4* pixels, int width, int height, int block_size);
+template void MakeCheckerImage<float4>(float4* pixels, int width, int height, int block_size);
 
 template<class T>
-void GeneratePolkaDotImage(T* pixels, int width, int height, int block_size)
+void MakePolkaDotImage(T* pixels, int width, int height, int block_size)
 {
     for (int iy = 0; iy < height; iy++) {
         for (int ix = 0; ix < width; ix++) {
@@ -40,13 +40,13 @@ void GeneratePolkaDotImage(T* pixels, int width, int height, int block_size)
         }
     }
 }
-template void GeneratePolkaDotImage<unorm8x4>(unorm8x4* pixels, int width, int height, int block_size);
-template void GeneratePolkaDotImage<half4>(half4* pixels, int width, int height, int block_size);
-template void GeneratePolkaDotImage<float4>(float4* pixels, int width, int height, int block_size);
+template void MakePolkaDotImage<unorm8x4>(unorm8x4* pixels, int width, int height, int block_size);
+template void MakePolkaDotImage<half4>(half4* pixels, int width, int height, int block_size);
+template void MakePolkaDotImage<float4>(float4* pixels, int width, int height, int block_size);
 
 
 template<class T>
-void GenerateNormalMapFromHeightMap(T* dst, const T* src, int width, int height)
+void MakeNormalMapFromHeightMap(T* dst, const T* src, int width, int height)
 {
     for (int iy = 0; iy < height; iy++) {
         for (int ix = 0; ix < width; ix++) {
@@ -69,12 +69,12 @@ void GenerateNormalMapFromHeightMap(T* dst, const T* src, int width, int height)
         }
     }
 }
-template void GenerateNormalMapFromHeightMap<unorm8x4>(unorm8x4* dst, const unorm8x4* src, int width, int height);
-template void GenerateNormalMapFromHeightMap<half4>(half4* dst, const half4* src, int width, int height);
-template void GenerateNormalMapFromHeightMap<float4>(float4* dst, const float4* src, int width, int height);
+template void MakeNormalMapFromHeightMap<unorm8x4>(unorm8x4* dst, const unorm8x4* src, int width, int height);
+template void MakeNormalMapFromHeightMap<half4>(half4* dst, const half4* src, int width, int height);
+template void MakeNormalMapFromHeightMap<float4>(float4* dst, const float4* src, int width, int height);
 
 
-void GenerateCubeMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector<float3>& normals, RawVector<float2>& uv, float size)
+void MakeCubeMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector<float3>& normals, RawVector<float2>& uv, float size)
 {
     const float s = size;
     points = {
@@ -111,6 +111,61 @@ void GenerateCubeMesh(RawVector<int>& indices, RawVector<float3>& points, RawVec
     };
 }
 
+void MakeTorusMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector<float3>& normals, RawVector<float2>& uv,
+    float inner_radius, float outer_radius, int div1, int div2)
+{
+    float r = (outer_radius - inner_radius) / 2.0f;
+    RawVector<float3> cpoints(div1);
+    RawVector<float3> cnormals(div1);
+    RawVector<float2> cuvs(div1);
+    {
+        float cx = (outer_radius + inner_radius) / 2.0f;
+        float ca = (360.0f / div1) * mu::DegToRad;
+        for (int pi = 0; pi < div1; ++pi) {
+            float c = std::cos(ca * pi);
+            float s = std::sin(ca * pi);
+            cpoints[pi] = float3{ c * r + cx, s * r, 0.0f };
+            cnormals[pi] = mu::normalize(float3{ c, s, 0.0f });
+            cuvs[pi] = { 0.0f, 1.0f / (div1 - 1) * pi };
+        }
+    }
+
+    points.resize_discard(div1 * div2);
+    normals.resize_discard(div1 * div2);
+    uv.resize_discard(div1 * div2);
+    {
+        float da = (360.0f / div2) * mu::DegToRad;
+        for (int di = 0; di < div2; ++di) {
+            float3x3 rot = mu::to_mat3x3(mu::rotate_y(da * di));
+            float2 uv_offset = { (1.0f / (div2 - 1)) * di, 0.0f };
+            for (int pi = 0; pi < div1; ++pi) {
+                int vi = div1 * di + pi;
+                points[vi] = rot * cpoints[pi];
+                normals[vi] = rot * cnormals[pi];
+                uv[vi] = uv[pi] + uv_offset;
+            }
+        }
+    }
+
+    indices.resize_discard(div1 * div2 * 6);
+    int* dsti = indices.data();
+    for (int di = 0; di < div2; ++di) {
+        for (int ci = 0; ci < div1; ++ci) {
+            int i0 = ci + (div1 * di);
+            int i1 = (ci + 1) % div1 + (div1 * di);
+            int i2 = (ci + 1) % div1 + (div1 * ((di + 1) % div2));
+            int i3 = ci + (div1 * ((di + 1) % div2));
+            dsti[0] = i0;
+            dsti[1] = i1;
+            dsti[2] = i2;
+            dsti[3] = i0;
+            dsti[4] = i2;
+            dsti[5] = i3;
+            dsti += 6;
+        }
+    }
+}
+
 static inline int GetMiddlePoint(int p1, int p2, RawVector<float3>& points, std::map<int64_t, int>& cache, float radius)
 {
     // first check if we have it already
@@ -144,7 +199,7 @@ static inline int GetMiddlePoint(int p1, int p2, RawVector<float3>& points, std:
     return i;
 }
 
-void GenerateIcoSphereMesh(
+void MakeIcoSphereMesh(
     RawVector<int>& indices,
     RawVector<float3>& points,
     RawVector<float3>& normals,
@@ -225,7 +280,7 @@ void GenerateIcoSphereMesh(
     }
 }
 
-void GenerateWaveMesh(
+void MakeWaveMesh(
     RawVector<int>& indices,
     RawVector<float3> &points,
     float size, float height,
