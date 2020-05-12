@@ -4,8 +4,8 @@
 template<class T>
 void GenerateCheckerImage(T* pixels, int width, int height, int block_size)
 {
-    T black = { 0.1f, 0.1f, 0.1f, 0.1f };
-    T white = { 0.8f, 0.8f, 0.8f, 0.8f };
+    T black = { 0.1f, 0.1f, 0.1f, 1.0f };
+    T white = { 0.8f, 0.8f, 0.8f, 1.0f };
     for (int iy = 0; iy < height; iy++) {
         for (int ix = 0; ix < width; ix++) {
             int ip = iy * width + ix;
@@ -36,7 +36,7 @@ void GeneratePolkaDotImage(T* pixels, int width, int height, int block_size)
             float d = 1.0f - mu::length(pos);
             d = std::max(d - 0.3f, 0.0f) * (1.0f / 0.3f);
             float c = d;
-            pixels[ip] = { c, c, c, c };
+            pixels[ip] = { c, c, c, 1.0f };
         }
     }
 }

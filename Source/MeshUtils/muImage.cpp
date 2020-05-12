@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "muAlgorithm.h"
 #include "muImage.h"
 
 #define STBI_NO_STDIO
@@ -13,38 +14,26 @@ namespace mu {
 
 int GetPixelSize(ImageFormat f)
 {
-    switch (f) {
-    case ImageFormat::Ru8: return 1;
-    case ImageFormat::RGu8: return 2;
-    case ImageFormat::RGBu8: return 3;
-    case ImageFormat::RGBAu8: return 4;
-    case ImageFormat::Rf16: return 2;
-    case ImageFormat::RGf16: return 4;
-    case ImageFormat::RGBf16: return 6;
-    case ImageFormat::RGBAf16: return 8;
-    case ImageFormat::Rf32: return 4;
-    case ImageFormat::RGf32: return 8;
-    case ImageFormat::RGBf32: return 12;
-    case ImageFormat::RGBAf32: return 16;
+    int ch = (uint32_t)(f & ImageFormat::ChannelMask);
+    switch (f & ImageFormat::TypeMask) {
+    case ImageFormat::U8: return ch * 1;
+    case ImageFormat::F16: return ch * 2;
+    case ImageFormat::F32: return ch * 4;
     default: return 0;
     }
 }
 
 int GetChannelCount(ImageFormat f)
 {
-    switch (f) {
-    case ImageFormat::Ru8: return 1;
-    case ImageFormat::RGu8: return 2;
-    case ImageFormat::RGBu8: return 3;
-    case ImageFormat::RGBAu8: return 4;
-    case ImageFormat::Rf16: return 1;
-    case ImageFormat::RGf16: return 2;
-    case ImageFormat::RGBf16: return 3;
-    case ImageFormat::RGBAf16: return 4;
-    case ImageFormat::Rf32: return 1;
-    case ImageFormat::RGf32: return 2;
-    case ImageFormat::RGBf32: return 3;
-    case ImageFormat::RGBAf32: return 4;
+    return (uint32_t)(f & ImageFormat::ChannelMask);
+}
+
+int GetBitsPerChannel(ImageFormat f)
+{
+    switch (f & ImageFormat::TypeMask) {
+    case ImageFormat::U8: return 8;
+    case ImageFormat::F16: return 16;
+    case ImageFormat::F32: return 32;
     default: return 0;
     }
 }
@@ -232,43 +221,44 @@ bool Image::read(const char* path)
 
 bool Image::write(std::ostream& os, ImageFileFormat format) const
 {
-    if (!os)
+    if (!os || format == ImageFileFormat::Unknown)
         return false;
 
-    if (format == ImageFileFormat::Unknown) {
-        return false;
-    }
-    else if (format == ImageFileFormat::EXR) {
+    if (format == ImageFileFormat::EXR) {
         // todo
         return false;
     }
     else {
         int ch = GetChannelCount(m_format);
-        int stride = m_width * GetPixelSize(m_format);
+        int bits = GetBitsPerChannel(m_format);
         const int jpeg_quality = 90;
 
+        Image tmp;
         int ret = 0;
         switch (format) {
         case ImageFileFormat::BMP:
-            ret = stbi_write_bmp_to_func(swrite, &os, m_width, m_height, ch, m_data.data());
-            break;
-        case ImageFileFormat::TGA:
-            ret = stbi_write_tga_to_func(swrite, &os, m_width, m_height, ch, m_data.data());
+            tmp = convert(ImageFormat::RGBu8);
+            ret = stbi_write_bmp_to_func(swrite, &os, m_width, m_height, 3, tmp.getData().data());
             break;
         case ImageFileFormat::JPG:
-            ret = stbi_write_jpg_to_func(swrite, &os, m_width, m_height, ch, m_data.data(), jpeg_quality);
+            tmp = convert(ImageFormat::RGBu8);
+            ret = stbi_write_jpg_to_func(swrite, &os, m_width, m_height, 3, tmp.getData().data(), jpeg_quality);
+            break;
+        case ImageFileFormat::TGA:
+            tmp = convert(ImageFormat::U8 | (m_format & ImageFormat::ChannelMask));
+            ret = stbi_write_tga_to_func(swrite, &os, m_width, m_height, ch, tmp.getData().data());
             break;
         case ImageFileFormat::PNG:
-            ret = stbi_write_png_to_func(swrite, &os, m_width, m_height, ch, m_data.data(), stride);
+            tmp = convert(ImageFormat::U8 | (m_format & ImageFormat::ChannelMask));
+            ret = stbi_write_png_to_func(swrite, &os, m_width, m_height, ch, tmp.getData().data(), 0);
             break;
         case ImageFileFormat::HDR:
-            ret = stbi_write_hdr_to_func(swrite, &os, m_width, m_height, ch, (float*)m_data.data());
+            tmp = convert(ImageFormat::F32 | (m_format & ImageFormat::ChannelMask));
+            ret = stbi_write_hdr_to_func(swrite, &os, m_width, m_height, ch, (float*)tmp.getData().data());
             break;
         }
+        return ret != 0;
     }
-
-    // todo
-    return true;
 }
 bool Image::write(const char* path) const
 {
@@ -298,6 +288,29 @@ static inline Image RGBAtoRGB(const Image& src, ImageFormat dst_format)
     return ret;
 }
 
+template<class D, class S, muEnableIf(S::vector_length == D::vector_length && S::vector_length == 3)>
+static inline void Assign(D& d, const S& s)
+{
+    d = { s[0], s[1], s[2] };
+}
+template<class D, class S, muEnableIf(S::vector_length == D::vector_length && S::vector_length == 4)>
+static inline void Assign(D& d, const S& s)
+{
+    d = { s[0], s[1], s[2], s[3] };
+}
+
+template<class S, class D, muEnableIf(S::vector_length == D::vector_length)>
+static inline Image Convert(const Image& src, ImageFormat dst_format)
+{
+    Image ret(src.getWidth(), src.getHeight(), dst_format);
+    Span<S> s = src.getData<S>();
+    Span<D> d = ret.getData<D>();
+    size_t n = src.getWidth() * src.getHeight();
+    for (size_t i = 0; i < n; ++i)
+        Assign(d[i], s[i]);
+    return ret;
+}
+
 Image Image::convert(ImageFormat dst_format) const
 {
     if (m_format == dst_format)
@@ -311,10 +324,14 @@ Image Image::convert(ImageFormat dst_format) const
     else if (m_format == ImageFormat::RGBf16) {
         if (dst_format == ImageFormat::RGBAf16)
             return RGBtoRGBA<half3, half4>(*this, dst_format);
+        else if (dst_format == ImageFormat::RGBu8)
+            return Convert<half3, unorm8x3>(*this, dst_format);
     }
     else if (m_format == ImageFormat::RGBf32) {
         if (dst_format == ImageFormat::RGBAf32)
             return RGBtoRGBA<float3, float4>(*this, dst_format);
+        else if (dst_format == ImageFormat::RGBu8)
+            return Convert<float3, unorm8x3>(*this, dst_format);
     }
     else if (m_format == ImageFormat::RGBAu8) {
         if (dst_format == ImageFormat::RGBu8)
@@ -325,12 +342,16 @@ Image Image::convert(ImageFormat dst_format) const
             return RGBAtoRGB<half4, half3>(*this, dst_format);
         else if (dst_format == ImageFormat::RGBu8)
             return RGBAtoRGB<half4, unorm8x3>(*this, dst_format);
+        else if (dst_format == ImageFormat::RGBAu8)
+            return Convert<half4, unorm8x4>(*this, dst_format);
     }
     else if (m_format == ImageFormat::RGBAf32) {
         if (dst_format == ImageFormat::RGBf32)
             return RGBAtoRGB<float4, float3>(*this, dst_format);
         else if (dst_format == ImageFormat::RGBu8)
             return RGBAtoRGB<float4, unorm8x3>(*this, dst_format);
+        else if (dst_format == ImageFormat::RGBAu8)
+            return Convert<float4, unorm8x4>(*this, dst_format);
     }
     return Image();
 }

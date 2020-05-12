@@ -8,19 +8,27 @@ namespace mu {
 enum class ImageFormat : uint32_t
 {
     Unknown,
-    Ru8,
-    RGu8,
-    RGBu8,
-    RGBAu8,
-    Rf16,
-    RGf16,
-    RGBf16,
-    RGBAf16,
-    Rf32,
-    RGf32,
-    RGBf32,
-    RGBAf32,
+    Ru8     = 0x10 | 0x01,
+    RGu8    = 0x10 | 0x02,
+    RGBu8   = 0x10 | 0x03,
+    RGBAu8  = 0x10 | 0x04,
+    Rf16    = 0x20 | 0x01,
+    RGf16   = 0x20 | 0x02,
+    RGBf16  = 0x20 | 0x03,
+    RGBAf16 = 0x20 | 0x04,
+    Rf32    = 0x30 | 0x01,
+    RGf32   = 0x30 | 0x02,
+    RGBf32  = 0x30 | 0x03,
+    RGBAf32 = 0x30 | 0x04,
+
+    U8      = 0x10,
+    F16     = 0x20,
+    F32     = 0x30,
+    ChannelMask = 0x0f,
+    TypeMask = 0xf0,
 };
+inline ImageFormat operator|(ImageFormat a, ImageFormat b) { return (ImageFormat)((uint32_t)a | (uint32_t)b); }
+inline ImageFormat operator&(ImageFormat a, ImageFormat b) { return (ImageFormat)((uint32_t)a & (uint32_t)b); }
 
 enum class ImageFileFormat : uint32_t
 {

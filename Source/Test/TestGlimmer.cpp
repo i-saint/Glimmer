@@ -23,6 +23,22 @@ TestCase(TestMath)
     }
 }
 
+TestCase(TestImage)
+{
+    const int width = 512;
+    const int height = 512;
+    mu::Image checker(width, height, mu::ImageFormat::RGBAf16);
+    mu::Image height_map(width, height, mu::ImageFormat::RGBAf16);
+    mu::Image normal_map(width, height, mu::ImageFormat::RGBAf16);
+
+    GenerateCheckerImage(checker.getData<half4>().data(), width, height, 32);
+    GeneratePolkaDotImage(height_map.getData<half4>().data(), width, height, 32);
+    GenerateNormalMapFromHeightMap(normal_map.getData<half4>().data(), height_map.getData<half4>().data(), width, height);
+    checker.write("checker.jpg");
+    height_map.write("height_map.png");
+    normal_map.write("normal_map.png");
+}
+
 #define EnableWindow
 
 class GlimmerTest : public gpt::IWindowCallback
