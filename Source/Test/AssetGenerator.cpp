@@ -126,23 +126,23 @@ void MakeTorusMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector
             float s = std::sin(ca * pi);
             cpoints[pi] = float3{ c * r + cx, s * r, 0.0f };
             cnormals[pi] = mu::normalize(float3{ c, s, 0.0f });
-            cuvs[pi] = { 0.0f, 1.0f / (div1 - 1) * pi };
+            cuvs[pi] = { 0.0f, (1.0f / (div1 - 1)) * pi };
         }
     }
 
-    points.resize_discard(div1 * div2);
-    normals.resize_discard(div1 * div2);
-    uv.resize_discard(div1 * div2);
+    points.resize_discard(div1 * (div2 + 1));
+    normals.resize_discard(div1 * (div2 + 1));
+    uv.resize_discard(div1 * (div2 + 1));
     {
         float da = (360.0f / div2) * mu::DegToRad;
-        for (int di = 0; di < div2; ++di) {
+        for (int di = 0; di <= div2; ++di) {
             float3x3 rot = mu::to_mat3x3(mu::rotate_y(da * di));
-            float2 uv_offset = { (1.0f / (div2 - 1)) * di, 0.0f };
+            float2 uv_offset = { (1.0f / div2) * di, 0.0f };
             for (int pi = 0; pi < div1; ++pi) {
                 int vi = div1 * di + pi;
                 points[vi] = rot * cpoints[pi];
                 normals[vi] = rot * cnormals[pi];
-                uv[vi] = uv[pi] + uv_offset;
+                uv[vi] = cuvs[pi] + uv_offset;
             }
         }
     }
@@ -153,8 +153,8 @@ void MakeTorusMesh(RawVector<int>& indices, RawVector<float3>& points, RawVector
         for (int ci = 0; ci < div1; ++ci) {
             int i0 = ci + (div1 * di);
             int i1 = (ci + 1) % div1 + (div1 * di);
-            int i2 = (ci + 1) % div1 + (div1 * ((di + 1) % div2));
-            int i3 = ci + (div1 * ((di + 1) % div2));
+            int i2 = (ci + 1) % div1 + (div1 * (di + 1));
+            int i3 = ci + (div1 * (di + 1));
             dsti[0] = i0;
             dsti[1] = i1;
             dsti[2] = i2;

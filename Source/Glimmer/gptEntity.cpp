@@ -109,14 +109,13 @@ Texture::Texture(int width, int height, Format format)
     m_width = width;
     m_height = height;
     m_format = format;
+    m_data.resize_zeroclear(m_width * m_height * GetTexelSize(m_format));
     markDirty(DirtyFlag::Texture);
 }
 
 void Texture::upload(const void* src)
 {
-    auto v = (const char*)src;
-    size_t size = m_width * m_height * GetTexelSize(m_format);
-    m_data.assign(v, v + size);
+    m_data.assign((const char*)src, m_data.size());
     markDirty(DirtyFlag::TextureData);
 }
 

@@ -61,6 +61,8 @@ private:
     gpt::ILightPtr m_directional_light;
     gpt::ILightPtr m_point_light;
 
+    gpt::ITexturePtr m_tex_gradient;
+
     gpt::IMaterialPtr m_mat_checker;
     gpt::IMaterialPtr m_mat_diffuse;
     gpt::IMaterialPtr m_mat_reflective;
@@ -174,6 +176,7 @@ bool GlimmerTest::init()
     auto checker_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
     auto dot_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
     auto dot_normal_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
+    m_tex_gradient = m_ctx->createTexture(512, 1, gpt::Format::RGBAf16);
     m_mat_checker = m_ctx->createMaterial();
     m_mat_diffuse = m_ctx->createMaterial();
     m_mat_reflective = m_ctx->createMaterial();
@@ -220,8 +223,9 @@ bool GlimmerTest::init()
     //m_mat_transparent->setNormalMap(dot_normal_texture);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
-    m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
-    m_mat_emissive->setEmissiveRange(100.0f);
+    //m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
+    m_mat_emissive->setEmissiveMap(m_tex_gradient);
+    m_mat_emissive->setEmissiveRange(10.0f);
     //m_mat_emissive->setEmissiveSampleCount(4);
 
     // camera
@@ -457,7 +461,7 @@ bool GlimmerTest::init()
         inst->setMaterial(m_mat_emissive);
         //inst->setFlag(gpt::InstanceFlag::Visible, false);
         inst->setFlag(gpt::InstanceFlag::LightSource, true);
-        m_scene->addInstance(inst);
+        //m_scene->addInstance(inst);
     }
 
     {
@@ -480,7 +484,7 @@ bool GlimmerTest::init()
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_torus);
-        inst->setTransform(mu::transform(float3{ -3.0f, 0.3f, -2.0f }, quatf::identity()));
+        inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
         inst->setMaterial(m_mat_emissive);
         //inst->setFlag(gpt::InstanceFlag::Visible, false);
         inst->setFlag(gpt::InstanceFlag::LightSource, true);
@@ -507,7 +511,16 @@ void GlimmerTest::messageLoop()
             //m_directional_light->setEnabled(m_frame % 240 < 120);
 
             float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
-            m_mat_emissive->setEmissive(float3{ 0.4f, 0.4f, 1.0f } * (1.5f * s));
+
+            RawVector<half4> image(512);
+            for (int i = 0; i < 512; ++i) {
+                float g = std::max((1.0f / 512) * i - 0.75f, 0.0f) * 4.0f;
+                image[(i + m_frame) % 512] = { g * 0.9f, g * 0.9f, g * 2.0f };
+            }
+            m_tex_gradient->upload(image.data());
+
+            //m_mat_emissive->setEmissive(float3{ 0.4f, 0.4f, 1.0f } *(1.5f * s));
+            m_mat_emissive->setEmissive(float3{ 0.4f, 0.4f, 1.0f } * 0.0f);
 
             //m_mat_transparent->setRefractionIndex(0.5f + s);
 
