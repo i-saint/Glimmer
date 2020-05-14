@@ -133,6 +133,9 @@ void GlimmerTest::onMouseWheel(float wheel, int buttons)
 
 void GlimmerTest::onKeyDown(int key)
 {
+    if (key == 'L') {
+        m_point_light->setEnabled(!m_point_light->isEnabled());
+    }
 }
 
 

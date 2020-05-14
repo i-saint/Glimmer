@@ -258,7 +258,7 @@ void Window::onKeyDown(int key)
 void Window::onKeyUp(int key)
 {
     eachCallback([&](IWindowCallback* cb) {
-        cb->onKeyDown(key);
+        cb->onKeyUp(key);
     });
 }
 
