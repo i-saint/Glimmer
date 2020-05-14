@@ -179,7 +179,7 @@ bool GlimmerTest::init()
     auto checker_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
     auto dot_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
     auto dot_normal_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
-    m_tex_gradient = m_ctx->createTexture(512, 1, gpt::Format::RGBAf16);
+    m_tex_gradient = m_ctx->createTexture(512, 1, gpt::Format::RGBAf32);
     m_mat_checker = m_ctx->createMaterial();
     m_mat_diffuse = m_ctx->createMaterial();
     m_mat_reflective = m_ctx->createMaterial();
@@ -205,7 +205,7 @@ bool GlimmerTest::init()
     }
 
     m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
-    m_mat_checker->setRoughness(0.3f);
+    m_mat_checker->setRoughness(0.2f);
     //m_mat_checker->setRoughnessMap(checker_texture);
     m_mat_checker->setDiffuseMap(checker_texture);
     //m_mat_checker->setDiffuseMap(dot_texture);
@@ -223,6 +223,7 @@ bool GlimmerTest::init()
     m_mat_transparent->setRoughness(0.0f);
     m_mat_transparent->setOpacity(0.1f);
     m_mat_transparent->setRefractionIndex(1.5f); // https://en.wikipedia.org/wiki/List_of_refractive_indices
+    //m_mat_transparent->setRefractionIndex(1.0f);
     //m_mat_transparent->setNormalMap(dot_normal_texture);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
@@ -472,7 +473,7 @@ bool GlimmerTest::init()
         RawVector<float3> points;
         RawVector<float3> normals;
         RawVector<float2> uv;
-        MakeTorusMesh(indices, points, normals, uv, 0.4f, 0.6f, 32, 64);
+        MakeTorusMesh(indices, points, normals, uv, 0.5f, 0.75f, 32, 64);
 
         m_mesh_torus = m_ctx->createMesh();
         m_mesh_torus->setName("Torus");
@@ -481,12 +482,12 @@ bool GlimmerTest::init()
         m_mesh_torus->setNormals(normals.data(), normals.size());
         m_mesh_torus->setUV(uv.data(), uv.size());
 
-        auto inst = m_ctx->createMeshInstance(m_mesh_torus);
-        inst->setTransform(mu::transform(float3{ -3.3f, 0.4f, 0.0f }, quatf::identity()));
-        inst->setMaterial(m_mat_transparent);
-        m_scene->addInstance(inst);
+        //auto inst = m_ctx->createMeshInstance(m_mesh_torus);
+        //inst->setTransform(mu::transform(float3{ -3.3f, 0.4f, 0.0f }, quatf::identity()));
+        //inst->setMaterial(m_mat_transparent);
+        //m_scene->addInstance(inst);
 
-        inst = m_ctx->createMeshInstance(m_mesh_torus);
+        auto inst = m_ctx->createMeshInstance(m_mesh_torus);
         inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
         inst->setMaterial(m_mat_emissive);
         //inst->setFlag(gpt::InstanceFlag::Visible, false);
@@ -513,12 +514,23 @@ void GlimmerTest::messageLoop()
             //m_inst_triangle->setTransform(mu::to_mat4x4(mu::rotate_y(-(float)m_frame * 0.002f)));
             //m_directional_light->setEnabled(m_frame % 240 < 120);
 
-            float s = std::sin((float)m_frame * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
+            float f = (float)m_frame;
+            float s = std::sin(f * mu::DegToRad * 0.4f) * 0.5f + 0.5f;
 
-            RawVector<half4> image(512);
-            for (int i = 0; i < 512; ++i) {
-                float g = std::max((1.0f / 512) * i - 0.75f, 0.0f) * 4.0f;
-                image[(i + m_frame) % 512] = { g * 0.9f, g * 0.9f, g * 2.0f };
+            RawVector<float4> image(512);
+            for (int x = 0; x < 512; ++x) {
+                float r = (1.0f / 512) * (x + f * 1.9f);
+                r = 1.0f - mu::mod(r, 1.0f);
+                r = std::max(r - 0.80f, 0.0f) * 5.0f;
+
+                float b = (1.0f / 512) * (x + f * 1.0f);
+                b = 1.0f - mu::mod(b, 1.0f);
+                b = std::max(b - 0.75f, 0.0f) * 4.0f;
+
+                float3 r3{ r * 1.4f, r * 0.1f, r * 0.1f };
+                float3 b3{ b * 0.4f, b * 0.4f, b * 1.5f };
+                float3 c = r3 + b3;
+                image[x] = { c.x, c.y, c.z, 1.0f };
             }
             m_tex_gradient->upload(image.data());
 

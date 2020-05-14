@@ -166,7 +166,6 @@ struct RadiancePayload
     float  t;
     uint   seed;
     uint   done;
-    uint   pad;
 
     void init()
     {
@@ -186,7 +185,7 @@ struct OcclusionPayload
     float3 origin;
     float3 direction;
     uint   occluded;
-    uint2  pad;
+    uint   missed;
 
     void init()
     {
@@ -194,20 +193,29 @@ struct OcclusionPayload
         origin = 0.0f;
         direction = 0.0f;
         occluded = false;
+        missed = false;
     }
 };
 
 struct EmissivePayload
 {
+    float3 attenuation;
+    float3 origin;
+    float3 direction;
     int instance_id;
     int face_id;
     float2 barycentrics;
+    uint   missed;
 
     void init()
     {
+        attenuation = 1.0f;
+        origin = 0.0f;
+        direction = 0.0f;
         instance_id = -1;
         face_id = -1;
         barycentrics = 0.0f;
+        missed = false;
     }
 };
 
@@ -347,6 +355,8 @@ EmissivePayload TraceEmissive(in RayDesc ray)
 {
     EmissivePayload payload;
     payload.init();
+    payload.origin = ray.Origin;
+    payload.direction = ray.Direction;
 
     uint ray_flags = 0;
     TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_EMISSIVE, 0, RT_EMISSIVE, ray, payload);
@@ -429,8 +439,9 @@ float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint 
 
     float3 radiance = 0.0f;
     for (int esi = 0; esi < md.emissive_sample_count; ++esi) {
-        int face = (int)((float)mesh.face_count * rnd01(seed));
-        float3 fpos = GetInterpolatedVertex(ii, face, rnd_bc(seed)).position;
+        int fid = (int)((float)mesh.face_count * rnd01(seed));
+        float2 bc = rnd_bc(seed);
+        float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
         float3 L = normalize(fpos - P);
         float Ld = length(fpos - P);
         if (Ld >= md.emissive_range)
@@ -443,19 +454,43 @@ float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint 
         ray.TMax = Ld + 0.01f; // todo: improve offset
 
         EmissivePayload epl = TraceEmissive(ray);
+        if (epl.instance_id == -1) { // hit transparent face
+            epl.instance_id = ii;
+            epl.face_id = fid;
+            epl.barycentrics = bc;
+        }
         if (epl.instance_id == ii) {
             vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
-
             float Ld = length(hv.position - P);
             float nDl = dot(N, ray.Direction);
             float a = (md.emissive_range - Ld) / md.emissive_range;
             float weight = max(nDl, 0.0f) * (a * a);
 
-            radiance += GetEmissive(md, hv.uv) * weight;
+            radiance += GetEmissive(md, hv.uv) * epl.attenuation * weight;
         }
     }
     radiance /= md.emissive_sample_count;
     return radiance;
+}
+
+inline bool Refract(inout float3 pos, inout float3 dir, float3 vertex_normal, float3 face_normal, float refraction_index, bool backface)
+{
+    // assume refraction index of air is 1.0f
+    float3 rdir = backface ?
+        refract(dir, -vertex_normal, refraction_index) :
+        refract(dir, vertex_normal, 1.0f / refraction_index);
+
+    if (length_sq(rdir) == 0.0f) {
+        // perfect reflection
+        dir = reflect(rdir, vertex_normal);
+        pos = offset_ray(pos, backface ? -face_normal : face_normal);
+        return false;
+    }
+    else {
+        dir = rdir;
+        pos = offset_ray(pos, backface ? face_normal : -face_normal);
+        return true;
+    }
 }
 
 [shader("closesthit")]
@@ -477,19 +512,8 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         // prepare next ray
 
         if (md.type == MT_TRANSPARENT) {
-            // assume refraction index of air is 1.0f
-            float3 dir = backface ?
-                refract(payload.direction, -N, md.refraction_index) :
-                refract(payload.direction, N, 1.0f / md.refraction_index);
-            if (length_sq(dir) == 0.0f) {
-                // perfect reflection
-                payload.direction = reflect(payload.direction, N);
-                payload.origin = offset_ray(P_, backface ? -Nf : Nf);
-            }
-            else {
-                payload.direction = dir;
-                payload.origin = offset_ray(P_, backface ? Nf : -Nf);
-            }
+            payload.origin = P_;
+            Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
 
             if (backface) {
                 payload.attenuation *= GetDiffuse(md, V.uv) * ((1.0f - md.opacity) / (1.0f + payload.t * payload.t));
@@ -530,6 +554,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 [shader("miss")]
 void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 {
+    payload.missed = true;
 }
 
 [shader("closesthit")]
@@ -540,28 +565,16 @@ void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in Buil
         vertex_t V = GetInterpolatedVertex(attr.barycentrics);
         float3 Nf = FaceNormal();
         float3 N = GetNormal(V, md);
-        float3 P_ = HitPosition();
-
         bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
-        float3 dir = backface ?
-            refract(payload.direction, -N, md.refraction_index) :
-            refract(payload.direction, N, 1.0f / md.refraction_index);
-        if (length_sq(dir) == 0.0f) {
-            // perfect reflection
-            payload.direction = reflect(payload.direction, N);
-            payload.origin = offset_ray(P_, backface ? -Nf : Nf);
-        }
-        else {
-            payload.direction = dir;
-            payload.origin = offset_ray(P_, backface ? Nf : -Nf);
-        }
+
+        payload.origin = HitPosition();
+        Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
 
         if (!backface) {
             payload.attenuation *= GetDiffuse(md, V.uv) * (1.0f - md.opacity);
         }
     }
     else {
-        payload.attenuation = 0.0f;
         payload.occluded = true;
     }
 }
@@ -570,12 +583,29 @@ void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in Buil
 [shader("miss")]
 void MissEmissive(inout EmissivePayload payload : SV_RayPayload)
 {
+    payload.missed = true;
 }
 
 [shader("closesthit")]
 void ClosestHitEmissive(inout EmissivePayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    payload.instance_id = InstanceID();
-    payload.face_id = PrimitiveIndex();
-    payload.barycentrics = attr.barycentrics;
+    MaterialData md = FaceMaterial();
+    if (md.type == MT_TRANSPARENT) {
+        vertex_t V = GetInterpolatedVertex(attr.barycentrics);
+        float3 Nf = FaceNormal();
+        float3 N = GetNormal(V, md);
+        bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+
+        payload.origin = HitPosition();
+        Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
+
+        if (!backface) {
+            payload.attenuation *= GetDiffuse(md, V.uv) * (1.0f - md.opacity);
+        }
+    }
+    else {
+        payload.instance_id = InstanceID();
+        payload.face_id = PrimitiveIndex();
+        payload.barycentrics = attr.barycentrics;
+    }
 }
