@@ -182,11 +182,18 @@ struct RadiancePayload
 
 struct OcclusionPayload
 {
-    int hit;
+    float3 attenuation;
+    float3 origin;
+    float3 direction;
+    uint   occluded;
+    uint2  pad;
 
     void init()
     {
-        hit = false;
+        attenuation = 1.0f;
+        origin = 0.0f;
+        direction = 0.0f;
+        occluded = false;
     }
 };
 
@@ -320,17 +327,23 @@ void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
 }
 
 
-bool ShootOcclusionRay(in RayDesc ray)
+bool TraceOcclusion(in RayDesc ray, out float3 direction, out float3 attenuation)
 {
     OcclusionPayload payload;
     payload.init();
+    payload.origin = ray.Origin;
+    payload.direction = ray.Direction;
 
-    uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    //uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    // todo: repeat this if !payload.occluded
+    uint ray_flags = 0;
     TraceRay(g_tlas, ray_flags, LM_SHADOW, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
-    return payload.hit;
+    attenuation = payload.attenuation;
+    direction = payload.direction;
+    return payload.occluded;
 }
 
-EmissivePayload ShootEmissiveRay(in RayDesc ray)
+EmissivePayload TraceEmissive(in RayDesc ray)
 {
     EmissivePayload payload;
     payload.init();
@@ -343,6 +356,7 @@ EmissivePayload ShootEmissiveRay(in RayDesc ray)
 float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
 {
     float weight = 0.0f;
+    float3 attenuation = 1.0f;
     const LightData light = g_lights[light_index];
     if (light.type == LT_DIRECTIONAL) {
         // directional light
@@ -354,7 +368,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
         ray.Direction = L;
         ray.TMin = 0.0f;
         ray.TMax = g_scene.camera.far_plane;
-        if (!ShootOcclusionRay(ray)) {
+        if (!TraceOcclusion(ray, L, attenuation)) {
             float nDl = dot(N, L);
             weight = nDl;
         }
@@ -370,7 +384,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             ray.Direction = L;
             ray.TMin = 0.0f;
             ray.TMax = Ld;
-            if (!ShootOcclusionRay(ray)) {
+            if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
                 //weight = nDl / (PI * Ld * Ld);
 
@@ -390,7 +404,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             ray.Direction = L;
             ray.TMin = 0.0f;
             ray.TMax = Ld;
-            if (!ShootOcclusionRay(ray)) {
+            if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
                 //weight = nDl / (PI * Ld * Ld);
 
@@ -400,7 +414,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
         }
     }
 
-    return (light.color * light.intensity) * max(weight, 0.0f);
+    return (light.color * light.intensity) * attenuation * max(weight, 0.0f);
 }
 
 float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint seed)
@@ -428,7 +442,7 @@ float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint 
         ray.TMin = 0.0f;
         ray.TMax = Ld + 0.01f; // todo: improve offset
 
-        EmissivePayload epl = ShootEmissiveRay(ray);
+        EmissivePayload epl = TraceEmissive(ray);
         if (epl.instance_id == ii) {
             vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
 
@@ -521,7 +535,35 @@ void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 [shader("closesthit")]
 void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    payload.hit = true;
+    MaterialData md = FaceMaterial();
+    if (md.type == MT_TRANSPARENT) {
+        vertex_t V = GetInterpolatedVertex(attr.barycentrics);
+        float3 Nf = FaceNormal();
+        float3 N = GetNormal(V, md);
+        float3 P_ = HitPosition();
+
+        bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+        float3 dir = backface ?
+            refract(payload.direction, -N, md.refraction_index) :
+            refract(payload.direction, N, 1.0f / md.refraction_index);
+        if (length_sq(dir) == 0.0f) {
+            // perfect reflection
+            payload.direction = reflect(payload.direction, N);
+            payload.origin = offset_ray(P_, backface ? -Nf : Nf);
+        }
+        else {
+            payload.direction = dir;
+            payload.origin = offset_ray(P_, backface ? Nf : -Nf);
+        }
+
+        if (!backface) {
+            payload.attenuation *= GetDiffuse(md, V.uv) * (1.0f - md.opacity);
+        }
+    }
+    else {
+        payload.attenuation = 0.0f;
+        payload.occluded = true;
+    }
 }
 
 

@@ -205,11 +205,11 @@ bool GlimmerTest::init()
     }
 
     m_mat_checker->setDiffuse(float3{ 0.9f, 0.9f, 0.9f });
-    m_mat_checker->setRoughness(0.8f);
+    m_mat_checker->setRoughness(0.3f);
     //m_mat_checker->setRoughnessMap(checker_texture);
     m_mat_checker->setDiffuseMap(checker_texture);
     //m_mat_checker->setDiffuseMap(dot_texture);
-    m_mat_checker->setNormalMap(dot_normal_texture);
+    //m_mat_checker->setNormalMap(dot_normal_texture);
     //m_mat_checker->setEmissiveMap(dot_normal_texture);
 
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
@@ -260,7 +260,7 @@ bool GlimmerTest::init()
         m_point_light->setDirection(mu::normalize(target - pos));
         m_point_light->setColor(color);
         m_point_light->setIntensity(0.5f);
-        m_point_light->setDisperse(0.1f);
+        m_point_light->setDisperse(0.075f);
         //m_point_light->setEnabled(false);
     }
 
@@ -393,12 +393,12 @@ bool GlimmerTest::init()
         m_mesh_cube->setUV(uv.data(), uv.size());
 
         auto inst = m_ctx->createMeshInstance(m_mesh_cube);
-        inst->setTransform(mu::transform(float3{2.0f, 0.7f, 0.0f}, quatf::identity()));
+        inst->setTransform(mu::transform(float3{2.0f, 0.501f, 0.0f}, quatf::identity()));
         inst->setMaterial(m_mat_transparent);
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
-        inst->setTransform(mu::transform(float3{ 0.8f, 1.5f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
+        inst->setTransform(mu::transform(float3{ 0.8f, 1.501f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
         inst->setMaterial(m_mat_transparent);
         m_scene->addInstance(inst);
 
