@@ -213,7 +213,7 @@ bool GlimmerTest::init()
     //m_mat_checker->setEmissiveMap(dot_normal_texture);
 
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
-    m_mat_diffuse->setRoughness(0.5f);
+    m_mat_diffuse->setRoughness(0.4f);
 
     m_mat_reflective->setDiffuse(float3{ 0.5f, 0.5f, 0.7f });
     m_mat_reflective->setRoughness(0.02f);
@@ -260,7 +260,7 @@ bool GlimmerTest::init()
         m_point_light->setPosition(pos);
         m_point_light->setDirection(mu::normalize(target - pos));
         m_point_light->setColor(color);
-        m_point_light->setIntensity(0.5f);
+        m_point_light->setIntensity(0.2f);
         m_point_light->setDisperse(0.075f);
         //m_point_light->setEnabled(false);
     }
@@ -291,7 +291,7 @@ bool GlimmerTest::init()
         // add a instance with default transform
         auto inst = m_ctx->createMeshInstance(m_mesh_floor);
         inst->setMaterial(m_mat_checker);
-        m_scene->addInstance(inst);
+        //m_scene->addInstance(inst);
     }
 
     {
@@ -400,13 +400,25 @@ bool GlimmerTest::init()
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ 0.8f, 1.501f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
-        inst->setMaterial(m_mat_transparent);
+        inst->setMaterial(m_mat_diffuse);
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ -1.2f, 1.0f, 2.0f }, mu::rotate_y(45.0f * mu::DegToRad), float3{ 1.0f, 2.0f, 1.0f }));
         inst->setMaterial(m_mat_reflective);
         m_scene->addInstance(inst);
+
+        uint32_t seed = 0;
+        for (int iy = 0; iy < 20; ++iy) {
+            for (int ix = 0; ix < 20; ++ix) {
+                float y = mu::rnd(seed) * 0.25f;
+
+                inst = m_ctx->createMeshInstance(m_mesh_cube);
+                inst->setTransform(mu::transform(float3{ -5.0f + 0.5f * ix, -1.25f + y, -5.0f + 0.5f * iy }, quatf::identity(), float3{ 0.49f, 2.0f, 0.49f }));
+                inst->setMaterial(m_mat_diffuse);
+                m_scene->addInstance(inst);
+            }
+        }
     }
 
     {

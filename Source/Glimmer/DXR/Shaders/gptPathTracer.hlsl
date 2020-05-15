@@ -5,7 +5,6 @@ enum RayType
 {
     RT_RADIANCE,
     RT_OCCLUSION,
-    RT_EMISSIVE,
 };
 
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
@@ -184,24 +183,6 @@ struct OcclusionPayload
     float3 attenuation;
     float3 origin;
     float3 direction;
-    uint   occluded;
-    uint   missed;
-
-    void init()
-    {
-        attenuation = 1.0f;
-        origin = 0.0f;
-        direction = 0.0f;
-        occluded = false;
-        missed = false;
-    }
-};
-
-struct EmissivePayload
-{
-    float3 attenuation;
-    float3 origin;
-    float3 direction;
     int instance_id;
     int face_id;
     float2 barycentrics;
@@ -348,18 +329,18 @@ bool TraceOcclusion(in RayDesc ray, out float3 direction, out float3 attenuation
     TraceRay(g_tlas, ray_flags, LM_SHADOW, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     attenuation = payload.attenuation;
     direction = payload.direction;
-    return payload.occluded;
+    return payload.instance_id != -1;
 }
 
-EmissivePayload TraceEmissive(in RayDesc ray)
+OcclusionPayload TraceEmissive(in RayDesc ray)
 {
-    EmissivePayload payload;
+    OcclusionPayload payload;
     payload.init();
     payload.origin = ray.Origin;
     payload.direction = ray.Direction;
 
     uint ray_flags = 0;
-    TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_EMISSIVE, 0, RT_EMISSIVE, ray, payload);
+    TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_OCCLUSION, 0, RT_OCCLUSION, ray, payload);
     return payload;
 }
 
@@ -453,7 +434,7 @@ float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint 
         ray.TMin = 0.0f;
         ray.TMax = Ld + 0.01f; // todo: improve offset
 
-        EmissivePayload epl = TraceEmissive(ray);
+        OcclusionPayload epl = TraceEmissive(ray);
         if (epl.instance_id == -1) { // hit transparent face
             epl.instance_id = ii;
             epl.face_id = fid;
@@ -559,35 +540,6 @@ void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 
 [shader("closesthit")]
 void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
-{
-    MaterialData md = FaceMaterial();
-    if (md.type == MT_TRANSPARENT) {
-        vertex_t V = GetInterpolatedVertex(attr.barycentrics);
-        float3 Nf = FaceNormal();
-        float3 N = GetNormal(V, md);
-        bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
-
-        payload.origin = HitPosition();
-        Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
-
-        if (!backface) {
-            payload.attenuation *= GetDiffuse(md, V.uv) * (1.0f - md.opacity);
-        }
-    }
-    else {
-        payload.occluded = true;
-    }
-}
-
-
-[shader("miss")]
-void MissEmissive(inout EmissivePayload payload : SV_RayPayload)
-{
-    payload.missed = true;
-}
-
-[shader("closesthit")]
-void ClosestHitEmissive(inout EmissivePayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     MaterialData md = FaceMaterial();
     if (md.type == MT_TRANSPARENT) {
