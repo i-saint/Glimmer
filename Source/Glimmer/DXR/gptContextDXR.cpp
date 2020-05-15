@@ -9,27 +9,35 @@ namespace gpt {
 
 enum class RayGenType : int
 {
-    Default,
+    Radiance,
+    PhotonPass1,
+    PhotonPass2,
 };
 
 static const WCHAR* kRayGenShaders[]{
     L"RayGenRadiance",
+    L"RayGenPhotonPass1",
+    L"RayGenPhotonPass2",
 };
 static const WCHAR* kMissShaders[]{
     L"MissRadiance",
     L"MissOcclusion" ,
+    L"MissPhoton" ,
 };
 static const WCHAR* kHitGroups[]{
     L"Radiance",
     L"Occlusion" ,
+    L"Photon" ,
 };
 static const WCHAR* kAnyHitShaders[]{
+    nullptr,
     nullptr,
     nullptr,
 };
 static const WCHAR* kClosestHitShaders[]{
     L"ClosestHitRadiance",
     L"ClosestHitOcclusion",
+    L"ClosestHitPhoton",
 };
 
 const D3D12_HEAP_PROPERTIES kDefaultHeapProps =
@@ -340,11 +348,19 @@ bool ContextDXR::initializeDevice()
             // textures
             { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount,       0, 5, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
+
+        // sampler
         D3D12_DESCRIPTOR_RANGE ranges3[] = {
             { D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
-        D3D12_ROOT_PARAMETER params[4]{};
+        // photon data
+        D3D12_DESCRIPTOR_RANGE ranges4[] = {
+            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 10, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 10, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+        };
+
+        D3D12_ROOT_PARAMETER params[5]{};
         auto append = [&params](const int i, auto& range) {
             params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             params[i].DescriptorTable.NumDescriptorRanges = _countof(range);
@@ -355,6 +371,7 @@ bool ContextDXR::initializeDevice()
         Append(1);
         Append(2);
         Append(3);
+        Append(4);
 #undef Append
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
@@ -750,7 +767,7 @@ void ContextDXR::dispatchRays()
         if (rt) {
             cl_rays->SetComputeRootDescriptorTable(0, rt->m_uav_frame_buffer.hgpu);
             cl_rays->SetComputeRootDescriptorTable(1, scene.m_srv_tlas.hgpu);
-            do_dispatch(rt->m_frame_buffer, RayGenType::Default);
+            do_dispatch(rt->m_frame_buffer, RayGenType::Radiance);
         }
     });
     gptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");

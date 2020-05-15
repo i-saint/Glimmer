@@ -5,6 +5,7 @@ enum RayType
 {
     RT_RADIANCE,
     RT_OCCLUSION,
+    RT_PHOTON,
 };
 
 RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
@@ -556,6 +557,247 @@ void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in Buil
         }
     }
     else {
+        payload.instance_id = InstanceID();
+        payload.face_id = PrimitiveIndex();
+        payload.barycentrics = attr.barycentrics;
+    }
+}
+
+
+
+// for photon pass
+RWTexture2D<float4>      g_photon_buffer      : register(u0, space10);
+StructuredBuffer<int>    g_refractive_iids[]  : register(t1, space10); // per-face
+StructuredBuffer<face_t> g_refractive_faces[] : register(t2, space10);
+
+struct PhotonPayload
+{
+    float3 attenuation;
+    float3 origin;
+    float3 direction;
+    int instance_id;
+    int face_id;
+    float2 barycentrics;
+    uint   missed;
+
+    void init()
+    {
+        attenuation = 1.0f;
+        origin = 0.0f;
+        direction = 0.0f;
+        instance_id = -1;
+        face_id = -1;
+        barycentrics = 0.0f;
+        missed = false;
+    }
+};
+
+struct photon_t
+{
+    float3 radiance;
+    float3 position;
+};
+
+vertex_t PickRandomVertex(int instance_id, inout uint seed)
+{
+    MeshData mesh = g_meshes[g_instances[instance_id].mesh_id];
+    int fid = (int)((float)mesh.face_count * rnd01(seed));
+    float2 bc = rnd_bc(seed);
+    return GetInterpolatedVertex(instance_id, fid, bc);
+}
+
+
+PhotonPayload TracePhoton(float3 pos, float3 dir, float range)
+{
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.0f;
+    ray.TMax = range;
+
+    PhotonPayload payload;
+    payload.init();
+    payload.origin = pos;
+    payload.direction = dir;
+
+    //uint ray_flags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    // todo: repeat this if !payload.occluded
+    uint ray_flags = 0;
+    TraceRay(g_tlas, ray_flags, LM_SHADOW, RT_PHOTON, 0, RT_PHOTON, ray, payload);
+    return payload;
+}
+
+photon_t GetLightPhoton(int light_index, inout uint seed)
+{
+    vertex_t V = PickRandomVertex(0, seed); // todo:
+
+    float weight = 0.0f;
+    float3 attenuation = 1.0f;
+    float3 position = 0.0f;
+    const LightData light = g_lights[light_index];
+    if (light.type == LT_DIRECTIONAL) {
+        // directional light
+        float3 P = V.position + (light.direction * 100.f); // todo: fix this
+        float3 L = light.direction;
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+
+        PhotonPayload ppl = TracePhoton(P, L, g_scene.camera.far_plane);
+        if (ppl.instance_id != -1) {
+            vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
+            float3 N = Vh.normal;
+
+            float nDl = dot(N, L);
+            weight = nDl;
+        }
+    }
+    else if (light.type == LT_POINT) {
+        // point light
+        float3 P = light.position;
+        float Ld = length(V.position - P);
+        float3 L = normalize(V.position - P);
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+        if (Ld <= light.range) {
+
+            PhotonPayload ppl = TracePhoton(P, L, light.range);
+            if (ppl.instance_id != -1) {
+                vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
+                float3 N = Vh.normal;
+
+                float nDl = dot(N, L);
+                //weight = nDl / (PI * Ld * Ld);
+
+                float a = (light.range - Ld) / light.range;
+                weight = nDl * (a * a);
+            }
+        }
+    }
+    else if (light.type == LT_SPOT) {
+        // spot light
+        float3 P = light.position;
+        float Ld = length(V.position - P);
+        float3 L = normalize(V.position - P);
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+        if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
+
+            PhotonPayload ppl = TracePhoton(P, L, light.range);
+            if (ppl.instance_id != -1) {
+                vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
+                float3 N = Vh.normal;
+
+                float nDl = dot(N, L);
+                //weight = nDl / (PI * Ld * Ld);
+
+                float a = (light.range - Ld) / light.range;
+                weight = nDl * (a * a);
+            }
+        }
+    }
+
+    photon_t r;
+    r.position = position;
+    r.radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
+    return r;
+}
+
+photon_t GetMeshLightPhoton(int meshlight_index, inout uint seed)
+{
+    float3 radiance = 0.0f;
+    float3 position = 0.0f;
+
+    int ii = g_meshlights[meshlight_index];
+    int mesh_id = g_instances[ii].mesh_id;
+    MeshData mesh = g_meshes[mesh_id];
+    MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+
+    vertex_t Vl = PickRandomVertex(ii, seed);
+
+    vertex_t V = PickRandomVertex(0, seed); // todo: pick random vertex
+
+    RayDesc ray;
+    ray.Origin = Vl.position;
+    ray.Direction = normalize(V.position - Vl.position);
+    ray.TMin = 0.0f;
+    ray.TMax = md.emissive_range + 0.01f; // todo: improve offset
+
+    PhotonPayload ppl;
+    ppl.init();
+    ppl.origin = ray.Origin;
+    ppl.direction = ray.Direction;
+
+    uint ray_flags = 0;
+    TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_OCCLUSION, 0, RT_OCCLUSION, ray, ppl);
+
+    if (ppl.instance_id != -1) {
+        vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
+        float Ld = length(Vh.position - Vl.position);
+        float nDl = dot(Vh.normal, ray.Direction);
+        float a = (md.emissive_range - Ld) / md.emissive_range;
+        float weight = max(nDl, 0.0f) * (a * a);
+
+        radiance = GetEmissive(md, Vh.uv) * ppl.attenuation * weight;
+        position = Vh.position;
+    }
+
+    photon_t r;
+    r.position = position;
+    r.radiance = radiance;
+    return r;
+}
+
+
+[shader("raygeneration")]
+void RayGenPhotonPass1()
+{
+    // just clear buffer
+    g_photon_buffer[DispatchRaysIndex().xy] = 0.0f;
+}
+
+[shader("raygeneration")]
+void RayGenPhotonPass2()
+{
+    uint si = DispatchRaysIndex().x;
+    uint seed = tea(si, FrameCount());
+    int samples_per_frame = SamplesPerFrame();
+    int max_trace_depth = MaxTraceDepth();
+
+    // receive lights
+    photon_t photon;
+    for (int li = 0; li < g_scene.light_count; ++li) {
+        photon = GetLightPhoton(li, seed);
+        // todo: store in g_photon_buffer
+    }
+    // receive mesh lights
+    for (int mli = 0; mli < g_scene.meshlight_count; ++mli) {
+        photon = GetMeshLightPhoton(mli, seed);
+        // todo store in g_photon_buffer
+    }
+}
+
+[shader("miss")]
+void MissPhoton(inout PhotonPayload payload : SV_RayPayload)
+{
+    payload.missed = true;
+}
+
+[shader("closesthit")]
+void ClosestHitPhoton(inout PhotonPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+{
+    MaterialData md = FaceMaterial();
+    if (md.type == MT_TRANSPARENT) {
+        vertex_t V = GetInterpolatedVertex(attr.barycentrics);
+        float3 Nf = FaceNormal();
+        float3 N = GetNormal(V, md);
+        bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+
+        payload.origin = HitPosition();
+        Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
+
+        if (!backface) {
+            payload.attenuation *= GetDiffuse(md, V.uv) * (1.0f - md.opacity);
+        }
+    }
+    else {
+        payload.origin = HitPosition();
         payload.instance_id = InstanceID();
         payload.face_id = PrimitiveIndex();
         payload.barycentrics = attr.barycentrics;
