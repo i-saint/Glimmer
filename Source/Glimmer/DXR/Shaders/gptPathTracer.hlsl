@@ -567,8 +567,7 @@ void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in Buil
 
 // for photon pass
 RWTexture2D<float4>      g_photon_buffer      : register(u0, space10);
-StructuredBuffer<int>    g_refractive_iids[]  : register(t1, space10); // per-face
-StructuredBuffer<face_t> g_refractive_faces[] : register(t2, space10);
+StructuredBuffer<face_t> g_refractive_faces[] : register(t1, space10);
 
 struct PhotonPayload
 {

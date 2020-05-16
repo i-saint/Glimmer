@@ -357,7 +357,7 @@ bool ContextDXR::initializeDevice()
         // photon data
         D3D12_DESCRIPTOR_RANGE ranges4[] = {
             { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 10, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 10, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 10, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         D3D12_ROOT_PARAMETER params[5]{};
@@ -526,6 +526,8 @@ void ContextDXR::prepare()
         pmesh->prepare();
     for (auto& pinst : m_mesh_instances)
         pinst->prepare();
+    for (auto& pscene : m_scenes)
+        pscene->prepare();
 }
 
 void ContextDXR::updateResources()

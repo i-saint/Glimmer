@@ -311,6 +311,7 @@ const CameraData& Camera::getData()
             aspect = (float)m_render_target->getWidth() / (float)m_render_target->getHeight();
         m_data.proj = mu::perspective(m_data.fov, aspect, m_data.near_plane, m_data.far_plane);
         m_data.view = mu::invert(mu::transform(m_data.position, m_data.rotation));
+        m_data.viewproj = m_data.view * m_data.proj;
     }
     return m_data;
 }

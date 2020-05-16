@@ -40,6 +40,7 @@ struct CameraData
 {
     float4x4 view;
     float4x4 proj;
+    float4x4 viewproj;
     float3 position;
     float fov;
     float4 rotation;

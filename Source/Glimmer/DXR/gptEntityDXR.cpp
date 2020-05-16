@@ -347,6 +347,8 @@ MeshInstanceDXR::~MeshInstanceDXR()
 void MeshInstanceDXR::prepare()
 {
     m_blas_updated = false;
+    if (m_mesh->isDirty())
+        markDirty(DirtyFlag::Mesh);
 }
 
 void MeshInstanceDXR::updateResources()
@@ -476,6 +478,72 @@ void MeshInstanceDXR::clearBLAS()
 }
 
 
+void SceneDXR::prepare()
+{
+    // refractive faces
+    bool update_refractive_faces = !m_buf_rfaces || isDirty(DirtyFlag::Instance);
+    if (!update_refractive_faces) {
+        for (auto& pinst : m_instances) {
+            if (pinst->isDirty(DirtyFlag::Mesh | DirtyFlag::Material)) {
+                update_refractive_faces = true;
+                break;
+            }
+        }
+    }
+    if (update_refractive_faces) {
+        m_refractive_faces.clear();
+        m_refractive_faces.reserve_discard(65536);
+
+        RawVector<bool> refractive_table;
+        face_t tface;
+
+        for (auto& pinst : m_instances) {
+            bool has_refractive_faces = false;
+            for (auto& pmat : pinst->m_materials) {
+                if (!pmat)
+                    break;
+                if (pmat->getType() == MaterialType::Transparent) {
+                    has_refractive_faces = true;
+                    break;
+                }
+            }
+            if (has_refractive_faces) {
+                tface.instance_id = pinst->getID();
+                size_t nfaces = pinst->m_mesh->m_indices.size() / 3;
+                auto* faces = (const int3*)pinst->m_mesh->m_indices.cdata();
+
+                auto& material_ids = pinst->m_mesh->m_material_ids;
+                if (!material_ids.empty()) {
+                    auto& materials = pinst->m_materials;
+                    size_t nmaterials = materials.size();
+                    refractive_table.resize_discard(nmaterials);
+                    for (size_t mi = 0; mi < nmaterials; ++mi) {
+                        auto& pmat = materials[mi];
+                        refractive_table[mi] = pmat && pmat->getType() == MaterialType::Transparent;
+                    }
+
+                    for (size_t fi = 0; fi < nfaces; ++fi) {
+                        int mid = material_ids[fi];
+                        if (refractive_table[mid]) {
+                            tface.indices = faces[fi];
+                            tface.material_index = mid;
+                            m_refractive_faces.push_back(tface);
+                        }
+                    }
+                }
+                else {
+                    tface.material_index = 0;
+                    for (size_t fi = 0; fi < nfaces; ++fi) {
+                        tface.indices = faces[fi];
+                        m_refractive_faces.push_back(tface);
+                    }
+                }
+
+            }
+        }
+    }
+}
+
 void SceneDXR::updateResources()
 {
     if (!m_enabled)
@@ -491,6 +559,8 @@ void SceneDXR::updateResources()
         m_srv_lights = desc_alloc.allocate();
         m_srv_meshlights = desc_alloc.allocate();
         m_cbv_scene = desc_alloc.allocate();
+
+        m_srv_rfaces = desc_alloc.allocate();
     }
 
     // light buffer
@@ -498,7 +568,7 @@ void SceneDXR::updateResources()
         size_t size = sizeof(LightData) * gptDXRMaxLightCount;
         m_buf_lights = ctx->createBuffer(size);
         m_buf_lights_staging = ctx->createUploadBuffer(size);
-        ctx->createBufferSRV(m_srv_lights, m_buf_lights, size);
+        ctx->createBufferSRV(m_srv_lights, m_buf_lights, sizeof(LightData));
     }
     ctx->updateBuffer(m_buf_lights, m_buf_lights_staging, sizeof(LightData), [this](LightData* mapped) {
         int count = 0;
@@ -516,7 +586,7 @@ void SceneDXR::updateResources()
         size_t size = sizeof(int) * gptDXRMaxMeshLightCount;
         m_buf_meshlights = ctx->createBuffer(size);
         m_buf_meshlights_staging = ctx->createUploadBuffer(size);
-        ctx->createBufferSRV(m_srv_meshlights, m_buf_meshlights, size);
+        ctx->createBufferSRV(m_srv_meshlights, m_buf_meshlights, sizeof(int));
     }
     ctx->updateBuffer(m_buf_meshlights, m_buf_meshlights_staging, sizeof(int), [this](int* mapped) {
         int count = 0;
@@ -543,6 +613,18 @@ void SceneDXR::updateResources()
     ctx->updateBuffer(m_buf_scene, m_buf_scene_staging, sizeof(SceneData), [this](SceneData* mapped) {
         *mapped = getData();
     });
+
+    // refractive face buffer
+    if (!m_refractive_faces.empty()) {
+        if (ctx->updateBuffer(m_buf_rfaces, m_buf_rfaces_staging, m_refractive_faces.size() * sizeof(face_t), [this](face_t* mapped) {
+            m_refractive_faces.copy_to(mapped);
+            }))
+        {
+            gptSetName(m_buf_rfaces, m_name + " Refractive Face Buffer");
+            ctx->createBufferSRV(m_srv_rfaces, m_buf_rfaces, sizeof(face_t));
+        }
+        m_refractive_faces.clear();
+    }
 }
 
 void SceneDXR::updateTLAS()

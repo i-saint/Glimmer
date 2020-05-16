@@ -156,6 +156,7 @@ inline void ContextDXR::writeBuffer(ID3D12Resource* dst, ID3D12Resource* staging
 template<class Body>
 inline bool ContextDXR::updateBuffer(ID3D12ResourcePtr& dst, ID3D12ResourcePtr& staging, size_t size, const Body& body)
 {
+    size = std::max<size_t>(size, 256);
     bool allocated = false;
     if (GetSize(dst) < size) {
         dst = createBuffer(size);

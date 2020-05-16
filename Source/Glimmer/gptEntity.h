@@ -84,6 +84,7 @@ struct CameraData
 {
     float4x4 view = float4x4::identity();
     float4x4 proj = float4x4::identity();
+    float4x4 viewproj = float4x4::identity();
     float3   position = float3::zero();
     float    fov = 60.0f;
     quatf    rotation = quatf::identity();
@@ -200,7 +201,8 @@ struct vertex_t
 struct face_t
 {
     int3 indices;
-    int material_index;
+    uint32_t material_index : 10;
+    uint32_t instance_id : 22;
 
     gptDefCompare(face_t);
 };
@@ -618,7 +620,7 @@ public:
 
     const MeshData& getData();
 
-protected:
+public:
     MeshData m_data;
     RawVector<int>    m_indices;
     RawVector<float3> m_points;
@@ -661,7 +663,7 @@ public:
     void exportBlendshapeWeights(float* dst);
     const InstanceData& getData();
 
-protected:
+public:
     bool m_enabled = true;
     InstanceData m_data;
     MeshPtr m_mesh;
