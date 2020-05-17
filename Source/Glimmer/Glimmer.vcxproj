@@ -46,14 +46,15 @@
       <ShaderModel>6.3</ShaderModel>
       <VariableName>g_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
-      <EntryPointName>
-      </EntryPointName>
+      <EntryPointName />
+      <AdditionalOptions>-enable-16bit-types</AdditionalOptions>
     </FxCompile>
     <FxCompile Include="DXR\Shaders\gptDeform.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>6.3</ShaderModel>
       <VariableName>g_%(Filename)</VariableName>
       <HeaderFileOutput>$(IntDir)\%(Filename).hlsl.h</HeaderFileOutput>
+      <AdditionalOptions>-enable-16bit-types</AdditionalOptions>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
