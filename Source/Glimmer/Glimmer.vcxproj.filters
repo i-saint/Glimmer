@@ -13,6 +13,9 @@
     <Filter Include="Window">
       <UniqueIdentifier>{365ed64a-d70a-439d-981e-07d1c1a8067c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Denoiser">
+      <UniqueIdentifier>{91c277d1-7159-44a2-9fbf-cccd841616ff}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Foundation\gptLog.cpp">
@@ -37,6 +40,9 @@
     </ClCompile>
     <ClCompile Include="Foundation\gptUtils.cpp">
       <Filter>Foundation</Filter>
+    </ClCompile>
+    <ClCompile Include="Denoiser\gptDenoiserOptiX.cpp">
+      <Filter>Denoiser</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -69,6 +75,7 @@
     <ClInclude Include="DXR\Shaders\gptMath.h">
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="gptDenoiser.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\gptDeform.hlsl">

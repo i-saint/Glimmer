@@ -12,6 +12,7 @@ enum LightType
 enum MaterialType
 {
     MT_OPAQUE,
+    MT_ALPHA_TO_COVERAGE,
     MT_TRANSPARENT,
     MT_TRANSLUCENT,
 };

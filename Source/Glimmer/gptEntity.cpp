@@ -778,6 +778,9 @@ MeshInstance::MeshInstance(IMesh* v)
 
 void MeshInstance::setEnabled(bool v)
 {
+    if (m_enabled == v)
+        return;
+
     m_enabled = v;
     markDirty(DirtyFlag::Transform);
 }
@@ -802,6 +805,9 @@ void MeshInstance::setMaterial(IMaterial* v, int slot)
 
 void MeshInstance::setTransform(const float4x4& v)
 {
+    if (m_data.transform == v)
+        return;
+
     m_data.transform = v;
     m_data.itransform = mu::invert(v);
     markDirty(DirtyFlag::Transform);
@@ -809,24 +815,20 @@ void MeshInstance::setTransform(const float4x4& v)
 
 void MeshInstance::setJointMatrices(const float4x4* v)
 {
-    if (m_mesh->hasJoints()) {
-        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_joint_matrices == MakeSpan(v, m_mesh->getJointCount()))
-            return;
+    if (!m_mesh->hasJoints() || m_joint_matrices == MakeSpan(v, m_mesh->getJointCount()))
+        return;
 
-        m_joint_matrices.assign(v, v + m_mesh->getJointCount());
-        markDirty(DirtyFlag::Joints);
-    }
+    m_joint_matrices.assign(v, v + m_mesh->getJointCount());
+    markDirty(DirtyFlag::Joints);
 }
 
 void MeshInstance::setBlendshapeWeights(const float* v)
 {
-    if (m_mesh->hasBlendshapes()) {
-        if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_blendshape_weights == MakeSpan(v, m_mesh->getBlendshapeCount()))
-            return;
+    if (!m_mesh->hasBlendshapes() || m_blendshape_weights == MakeSpan(v, m_mesh->getBlendshapeCount()))
+        return;
 
-        m_blendshape_weights.assign(v, v + m_mesh->getBlendshapeCount());
-        markDirty(DirtyFlag::Blendshape);
-    }
+    m_blendshape_weights.assign(v, v + m_mesh->getBlendshapeCount());
+    markDirty(DirtyFlag::Blendshape);
 }
 
 bool MeshInstance::isLightSource() const

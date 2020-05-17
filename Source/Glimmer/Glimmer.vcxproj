@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Denoiser\gptDenoiserOptiX.cpp" />
     <ClCompile Include="DXR\gptContextDXR.cpp" />
     <ClCompile Include="DXR\gptDeformerDXR.cpp" />
     <ClCompile Include="DXR\gptEntityDXR.cpp" />
@@ -32,6 +33,7 @@
     <ClInclude Include="DXR\Shaders\gptMath.h" />
     <ClInclude Include="Foundation\gptLog.h" />
     <ClInclude Include="Foundation\gptUtils.h" />
+    <ClInclude Include="gptDenoiser.h" />
     <ClInclude Include="gptEntity.h" />
     <ClInclude Include="gptInterface.h" />
     <ClInclude Include="gptSettings.h" />
@@ -82,7 +84,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir);$(SolutionDir)Glimmer;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)Glimmer;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include;C:\ProgramData\NVIDIA Corporation\OptiX SDK 7.0.0\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)_out\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)_tmp\$(Platform)_$(Configuration)\$(ProjectName)\</IntDir>
     <LibraryPath>$(LibraryPath)</LibraryPath>

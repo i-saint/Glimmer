@@ -32,6 +32,7 @@ enum class LightType : uint32_t
 enum class MaterialType : uint32_t
 {
     Opaque,
+    AlphaToCoverage,
     Transparent,
     Translucent,
 };
