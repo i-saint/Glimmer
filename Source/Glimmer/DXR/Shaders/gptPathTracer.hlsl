@@ -213,9 +213,8 @@ struct OcclusionPayload
 };
 
 
-void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, float2 offset)
+void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, uint2 si, float2 offset)
 {
-    uint2 si = DispatchRaysIndex().xy;
     uint2 sd = DispatchRaysDimensions().xy;
 
     float aspect_ratio = (float)sd.x / (float)sd.y;
@@ -244,16 +243,16 @@ void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, float
     //}
 }
 
-float3 GetCameraRayPosition(CameraData cam, float t)
+float3 GetCameraRayPosition(CameraData cam, uint2 si, float t)
 {
     float3 origin, direction;
-    GetCameraRay(origin, direction, cam, 0.0f);
+    GetCameraRay(origin, direction, cam, si, 0.0f);
     return origin + (direction * t);
 }
 
-void GetCameraRay(out float3 origin, out float3 direction, float2 offset = 0.0f)
+void GetCameraRay(out float3 origin, out float3 direction, uint2 si, float2 offset = 0.0f)
 {
-    GetCameraRay(origin, direction, g_scene.camera, offset);
+    GetCameraRay(origin, direction, g_scene.camera, si, offset);
 }
 
 void ShootRadianceRay(inout RadiancePayload payload)
@@ -269,14 +268,29 @@ void ShootRadianceRay(inout RadiancePayload payload)
     TraceRay(g_tlas, ray_flags, LM_VISIBLE, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
 }
 
+void GetScreenIndex(out uint2 si, out uint pi, out uint bi)
+{
+    uint2 dri = DispatchRaysIndex().xy;
+    uint2 drd = DispatchRaysDimensions().xy;
+    uint dri1d = drd.x * dri.y + dri.x;
+    pi = dri1d;
+    bi = dri1d;
+    si = dri;
+    //bi = WaveReadLaneFirst(dri1d);
+    //si = uint2(spi % drd.x, spi / drd.x);
+}
+
 [shader("raygeneration")]
 void RayGenRadiance()
 {
-    uint2 si = DispatchRaysIndex().xy;
-    uint2 sd = DispatchRaysDimensions().xy;
-    uint si1 = sd.x * si.y + si.x;
+    uint2 si;
+    uint bi, pi;
+    GetScreenIndex(si, pi, bi);
 
-    uint seed = tea(si.y * sd.x + si.x, FrameCount());
+    //uint seed = tea(si.y * sd.x + si.x, FrameCount());
+    uint seed = tea(bi, FrameCount());
+    //uint seed = FrameCount();
+
     int samples_per_frame = SamplesPerFrame();
     int max_trace_depth = MaxTraceDepth();
     float2 jitter = 0.0f;
@@ -287,7 +301,7 @@ void RayGenRadiance()
         RadiancePayload payload;
         payload.init();
         payload.seed = seed;
-        GetCameraRay(payload.origin, payload.direction, jitter);
+        GetCameraRay(payload.origin, payload.direction, si, jitter);
 
         for (int depth = 0; depth < max_trace_depth && !payload.done; ++depth) {
             payload.iteration = max_trace_depth * i + depth;
@@ -301,11 +315,11 @@ void RayGenRadiance()
     }
 
     float accum = float(samples_per_frame);
-    accum_t prev = g_accum_buffer[si1];
+    accum_t prev = g_accum_buffer[pi];
     float move_amount = 0;
     {
-        float3 pos = GetCameraRayPosition(g_scene.camera, t);
-        float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, prev.t);
+        float3 pos = GetCameraRayPosition(g_scene.camera, si, t);
+        float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, si, prev.t);
         move_amount = length(pos - pos_prev);
 
         const float attenuation = max(0.95f - (move_amount * 100.0f), 0.0f);
@@ -321,26 +335,27 @@ void RayGenRadiance()
         g_rw_depth_buffer[si] = 1.0f;
     }
 
-    //g_frame_buffer[si] = float4(linear_to_srgb(radiance / accum), 1.0f);
-    g_accum_buffer[si1] = prev;
+    g_accum_buffer[pi] = prev;
 }
 
 
 [shader("raygeneration")]
 void RayGenDisplay()
 {
-    int2 si = DispatchRaysIndex().xy;
-    int2 sd = DispatchRaysDimensions().xy;
-    int si1 = sd.x * si.y + si.x;
+    uint2 si;
+    uint bi, pi;
+    GetScreenIndex(si, pi, bi);
 
     float3 n = g_normal_buffer[si].xyz;
     float d = g_depth_buffer[si];
-    accum_t a = g_accum_buffer[si1];
+    accum_t a = g_accum_buffer[pi];
     float3 radiance = a.radiance;
 
+    si = DispatchRaysIndex().xy;
     g_frame_buffer[si] = float4(linear_to_srgb(radiance / a.accum), 1.0f);
     //g_frame_buffer[si] = float4(n * 0.5f + 0.5f, 1.0f);
     //g_frame_buffer[si] = float4(d.xxx, 1.0f);
+    //g_frame_buffer[si] = (float)WaveGetLaneIndex() / (float)WaveGetLaneCount();
 }
 
 
