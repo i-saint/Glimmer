@@ -62,7 +62,7 @@ struct LightData
     float spot_angle; // radian
     float disperse;
     int mesh_instance_id; // for mesh light
-    int sample_count;
+    int pad;
 };
 
 struct MaterialData

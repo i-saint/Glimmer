@@ -335,7 +335,6 @@ public:
     virtual void setIntensity(float v) = 0;
     virtual void setDisperse(float v) = 0;
     virtual void setMesh(IMeshInstance* v) = 0;
-    virtual void setSampleCount(int v) = 0;
 
     virtual bool      isEnabled() const = 0;
     virtual LightType getType() const = 0;
@@ -347,7 +346,6 @@ public:
     virtual float     getIntensity() const = 0;
     virtual float     getDisperse() const = 0;
     virtual IMeshInstance* getMesh() const = 0;
-    virtual int       getSampleCount() const = 0;
 };
 using ILightPtr = ref_ptr<ILight>;
 

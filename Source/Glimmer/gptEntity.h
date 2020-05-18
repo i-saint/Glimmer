@@ -106,7 +106,7 @@ struct LightData
     float spot_angle = 0.0f; // radian
     float disperse = 0.1f;
     int mesh_instance_id = -1; // for mesh light
-    int sample_count = 1;
+    int pad{};
 
     gptDefCompare(LightData);
 };
@@ -346,7 +346,7 @@ private:
     bool getFlag(GlobalFlag f) const;
 
     uint32_t m_flags = 0;
-    int m_samples_per_frame = 16;
+    int m_samples_per_frame = 1;
     int m_max_trace_depth = 4;
 };
 
@@ -487,7 +487,6 @@ public:
     void setIntensity(float v) override;
     void setDisperse(float v) override;
     void setMesh(IMeshInstance* v) override;
-    void setSampleCount(int v) override;
 
     bool      isEnabled() const override;
     LightType getType() const override;
@@ -499,7 +498,6 @@ public:
     float     getIntensity() const override;
     float     getDisperse() const override;
     IMeshInstance* getMesh() const override;
-    int       getSampleCount() const override;
 
     const LightData& getData();
 

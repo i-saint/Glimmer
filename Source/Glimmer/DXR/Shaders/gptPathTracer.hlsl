@@ -452,113 +452,108 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
     float3 radiance = 0.0f;
 
     const LightData light = g_lights[light_index];
+    if (light.type == LT_DIRECTIONAL) {
+        // directional light
+        float3 L = -light.direction;
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
 
-    // disable sample count for now because even if 1 it has an unignorable slowdown
-    //for (int si = 0; si < light.sample_count; ++si)
-    {
-        if (light.type == LT_DIRECTIONAL) {
-            // directional light
-            float3 L = -light.direction;
-            L = normalize(L + (rnd_dir(seed) * light.disperse));
+        RayDesc ray;
+        ray.Origin = P;
+        ray.Direction = L;
+        ray.TMin = 0.0f;
+        ray.TMax = g_scene.camera.far_plane;
 
+        float3 attenuation;
+        if (!TraceOcclusion(ray, L, attenuation)) {
+            float nDl = dot(N, L);
+            float weight = nDl;
+            radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
+        }
+    }
+    else if (light.type == LT_POINT) {
+        // point light
+        float3 L = normalize(light.position - P);
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+        float Ld = length(light.position - P);
+        if (Ld <= light.range) {
             RayDesc ray;
             ray.Origin = P;
             ray.Direction = L;
             ray.TMin = 0.0f;
-            ray.TMax = g_scene.camera.far_plane;
+            ray.TMax = Ld;
 
             float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
-                float weight = nDl;
+                //weight = nDl / (PI * Ld * Ld);
+
+                float a = (light.range - Ld) / light.range;
+                float weight = nDl * (a * a);
                 radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
             }
         }
-        else if (light.type == LT_POINT) {
-            // point light
-            float3 L = normalize(light.position - P);
-            L = normalize(L + (rnd_dir(seed) * light.disperse));
-            float Ld = length(light.position - P);
-            if (Ld <= light.range) {
-                RayDesc ray;
-                ray.Origin = P;
-                ray.Direction = L;
-                ray.TMin = 0.0f;
-                ray.TMax = Ld;
-
-                float3 attenuation;
-                if (!TraceOcclusion(ray, L, attenuation)) {
-                    float nDl = dot(N, L);
-                    //weight = nDl / (PI * Ld * Ld);
-
-                    float a = (light.range - Ld) / light.range;
-                    float weight = nDl * (a * a);
-                    radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
-                }
-            }
-        }
-        else if (light.type == LT_SPOT) {
-            // spot light
-            float3 L = normalize(light.position - P);
-            L = normalize(L + (rnd_dir(seed) * light.disperse));
-            float Ld = length(light.position - P);
-            if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
-                RayDesc ray;
-                ray.Origin = P;
-                ray.Direction = L;
-                ray.TMin = 0.0f;
-                ray.TMax = Ld;
-
-                float3 attenuation;
-                if (!TraceOcclusion(ray, L, attenuation)) {
-                    float nDl = dot(N, L);
-                    //weight = nDl / (PI * Ld * Ld);
-
-                    float a = (light.range - Ld) / light.range;
-                    float weight = nDl * (a * a);
-                    radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
-                }
-            }
-        }
-        else if (light.type == LT_MESH) {
-            // mesh light
-            int ii = light.mesh_instance_id;
-            if (ii == InstanceID())
-                return 0.0f; // already accumerated in ClosestHitRadiance()
-
-            int mesh_id = g_instances[ii].mesh_id;
-            MeshData mesh = g_meshes[mesh_id];
-            MaterialData md = g_materials[g_instances[ii].material_ids[0]];
-
-            int fid = rnd_i(seed, mesh.face_count);
-            float2 bc = rnd_bc(seed);
-            float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
-            float3 L = normalize(fpos - P);
-            float Ld = length(fpos - P);
-            if (Ld >= light.range)
-                return 0.0f;
-
+    }
+    else if (light.type == LT_SPOT) {
+        // spot light
+        float3 L = normalize(light.position - P);
+        L = normalize(L + (rnd_dir(seed) * light.disperse));
+        float Ld = length(light.position - P);
+        if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
             RayDesc ray;
             ray.Origin = P;
             ray.Direction = L;
             ray.TMin = 0.0f;
-            ray.TMax = Ld + 0.01f; // todo: improve offset
+            ray.TMax = Ld;
 
-            OcclusionPayload epl = TraceEmissive(ray);
-            if (epl.instance_id == -1) { // hit transparent face
-                epl.instance_id = ii;
-                epl.face_id = fid;
-                epl.barycentrics = bc;
-            }
-            if (epl.instance_id == ii) {
-                vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
-                float Ld = length(hv.position - P);
-                float nDl = dot(N, ray.Direction);
+            float3 attenuation;
+            if (!TraceOcclusion(ray, L, attenuation)) {
+                float nDl = dot(N, L);
+                //weight = nDl / (PI * Ld * Ld);
+
                 float a = (light.range - Ld) / light.range;
-                float weight = max(nDl, 0.0f) * (a * a);
-
-                radiance += GetEmissive(md, hv.uv) * epl.attenuation * (light.intensity * weight);
+                float weight = nDl * (a * a);
+                radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
             }
+        }
+    }
+    else if (light.type == LT_MESH) {
+        // mesh light
+        int ii = light.mesh_instance_id;
+        if (ii == InstanceID())
+            return 0.0f; // already accumerated in ClosestHitRadiance()
+
+        int mesh_id = g_instances[ii].mesh_id;
+        MeshData mesh = g_meshes[mesh_id];
+        MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+
+        int fid = rnd_i(seed, mesh.face_count);
+        float2 bc = rnd_bc(seed);
+        float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
+        float3 L = normalize(fpos - P);
+        float Ld = length(fpos - P);
+        if (Ld >= light.range)
+            return 0.0f;
+
+        RayDesc ray;
+        ray.Origin = P;
+        ray.Direction = L;
+        ray.TMin = 0.0f;
+        ray.TMax = Ld + 0.01f; // todo: improve offset
+
+        OcclusionPayload epl = TraceEmissive(ray);
+        if (epl.instance_id == -1) { // hit transparent face
+            epl.instance_id = ii;
+            epl.face_id = fid;
+            epl.barycentrics = bc;
+        }
+        if (epl.instance_id == ii) {
+            vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
+            float Ld = length(hv.position - P);
+            float nDl = dot(N, ray.Direction);
+            float a = (light.range - Ld) / light.range;
+            float weight = max(nDl, 0.0f) * (a * a);
+
+            radiance += GetEmissive(md, hv.uv) * epl.attenuation * (light.intensity * weight);
         }
     }
     return radiance;

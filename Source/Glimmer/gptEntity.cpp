@@ -379,12 +379,6 @@ void Light::setMesh(IMeshInstance* v)
     markDirty(DirtyFlag::Light);
 }
 
-void Light::setSampleCount(int v)
-{
-    m_data.sample_count = v;
-    markDirty(DirtyFlag::Light);
-}
-
 bool Light::isEnabled() const { return m_enabled; }
 LightType Light::getType() const { return m_data.type; }
 float3 Light::getPosition() const { return m_data.position; }
@@ -395,7 +389,6 @@ float3 Light::getColor() const { return m_data.color; }
 float Light::getIntensity() const { return m_data.intensity; }
 float Light::getDisperse() const { return m_data.disperse; }
 IMeshInstance* Light::getMesh() const { return m_mesh; }
-int Light::getSampleCount() const { return m_data.sample_count; }
 
 const LightData& Light::getData()
 {
