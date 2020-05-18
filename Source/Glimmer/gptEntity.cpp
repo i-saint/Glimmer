@@ -179,12 +179,6 @@ void Material::setEmissive(float3 v)
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setEmissiveRange(float v)
-{
-    m_data.emissive_range = v;
-    markDirty(DirtyFlag::Material);
-}
-
 void Material::setRefractionIndex(float v)
 {
     m_data.refraction_index = v;
@@ -242,7 +236,6 @@ MaterialType Material::getType() const { return m_data.type; }
 float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
-float Material::getEmissiveRange() const { return m_data.emissive_range; }
 int Material::getEmissiveSampleCount() const { return m_data.emissive_sample_count; }
 float Material::getRefractionIndex() const { return m_data.refraction_index; }
 float Material::getOpacity() const { return m_data.opacity; }

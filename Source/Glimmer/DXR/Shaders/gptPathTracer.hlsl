@@ -76,6 +76,11 @@ float3 HitPosition()
     return WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
 }
 
+float3 InstancePosition(int instance_id)
+{
+    return g_instances[instance_id].transform[3].xyz;
+}
+
 vertex_t GetInterpolatedVertex(int instance_id, int face_id, float2 barycentric)
 {
     int mesh_id = g_instances[instance_id].mesh_id;
@@ -344,6 +349,72 @@ OcclusionPayload TraceEmissive(in RayDesc ray)
     return payload;
 }
 
+float GetLightContribution(float3 P, float3 N, int light_index)
+{
+    const LightData light = g_lights[light_index];
+    if (light.type == LT_DIRECTIONAL) {
+        // directional light
+        return light.intensity;
+    }
+    else if (light.type == LT_POINT) {
+        // point light
+        float3 L = normalize(light.position - P);
+        float Ld = length(light.position - P);
+        if (Ld <= light.range) {
+            float a = (light.range - Ld) / light.range;
+            float weight = (a * a);
+            return light.intensity * weight;
+        }
+    }
+    else if (light.type == LT_SPOT) {
+        // spot light
+        float3 L = normalize(light.position - P);
+        float Ld = length(light.position - P);
+        if (Ld <= light.range && angle_between(-L, light.direction) * 2.0f <= light.spot_angle) {
+
+            float a = (light.range - Ld) / light.range;
+            float weight = (a * a);
+            return light.intensity * weight;
+        }
+    }
+    else if (light.type == LT_MESH) {
+        // mesh light
+        int ii = light.mesh_instance_id;
+        if (ii == InstanceID())
+            return 0.0f; // already accumerated in ClosestHitRadiance()
+
+        float3 Lpos = InstancePosition(ii);
+        float Ld = length(Lpos - P);
+        float a = (light.range - Ld) / light.range;
+        float weight = (a * a);
+        return light.intensity * weight;
+    }
+
+    return 0.0f;
+}
+
+void PickLight(float3 P, float3 N, inout uint seed, out int light_index, out float contribution)
+{
+    light_index = -1;
+    contribution = 0.0f;
+
+    int li;
+    float total_contribution = 0.0f;
+    for (li = 0; li < g_scene.light_count; ++li)
+        total_contribution += GetLightContribution(P, N, li);
+
+    float p = rnd01(seed) * total_contribution;
+    for (li = 0; li < g_scene.light_count; ++li) {
+        float c = GetLightContribution(P, N, li);
+        p -= c;
+        if (p <= 0.0f) {
+            light_index = li;
+            contribution = c / total_contribution;
+            break;
+        }
+    }
+}
+
 float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
 {
     float3 radiance = 0.0f;
@@ -414,6 +485,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
         }
     }
     else if (light.type == LT_MESH) {
+        // mesh light
         int ii = light.mesh_instance_id;
         if (ii == InstanceID())
             return 0.0f; // already accumerated in ClosestHitRadiance()
@@ -423,12 +495,12 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
         MaterialData md = g_materials[g_instances[ii].material_ids[0]];
 
         for (int esi = 0; esi < md.emissive_sample_count; ++esi) {
-            int fid = (int)((float)mesh.face_count * rnd01(seed));
+            int fid = rnd_i(seed, mesh.face_count);
             float2 bc = rnd_bc(seed);
             float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
             float3 L = normalize(fpos - P);
             float Ld = length(fpos - P);
-            if (Ld >= md.emissive_range)
+            if (Ld >= light.range)
                 continue;
 
             RayDesc ray;
@@ -447,7 +519,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
                 vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
                 float Ld = length(hv.position - P);
                 float nDl = dot(N, ray.Direction);
-                float a = (md.emissive_range - Ld) / md.emissive_range;
+                float a = (light.range - Ld) / light.range;
                 float weight = max(nDl, 0.0f) * (a * a);
 
                 radiance += GetEmissive(md, hv.uv) * epl.attenuation * (light.intensity * weight);
@@ -523,9 +595,18 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     }
 
     float3 radiance = 0.0f;
-    for (int li = 0; li < g_scene.light_count; ++li) {
-        radiance += GetLightRadiance(P, N, li, seed);
-    }
+
+    //// accumerate all light
+    //for (int li = 0; li < g_scene.light_count; ++li) {
+    //    radiance += GetLightRadiance(P, N, li, seed);
+    //}
+
+    // stochastic light culling
+    int light_index;
+    float light_contribution;
+    PickLight(P, N, seed, light_index, light_contribution);
+    if (light_index != -1)
+        radiance += GetLightRadiance(P, N, light_index, seed) / light_contribution;
 
     payload.radiance += radiance * md.opacity;
     payload.seed = seed;
@@ -599,7 +680,7 @@ struct photon_t
 vertex_t PickRandomVertex(int instance_id, inout uint seed)
 {
     MeshData mesh = g_meshes[g_instances[instance_id].mesh_id];
-    int fid = (int)((float)mesh.face_count * rnd01(seed));
+    int fid = rnd_i(seed, mesh.face_count);
     float2 bc = rnd_bc(seed);
     return GetInterpolatedVertex(instance_id, fid, bc);
 }
@@ -707,7 +788,7 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
         ray.Origin = Vl.position;
         ray.Direction = normalize(V.position - Vl.position);
         ray.TMin = 0.0f;
-        ray.TMax = md.emissive_range + 0.01f; // todo: improve offset
+        ray.TMax = light.range + 0.01f; // todo: improve offset
 
         PhotonPayload ppl;
         ppl.init();
@@ -721,7 +802,7 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
             vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
             float Ld = length(Vh.position - Vl.position);
             float nDl = dot(Vh.normal, ray.Direction);
-            float a = (md.emissive_range - Ld) / md.emissive_range;
+            float a = (light.range - Ld) / light.range;
             float weight = max(nDl, 0.0f) * (a * a);
 
             radiance = GetEmissive(md, Vh.uv) * ppl.attenuation * (light.intensity * weight);

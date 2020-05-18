@@ -74,6 +74,11 @@ inline float rnd55(inout uint prev)
 {
     return rnd01(prev) - 0.5f;
 }
+inline int rnd_i(inout uint prev, int max)
+{
+    return int(rnd01(prev) * float(max));
+}
+
 inline float3 rnd_dir(inout uint prev)
 {
     return normalize(float3(rnd55(prev), rnd55(prev), rnd55(prev)));

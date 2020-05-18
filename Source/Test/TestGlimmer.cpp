@@ -144,6 +144,7 @@ bool GlimmerTest::init()
 {
     gptGetGlobals()->enableTimestamp(true);
     gptGetGlobals()->enableStrictUpdateCheck(true);
+    gptGetGlobals()->setSamplesPerFrame(8);
 
     m_ctx = gptCreateContext(gpt::DeviceType::DXR);
     if (!m_ctx) {
@@ -232,7 +233,6 @@ bool GlimmerTest::init()
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     //m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
     m_mat_emissive->setEmissiveMap(m_tex_gradient);
-    m_mat_emissive->setEmissiveRange(10.0f);
     //m_mat_emissive->setEmissiveSampleCount(4);
 
     // camera
@@ -270,6 +270,7 @@ bool GlimmerTest::init()
     {
         m_mesh_light->setType(gpt::LightType::Mesh);
         m_mesh_light->setIntensity(2.0f);
+        m_mesh_light->setRange(10.0f);
     }
 
     // create meshes

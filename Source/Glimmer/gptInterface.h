@@ -299,7 +299,6 @@ public:
     virtual void setDiffuse(float3 v) = 0;
     virtual void setRoughness(float v) = 0;
     virtual void setEmissive(float3 v) = 0;
-    virtual void setEmissiveRange(float v) = 0;
     virtual void setEmissiveSampleCount(int v) = 0;
     virtual void setOpacity(float v) = 0;
     virtual void setRefractionIndex(float v) = 0;
@@ -313,7 +312,6 @@ public:
     virtual float3       getDiffuse() const = 0;
     virtual float        getRoughness() const = 0;
     virtual float3       getEmissive() const = 0;
-    virtual float        getEmissiveRange() const = 0;
     virtual int          getEmissiveSampleCount() const = 0;
     virtual float        getOpacity() const = 0;
     virtual float        getRefractionIndex() const = 0;
