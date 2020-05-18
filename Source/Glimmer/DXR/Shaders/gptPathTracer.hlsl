@@ -12,7 +12,6 @@ RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
 RWStructuredBuffer<accum_t>     g_accum_buffer  : register(u1, space0);
 RaytracingAccelerationStructure g_tlas          : register(t0, space0);
 StructuredBuffer<LightData>     g_lights        : register(t1, space0);
-StructuredBuffer<int>           g_meshlights    : register(t2, space0);
 ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
 
 StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
@@ -347,8 +346,8 @@ OcclusionPayload TraceEmissive(in RayDesc ray)
 
 float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
 {
-    float weight = 0.0f;
-    float3 attenuation = 1.0f;
+    float3 radiance = 0.0f;
+
     const LightData light = g_lights[light_index];
     if (light.type == LT_DIRECTIONAL) {
         // directional light
@@ -360,9 +359,12 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
         ray.Direction = L;
         ray.TMin = 0.0f;
         ray.TMax = g_scene.camera.far_plane;
+
+        float3 attenuation;
         if (!TraceOcclusion(ray, L, attenuation)) {
             float nDl = dot(N, L);
-            weight = nDl;
+            float weight = nDl;
+            radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
         }
     }
     else if (light.type == LT_POINT) {
@@ -376,12 +378,15 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             ray.Direction = L;
             ray.TMin = 0.0f;
             ray.TMax = Ld;
+
+            float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
                 //weight = nDl / (PI * Ld * Ld);
 
                 float a = (light.range - Ld) / light.range;
-                weight = nDl * (a * a);
+                float weight = nDl * (a * a);
+                radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
             }
         }
     }
@@ -396,62 +401,61 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             ray.Direction = L;
             ray.TMin = 0.0f;
             ray.TMax = Ld;
+
+            float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
                 //weight = nDl / (PI * Ld * Ld);
 
                 float a = (light.range - Ld) / light.range;
-                weight = nDl * (a * a);
+                float weight = nDl * (a * a);
+                radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
             }
         }
     }
+    else if (light.type == LT_MESH) {
+        int ii = light.mesh_instance_id;
+        if (ii == InstanceID())
+            return 0.0f; // already accumerated in ClosestHitRadiance()
 
-    return (light.color * light.intensity) * attenuation * max(weight, 0.0f);
-}
+        int mesh_id = g_instances[ii].mesh_id;
+        MeshData mesh = g_meshes[mesh_id];
+        MaterialData md = g_materials[g_instances[ii].material_ids[0]];
 
-float3 GetMeshLightRadiance(float3 P, float3 N, int meshlight_index, inout uint seed)
-{
-    int ii = g_meshlights[meshlight_index];
-    if (ii == InstanceID())
-        return 0.0f;
+        for (int esi = 0; esi < md.emissive_sample_count; ++esi) {
+            int fid = (int)((float)mesh.face_count * rnd01(seed));
+            float2 bc = rnd_bc(seed);
+            float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
+            float3 L = normalize(fpos - P);
+            float Ld = length(fpos - P);
+            if (Ld >= md.emissive_range)
+                continue;
 
-    int mesh_id = g_instances[ii].mesh_id;
-    MeshData mesh = g_meshes[mesh_id];
-    MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+            RayDesc ray;
+            ray.Origin = P;
+            ray.Direction = L;
+            ray.TMin = 0.0f;
+            ray.TMax = Ld + 0.01f; // todo: improve offset
 
-    float3 radiance = 0.0f;
-    for (int esi = 0; esi < md.emissive_sample_count; ++esi) {
-        int fid = (int)((float)mesh.face_count * rnd01(seed));
-        float2 bc = rnd_bc(seed);
-        float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
-        float3 L = normalize(fpos - P);
-        float Ld = length(fpos - P);
-        if (Ld >= md.emissive_range)
-            continue;
+            OcclusionPayload epl = TraceEmissive(ray);
+            if (epl.instance_id == -1) { // hit transparent face
+                epl.instance_id = ii;
+                epl.face_id = fid;
+                epl.barycentrics = bc;
+            }
+            if (epl.instance_id == ii) {
+                vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
+                float Ld = length(hv.position - P);
+                float nDl = dot(N, ray.Direction);
+                float a = (md.emissive_range - Ld) / md.emissive_range;
+                float weight = max(nDl, 0.0f) * (a * a);
 
-        RayDesc ray;
-        ray.Origin = P;
-        ray.Direction = L;
-        ray.TMin = 0.0f;
-        ray.TMax = Ld + 0.01f; // todo: improve offset
-
-        OcclusionPayload epl = TraceEmissive(ray);
-        if (epl.instance_id == -1) { // hit transparent face
-            epl.instance_id = ii;
-            epl.face_id = fid;
-            epl.barycentrics = bc;
+                radiance += GetEmissive(md, hv.uv) * epl.attenuation * (light.intensity * weight);
+            }
         }
-        if (epl.instance_id == ii) {
-            vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
-            float Ld = length(hv.position - P);
-            float nDl = dot(N, ray.Direction);
-            float a = (md.emissive_range - Ld) / md.emissive_range;
-            float weight = max(nDl, 0.0f) * (a * a);
-
-            radiance += GetEmissive(md, hv.uv) * epl.attenuation * weight;
-        }
+        radiance /= md.emissive_sample_count;
     }
-    radiance /= md.emissive_sample_count;
+
     return radiance;
 }
 
@@ -519,13 +523,8 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     }
 
     float3 radiance = 0.0f;
-    // receive lights
     for (int li = 0; li < g_scene.light_count; ++li) {
         radiance += GetLightRadiance(P, N, li, seed);
-    }
-    // receive mesh lights
-    for (int mli = 0; mli < g_scene.meshlight_count; ++mli) {
-        radiance += GetMeshLightRadiance(P, N, mli, seed);
     }
 
     payload.radiance += radiance * md.opacity;
@@ -630,9 +629,9 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
 {
     vertex_t V = PickRandomVertex(0, seed); // todo:
 
-    float weight = 0.0f;
-    float3 attenuation = 1.0f;
     float3 position = 0.0f;
+    float3 radiance = 0.0f;
+
     const LightData light = g_lights[light_index];
     if (light.type == LT_DIRECTIONAL) {
         // directional light
@@ -646,7 +645,8 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
             float3 N = Vh.normal;
 
             float nDl = dot(N, L);
-            weight = nDl;
+            float weight = nDl;
+            radiance = (light.color * light.intensity) * ppl.attenuation * max(weight, 0.0f);
         }
     }
     else if (light.type == LT_POINT) {
@@ -666,7 +666,8 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
                 //weight = nDl / (PI * Ld * Ld);
 
                 float a = (light.range - Ld) / light.range;
-                weight = nDl * (a * a);
+                float weight = nDl * (a * a);
+                radiance = (light.color * light.intensity) * ppl.attenuation * max(weight, 0.0f);
             }
         }
     }
@@ -687,54 +688,45 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
                 //weight = nDl / (PI * Ld * Ld);
 
                 float a = (light.range - Ld) / light.range;
-                weight = nDl * (a * a);
+                float weight = nDl * (a * a);
+                radiance = (light.color * light.intensity) * ppl.attenuation * max(weight, 0.0f);
             }
         }
     }
+    else if (light.type == LT_MESH) {
+        int ii = light.mesh_instance_id;
+        int mesh_id = g_instances[ii].mesh_id;
+        MeshData mesh = g_meshes[mesh_id];
+        MaterialData md = g_materials[g_instances[ii].material_ids[0]];
 
-    photon_t r;
-    r.position = position;
-    r.radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
-    return r;
-}
+        vertex_t Vl = PickRandomVertex(ii, seed);
 
-photon_t GetMeshLightPhoton(int meshlight_index, inout uint seed)
-{
-    float3 radiance = 0.0f;
-    float3 position = 0.0f;
+        vertex_t V = PickRandomVertex(0, seed); // todo: pick random vertex
 
-    int ii = g_meshlights[meshlight_index];
-    int mesh_id = g_instances[ii].mesh_id;
-    MeshData mesh = g_meshes[mesh_id];
-    MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+        RayDesc ray;
+        ray.Origin = Vl.position;
+        ray.Direction = normalize(V.position - Vl.position);
+        ray.TMin = 0.0f;
+        ray.TMax = md.emissive_range + 0.01f; // todo: improve offset
 
-    vertex_t Vl = PickRandomVertex(ii, seed);
+        PhotonPayload ppl;
+        ppl.init();
+        ppl.origin = ray.Origin;
+        ppl.direction = ray.Direction;
 
-    vertex_t V = PickRandomVertex(0, seed); // todo: pick random vertex
+        uint ray_flags = 0;
+        TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_OCCLUSION, 0, RT_OCCLUSION, ray, ppl);
 
-    RayDesc ray;
-    ray.Origin = Vl.position;
-    ray.Direction = normalize(V.position - Vl.position);
-    ray.TMin = 0.0f;
-    ray.TMax = md.emissive_range + 0.01f; // todo: improve offset
+        if (ppl.instance_id != -1) {
+            vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
+            float Ld = length(Vh.position - Vl.position);
+            float nDl = dot(Vh.normal, ray.Direction);
+            float a = (md.emissive_range - Ld) / md.emissive_range;
+            float weight = max(nDl, 0.0f) * (a * a);
 
-    PhotonPayload ppl;
-    ppl.init();
-    ppl.origin = ray.Origin;
-    ppl.direction = ray.Direction;
-
-    uint ray_flags = 0;
-    TraceRay(g_tlas, ray_flags, LM_SHADOW | LM_LIGHT_SOURCE, RT_OCCLUSION, 0, RT_OCCLUSION, ray, ppl);
-
-    if (ppl.instance_id != -1) {
-        vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
-        float Ld = length(Vh.position - Vl.position);
-        float nDl = dot(Vh.normal, ray.Direction);
-        float a = (md.emissive_range - Ld) / md.emissive_range;
-        float weight = max(nDl, 0.0f) * (a * a);
-
-        radiance = GetEmissive(md, Vh.uv) * ppl.attenuation * weight;
-        position = Vh.position;
+            radiance = GetEmissive(md, Vh.uv) * ppl.attenuation * (light.intensity * weight);
+            position = Vh.position;
+        }
     }
 
     photon_t r;
@@ -764,11 +756,6 @@ void RayGenPhotonPass2()
     for (int li = 0; li < g_scene.light_count; ++li) {
         photon = GetLightPhoton(li, seed);
         // todo: store in g_photon_buffer
-    }
-    // receive mesh lights
-    for (int mli = 0; mli < g_scene.meshlight_count; ++mli) {
-        photon = GetMeshLightPhoton(mli, seed);
-        // todo store in g_photon_buffer
     }
 }
 

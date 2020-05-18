@@ -105,7 +105,8 @@ struct LightData
     float intensity = 1.0f;
     float spot_angle = 0.0f; // radian
     float disperse = 0.1f;
-    float2 pad{};
+    int mesh_instance_id = -1; // for mesh light
+    float pad{};
 
     gptDefCompare(LightData);
 };
@@ -474,11 +475,14 @@ protected:
 gptDefRefPtr(Camera);
 gptDefBaseT(Camera, ICamera)
 
+class MeshInstance;
+gptDefRefPtr(MeshInstance);
 
 class Light : public EntityBase<ILight>
 {
 public:
     Light();
+    ~Light();
     void setEnabled(bool v) override;
     void setType(LightType v) override;
     void setPosition(float3 v) override;
@@ -488,6 +492,7 @@ public:
     void setColor(float3 v) override;
     void setIntensity(float v) override;
     void setDisperse(float v) override;
+    void setMesh(IMeshInstance* v) override;
 
     bool      isEnabled() const override;
     LightType getType() const override;
@@ -498,12 +503,14 @@ public:
     float3    getColor() const override;
     float     getIntensity() const override;
     float     getDisperse() const override;
+    IMeshInstance* getMesh() const override;
 
     const LightData& getData();
 
 protected:
     bool m_enabled = true;
     LightData m_data;
+    MeshInstancePtr m_mesh;
 };
 gptDefRefPtr(Light);
 gptDefBaseT(Light, ILight)
@@ -658,6 +665,7 @@ public:
     Span<float4x4>  getJointMatrices() const override;
     Span<float>     getBlendshapeWeights() const override;
 
+    void addLightSourceCount(bool v);
     bool isLightSource() const;
     void exportJointMatrices(float4x4* dst);
     void exportBlendshapeWeights(float* dst);
@@ -671,6 +679,7 @@ public:
     RawVector<float4x4> m_joint_matrices;
     RawVector<float> m_blendshape_weights;
 
+    int m_light_source_count = 0;
     uint32_t m_instance_flags = (uint32_t)InstanceFlag::Default;
 };
 gptDefRefPtr(MeshInstance);

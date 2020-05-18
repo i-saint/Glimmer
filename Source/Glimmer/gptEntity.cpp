@@ -322,6 +322,12 @@ Light::Light()
     markDirty(DirtyFlag::Light);
 }
 
+Light::~Light()
+{
+    if (m_mesh)
+        m_mesh->addLightSourceCount(false);
+}
+
 void Light::setEnabled(bool v)
 {
     m_enabled = v;
@@ -376,6 +382,17 @@ void Light::setDisperse(float v)
     markDirty(DirtyFlag::Light);
 }
 
+void Light::setMesh(IMeshInstance* v)
+{
+    if (m_mesh)
+        m_mesh->addLightSourceCount(false);
+    m_mesh = base_t(v);
+    if (m_mesh)
+        m_mesh->addLightSourceCount(true);
+    m_data.mesh_instance_id = GetID(m_mesh);
+    markDirty(DirtyFlag::Light);
+}
+
 bool Light::isEnabled() const { return m_enabled; }
 LightType Light::getType() const { return m_data.type; }
 float3 Light::getPosition() const { return m_data.position; }
@@ -385,6 +402,11 @@ float Light::getSpotAngle() const { return m_data.spot_angle; }
 float3 Light::getColor() const { return m_data.color; }
 float Light::getIntensity() const { return m_data.intensity; }
 float Light::getDisperse() const { return m_data.disperse; }
+
+IMeshInstance* Light::getMesh() const
+{
+    return m_mesh;
+}
 
 const LightData& Light::getData()
 {
@@ -829,6 +851,18 @@ void MeshInstance::setBlendshapeWeights(const float* v)
 
     m_blendshape_weights.assign(v, v + m_mesh->getBlendshapeCount());
     markDirty(DirtyFlag::Blendshape);
+}
+
+void MeshInstance::addLightSourceCount(bool v)
+{
+    if (v) {
+        if (m_light_source_count++ == 0)
+            setFlag(InstanceFlag::LightSource, true);
+    }
+    else {
+        if (--m_light_source_count == 0)
+            setFlag(InstanceFlag::LightSource, false);
+    }
 }
 
 bool MeshInstance::isLightSource() const

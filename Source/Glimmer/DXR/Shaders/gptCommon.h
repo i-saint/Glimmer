@@ -7,6 +7,7 @@ enum LightType
     LT_DIRECTIONAL,
     LT_POINT,
     LT_SPOT,
+    LT_MESH,
 };
 
 enum MaterialType
@@ -60,7 +61,8 @@ struct LightData
     float intensity;
     float spot_angle; // radian
     float disperse;
-    float2 pad;
+    int mesh_instance_id; // for mesh light
+    int pad;
 };
 
 struct MaterialData

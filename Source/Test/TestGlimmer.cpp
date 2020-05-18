@@ -60,6 +60,7 @@ private:
     gpt::ICameraPtr m_camera;
     gpt::ILightPtr m_directional_light;
     gpt::ILightPtr m_point_light;
+    gpt::ILightPtr m_mesh_light;
 
     gpt::ITexturePtr m_tex_gradient;
 
@@ -167,6 +168,7 @@ bool GlimmerTest::init()
     m_camera = m_ctx->createCamera();
     m_directional_light = m_ctx->createLight();
     m_point_light = m_ctx->createLight();
+    m_mesh_light = m_ctx->createLight();
 
     m_render_target->enableReadback(true);
     m_camera->setRenderTarget(m_render_target);
@@ -175,6 +177,7 @@ bool GlimmerTest::init()
     m_scene->addCamera(m_camera);
     m_scene->addLight(m_directional_light);
     m_scene->addLight(m_point_light);
+    m_scene->addLight(m_mesh_light);
 
     auto checker_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
     auto dot_texture = m_ctx->createTexture(512, 512, gpt::Format::RGBAf16);
@@ -263,6 +266,10 @@ bool GlimmerTest::init()
         m_point_light->setIntensity(0.2f);
         m_point_light->setDisperse(0.075f);
         //m_point_light->setEnabled(false);
+    }
+    {
+        m_mesh_light->setType(gpt::LightType::Mesh);
+        m_mesh_light->setIntensity(2.0f);
     }
 
     // create meshes
@@ -503,7 +510,7 @@ bool GlimmerTest::init()
         inst->setTransform(mu::transform(float3{ 0.0f, 0.8f, 0.0f }, quatf::identity()));
         inst->setMaterial(m_mat_emissive);
         //inst->setFlag(gpt::InstanceFlag::Visible, false);
-        inst->setFlag(gpt::InstanceFlag::LightSource, true);
+        m_mesh_light->setMesh(inst);
         m_scene->addInstance(inst);
     }
 

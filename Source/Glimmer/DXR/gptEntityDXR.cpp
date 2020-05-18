@@ -557,7 +557,6 @@ void SceneDXR::updateResources()
         auto& desc_alloc = ctx->m_desc_alloc_srv;
         m_srv_tlas = desc_alloc.allocate();
         m_srv_lights = desc_alloc.allocate();
-        m_srv_meshlights = desc_alloc.allocate();
         m_cbv_scene = desc_alloc.allocate();
 
         m_srv_rfaces = desc_alloc.allocate();
@@ -579,25 +578,6 @@ void SceneDXR::updateResources()
             }
         }
         m_data.light_count = count;
-    });
-
-    // mesh light buffer
-    if (!m_buf_meshlights) {
-        size_t size = sizeof(int) * gptDXRMaxMeshLightCount;
-        m_buf_meshlights = ctx->createBuffer(size);
-        m_buf_meshlights_staging = ctx->createUploadBuffer(size);
-        ctx->createBufferSRV(m_srv_meshlights, m_buf_meshlights, sizeof(int));
-    }
-    ctx->updateBuffer(m_buf_meshlights, m_buf_meshlights_staging, sizeof(int), [this](int* mapped) {
-        int count = 0;
-        for (auto& pinst : m_instances) {
-            if (pinst->isLightSource()) {
-                *mapped++ = pinst->getID();
-                if (++count >= gptDXRMaxMeshLightCount)
-                    break;
-            }
-        }
-        m_data.meshlight_count = count;
     });
 
     // scene buffer

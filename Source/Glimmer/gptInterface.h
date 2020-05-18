@@ -27,6 +27,7 @@ enum class LightType : uint32_t
     Directional,
     Point,
     Spot,
+    Mesh,
 };
 
 enum class MaterialType : uint32_t
@@ -41,7 +42,7 @@ enum class InstanceFlag : uint32_t
 {
     Visible     = 0x00000001,
     CastShadows = 0x00000002,
-    LightSource = 0x00000004,
+    LightSource = 0x00000004, // internal
     CullFront   = 0x00000008,
     CullBack    = 0x00000010,
 
@@ -212,6 +213,19 @@ private:
     T* m_ptr = nullptr;
 };
 
+class IObject;
+class ITexture;
+class IRenderTarget;
+class IMaterial;
+class ILight;
+class ICamera;
+class IBlendshapeFrame;
+class IBlendshape;
+class IMesh;
+class IMeshInstance;
+class IScene;
+class IContext;
+class IWindowCallback;
 class IWindow;
 
 
@@ -324,6 +338,7 @@ public:
     virtual void setColor(float3 v) = 0;
     virtual void setIntensity(float v) = 0;
     virtual void setDisperse(float v) = 0;
+    virtual void setMesh(IMeshInstance* v) = 0;
 
     virtual bool      isEnabled() const = 0;
     virtual LightType getType() const = 0;
@@ -334,6 +349,7 @@ public:
     virtual float3    getColor() const = 0;
     virtual float     getIntensity() const = 0;
     virtual float     getDisperse() const = 0;
+    virtual IMeshInstance* getMesh() const = 0;
 };
 using ILightPtr = ref_ptr<ILight>;
 

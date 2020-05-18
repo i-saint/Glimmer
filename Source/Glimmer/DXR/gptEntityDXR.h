@@ -206,13 +206,11 @@ public:
     ID3D12ResourcePtr m_tlas_scratch;
     ID3D12ResourcePtr m_tlas;
     ID3D12ResourcePtr m_buf_lights, m_buf_lights_staging;
-    ID3D12ResourcePtr m_buf_meshlights, m_buf_meshlights_staging;
     ID3D12ResourcePtr m_buf_scene, m_buf_scene_staging;
     ID3D12ResourcePtr m_buf_rfaces, m_buf_rfaces_staging;
 
     DescriptorHandleDXR m_srv_tlas;
     DescriptorHandleDXR m_srv_lights;
-    DescriptorHandleDXR m_srv_meshlights;
     DescriptorHandleDXR m_cbv_scene;
     DescriptorHandleDXR m_srv_rfaces;
 
