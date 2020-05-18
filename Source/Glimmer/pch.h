@@ -51,6 +51,26 @@ using mu::float3x3;
 using mu::float3x4;
 using mu::float4x4;
 
+using mu::half;
+using mu::half2;
+using mu::half3;
+using mu::half4;
+
+using mu::snorm8;
+using mu::snorm8x2;
+using mu::snorm8x3;
+using mu::snorm8x4;
+
+using mu::unorm8;
+using mu::unorm8x2;
+using mu::unorm8x3;
+using mu::unorm8x4;
+
+using mu::half;
+using mu::half2;
+using mu::half3;
+using mu::half4;
+
 using mu::int2;
 using mu::int3;
 using mu::int4;

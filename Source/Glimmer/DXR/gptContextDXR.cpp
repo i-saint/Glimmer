@@ -10,12 +10,14 @@ namespace gpt {
 enum class RayGenType : int
 {
     Radiance,
+    Display,
     PhotonPass1,
     PhotonPass2,
 };
 
 static const WCHAR* kRayGenShaders[]{
     L"RayGenRadiance",
+    L"RayGenDisplay",
     L"RayGenPhotonPass1",
     L"RayGenPhotonPass2",
 };
@@ -326,27 +328,28 @@ bool ContextDXR::initializeDevice()
     {
         // frame buffer
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         // scene data
         D3D12_DESCRIPTOR_RANGE ranges1[] = {
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
-            { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         // global data
         D3D12_DESCRIPTOR_RANGE ranges2[] = {
             // instance / mesh / material info
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 1, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // vertex buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount,          0, 2, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount,          0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // deformed vertex buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxDeformInstanceCount,0, 3, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxDeformInstanceCount,0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // face buffers
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount,          0, 4, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxMeshCount,          0, 5, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
             // textures
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount,       0, 5, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, gptDXRMaxTextureCount,       0, 6, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         // sampler
@@ -770,6 +773,7 @@ void ContextDXR::dispatchRays()
             cl_rays->SetComputeRootDescriptorTable(0, rt->m_uav_frame_buffer.hgpu);
             cl_rays->SetComputeRootDescriptorTable(1, scene.m_srv_tlas.hgpu);
             do_dispatch(rt->m_frame_buffer, RayGenType::Radiance);
+            do_dispatch(rt->m_frame_buffer, RayGenType::Display);
         }
     });
     gptTimestampQuery(m_timestamp, cl_rays, "DispatchRays end");
@@ -1118,26 +1122,30 @@ void ContextDXR::createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* re
     m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);
 }
 
-void ContextDXR::createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res)
+void ContextDXR::createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format)
 {
     if (!res)
         return;
+    if (format == DXGI_FORMAT_UNKNOWN)
+        format = GetFloatFormat(res->GetDesc().Format);
     auto rd = res->GetDesc();
     D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-    desc.Format = GetFloatFormat(rd.Format);
+    desc.Format = format;
     desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     desc.Texture2D.MipLevels = rd.MipLevels;
     m_device->CreateShaderResourceView(res, &desc, handle.hcpu);
 }
 
-void ContextDXR::createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res)
+void ContextDXR::createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format)
 {
     if (!res)
         return;
+    if (format == DXGI_FORMAT_UNKNOWN)
+        format = GetFloatFormat(res->GetDesc().Format);
     D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
     desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    desc.Format = GetFloatFormat(res->GetDesc().Format);
+    desc.Format = format;
     m_device->CreateUnorderedAccessView(res, nullptr, &desc, handle.hcpu);
 }
 

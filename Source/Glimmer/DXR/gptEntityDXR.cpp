@@ -49,6 +49,10 @@ void RenderTargetDXR::updateResources()
         auto& desc_alloc = ctx->m_desc_alloc_srv;
         m_uav_frame_buffer = desc_alloc.allocate();
         m_uav_accum_buffer = desc_alloc.allocate();
+        m_uav_normal_buffer = desc_alloc.allocate();
+        m_uav_depth_buffer = desc_alloc.allocate();
+        m_srv_normal_buffer = desc_alloc.allocate();
+        m_srv_depth_buffer = desc_alloc.allocate();
     }
 
     if (m_window) {
@@ -75,6 +79,18 @@ void RenderTargetDXR::updateResources()
         m_accum_buffer = ctx->createBuffer(m_width * m_height * sizeof(accum_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
         ctx->createBufferUAV(m_uav_accum_buffer, m_accum_buffer, sizeof(accum_t));
         gptSetName(m_accum_buffer, m_name + " Accum Buffer");
+    }
+    if (!m_normal_buffer) {
+        m_normal_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R8G8B8A8_SNORM);
+        ctx->createTextureSRV(m_srv_normal_buffer, m_normal_buffer, DXGI_FORMAT_R8G8B8A8_SNORM);
+        ctx->createTextureUAV(m_uav_normal_buffer, m_normal_buffer, DXGI_FORMAT_R8G8B8A8_SNORM);
+        gptSetName(m_normal_buffer, m_name + " Normal Buffer");
+    }
+    if (!m_depth_buffer) {
+        m_depth_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R32_FLOAT);
+        ctx->createTextureSRV(m_srv_depth_buffer, m_depth_buffer, DXGI_FORMAT_R32_FLOAT);
+        ctx->createTextureUAV(m_uav_depth_buffer, m_depth_buffer, DXGI_FORMAT_R32_FLOAT);
+        gptSetName(m_depth_buffer, m_name + " Depth Buffer");
     }
     if (m_readback_enabled && !m_buf_readback) {
         m_buf_readback = ctx->createTextureReadbackBuffer(m_width, m_height, GetDXGIFormatTyped(m_format));

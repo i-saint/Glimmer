@@ -76,8 +76,8 @@ public:
 
     void createBufferSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset = 0);
     void createBufferUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t stride, size_t offset = 0);
-    void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res);
-    void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res);
+    void createTextureSRV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN);
+    void createTextureUAV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN);
     void createCBV(DescriptorHandleDXR& handle, ID3D12Resource* res, size_t size, size_t offset = 0);
     void createTextureRTV(DescriptorHandleDXR& handle, ID3D12Resource* res, DXGI_FORMAT format);
 

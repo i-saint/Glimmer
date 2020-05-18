@@ -8,20 +8,25 @@ enum RayType
     RT_PHOTON,
 };
 
-RWTexture2D<float4>             g_frame_buffer  : register(u0, space0);
-RWStructuredBuffer<accum_t>     g_accum_buffer  : register(u1, space0);
-RaytracingAccelerationStructure g_tlas          : register(t0, space0);
-StructuredBuffer<LightData>     g_lights        : register(t1, space0);
-ConstantBuffer<SceneData>       g_scene         : register(b0, space0);
+RWTexture2D<float4>             g_frame_buffer      : register(u0, space0);
+RWStructuredBuffer<accum_t>     g_accum_buffer      : register(u1, space0);
+RWTexture2D<float4>             g_rw_normal_buffer  : register(u2, space0);
+RWTexture2D<float>              g_rw_depth_buffer   : register(u3, space0);
+Texture2D<float4>               g_normal_buffer     : register(t0, space0);
+Texture2D<float>                g_depth_buffer      : register(t1, space0);
 
-StructuredBuffer<InstanceData>  g_instances     : register(t0, space1);
-StructuredBuffer<MeshData>      g_meshes        : register(t1, space1);
-StructuredBuffer<MaterialData>  g_materials     : register(t2, space1);
+RaytracingAccelerationStructure g_tlas          : register(t0, space1);
+StructuredBuffer<LightData>     g_lights        : register(t1, space1);
+ConstantBuffer<SceneData>       g_scene         : register(b0, space1);
 
-StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space2);
-StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space3);
-StructuredBuffer<face_t>        g_faces[]       : register(t0, space4);
-Texture2D<float4>               g_textures[]    : register(t0, space5);
+StructuredBuffer<InstanceData>  g_instances     : register(t0, space2);
+StructuredBuffer<MeshData>      g_meshes        : register(t1, space2);
+StructuredBuffer<MaterialData>  g_materials     : register(t2, space2);
+
+StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space3);
+StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space4);
+StructuredBuffer<face_t>        g_faces[]       : register(t0, space5);
+Texture2D<float4>               g_textures[]    : register(t0, space6);
 
 SamplerState g_sampler_default : register(s0, space1);
 
@@ -169,6 +174,7 @@ struct RadiancePayload
     float3 direction;
     float  t;
     uint   seed;
+    uint   iteration;
     uint   done;
 
     void init()
@@ -179,6 +185,7 @@ struct RadiancePayload
         direction = 0.0f;
         t = -1.0f;
         seed = 0;
+        iteration = 0;
         done = false;
     }
 };
@@ -283,6 +290,7 @@ void RayGenRadiance()
         GetCameraRay(payload.origin, payload.direction, jitter);
 
         for (int depth = 0; depth < max_trace_depth && !payload.done; ++depth) {
+            payload.iteration = max_trace_depth * i + depth;
             ShootRadianceRay(payload);
             radiance += payload.radiance * payload.attenuation;
             if (i == 0 && depth == 0)
@@ -308,9 +316,33 @@ void RayGenRadiance()
     prev.accum = accum;
     prev.t = t;
 
-    g_frame_buffer[si] = float4(linear_to_srgb(radiance / accum), 1.0f);
+    if (t == g_scene.camera.far_plane) {
+        g_rw_normal_buffer[si] = 0.0f;
+        g_rw_depth_buffer[si] = 1.0f;
+    }
+
+    //g_frame_buffer[si] = float4(linear_to_srgb(radiance / accum), 1.0f);
     g_accum_buffer[si1] = prev;
 }
+
+
+[shader("raygeneration")]
+void RayGenDisplay()
+{
+    int2 si = DispatchRaysIndex().xy;
+    int2 sd = DispatchRaysDimensions().xy;
+    int si1 = sd.x * si.y + si.x;
+
+    float3 n = g_normal_buffer[si].xyz;
+    float d = g_depth_buffer[si];
+    accum_t a = g_accum_buffer[si1];
+    float3 radiance = a.radiance;
+
+    g_frame_buffer[si] = float4(linear_to_srgb(radiance / a.accum), 1.0f);
+    //g_frame_buffer[si] = float4(n * 0.5f + 0.5f, 1.0f);
+    //g_frame_buffer[si] = float4(d.xxx, 1.0f);
+}
+
 
 [shader("miss")]
 void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
@@ -610,6 +642,12 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
     payload.radiance += radiance * md.opacity;
     payload.seed = seed;
+
+    if (payload.iteration == 0) {
+        uint2 si = DispatchRaysIndex().xy;
+        g_rw_normal_buffer[si] = float4(N, 0.0f);
+        g_rw_depth_buffer[si] = payload.t / g_scene.camera.far_plane;
+    }
 }
 
 

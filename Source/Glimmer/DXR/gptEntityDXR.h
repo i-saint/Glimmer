@@ -52,10 +52,16 @@ public:
 
     ID3D12ResourcePtr m_frame_buffer;
     ID3D12ResourcePtr m_accum_buffer;
+    ID3D12ResourcePtr m_normal_buffer;
+    ID3D12ResourcePtr m_depth_buffer;
     ID3D12ResourcePtr m_buf_readback;
 
     DescriptorHandleDXR m_uav_frame_buffer;
     DescriptorHandleDXR m_uav_accum_buffer;
+    DescriptorHandleDXR m_uav_normal_buffer;
+    DescriptorHandleDXR m_uav_depth_buffer;
+    DescriptorHandleDXR m_srv_normal_buffer;
+    DescriptorHandleDXR m_srv_depth_buffer;
 
     WindowCallback m_callback;
     SwapchainDXRPtr m_swapchain;
