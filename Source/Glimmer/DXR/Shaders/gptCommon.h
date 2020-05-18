@@ -62,7 +62,7 @@ struct LightData
     float spot_angle; // radian
     float disperse;
     int mesh_instance_id; // for mesh light
-    int pad;
+    int sample_count;
 };
 
 struct MaterialData
@@ -72,13 +72,13 @@ struct MaterialData
     float3 emissive;
     float roughness;
     float opacity;
-    int emissive_sample_count;
     float refraction_index;
     int diffuse_tex;
     int opacity_tex;
     int roughness_tex;
     int emissive_tex;
     int normal_tex;
+    int pad;
 };
 
 struct BlendshapeData

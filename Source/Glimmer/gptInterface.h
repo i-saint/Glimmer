@@ -299,7 +299,6 @@ public:
     virtual void setDiffuse(float3 v) = 0;
     virtual void setRoughness(float v) = 0;
     virtual void setEmissive(float3 v) = 0;
-    virtual void setEmissiveSampleCount(int v) = 0;
     virtual void setOpacity(float v) = 0;
     virtual void setRefractionIndex(float v) = 0;
     virtual void setDiffuseMap(ITexture* v) = 0;
@@ -312,7 +311,6 @@ public:
     virtual float3       getDiffuse() const = 0;
     virtual float        getRoughness() const = 0;
     virtual float3       getEmissive() const = 0;
-    virtual int          getEmissiveSampleCount() const = 0;
     virtual float        getOpacity() const = 0;
     virtual float        getRefractionIndex() const = 0;
     virtual ITexture*    getDiffuseMap() const = 0;
@@ -337,6 +335,7 @@ public:
     virtual void setIntensity(float v) = 0;
     virtual void setDisperse(float v) = 0;
     virtual void setMesh(IMeshInstance* v) = 0;
+    virtual void setSampleCount(int v) = 0;
 
     virtual bool      isEnabled() const = 0;
     virtual LightType getType() const = 0;
@@ -348,6 +347,7 @@ public:
     virtual float     getIntensity() const = 0;
     virtual float     getDisperse() const = 0;
     virtual IMeshInstance* getMesh() const = 0;
+    virtual int       getSampleCount() const = 0;
 };
 using ILightPtr = ref_ptr<ILight>;
 

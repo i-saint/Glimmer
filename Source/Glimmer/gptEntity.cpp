@@ -191,12 +191,6 @@ void Material::setOpacity(float v)
     markDirty(DirtyFlag::Material);
 }
 
-void Material::setEmissiveSampleCount(int v)
-{
-    m_data.emissive_sample_count = v;
-    markDirty(DirtyFlag::Material);
-}
-
 void Material::setDiffuseMap(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
@@ -236,7 +230,6 @@ MaterialType Material::getType() const { return m_data.type; }
 float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
-int Material::getEmissiveSampleCount() const { return m_data.emissive_sample_count; }
 float Material::getRefractionIndex() const { return m_data.refraction_index; }
 float Material::getOpacity() const { return m_data.opacity; }
 ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }
@@ -386,6 +379,12 @@ void Light::setMesh(IMeshInstance* v)
     markDirty(DirtyFlag::Light);
 }
 
+void Light::setSampleCount(int v)
+{
+    m_data.sample_count = v;
+    markDirty(DirtyFlag::Light);
+}
+
 bool Light::isEnabled() const { return m_enabled; }
 LightType Light::getType() const { return m_data.type; }
 float3 Light::getPosition() const { return m_data.position; }
@@ -395,11 +394,8 @@ float Light::getSpotAngle() const { return m_data.spot_angle; }
 float3 Light::getColor() const { return m_data.color; }
 float Light::getIntensity() const { return m_data.intensity; }
 float Light::getDisperse() const { return m_data.disperse; }
-
-IMeshInstance* Light::getMesh() const
-{
-    return m_mesh;
-}
+IMeshInstance* Light::getMesh() const { return m_mesh; }
+int Light::getSampleCount() const { return m_data.sample_count; }
 
 const LightData& Light::getData()
 {

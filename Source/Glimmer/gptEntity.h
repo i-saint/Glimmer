@@ -106,7 +106,7 @@ struct LightData
     float spot_angle = 0.0f; // radian
     float disperse = 0.1f;
     int mesh_instance_id = -1; // for mesh light
-    float pad{};
+    int sample_count = 1;
 
     gptDefCompare(LightData);
 };
@@ -118,13 +118,13 @@ struct MaterialData
     float3 emissive{ 0.0f, 0.0f, 0.0f };
     float roughness = 0.5f;
     float opacity = 1.0f;
-    int emissive_sample_count = 1;
     float refraction_index = 1.0f;
     int diffuse_tex = -1;
     int opacity_tex = -1;
     int roughness_tex = -1;
     int emissive_tex = -1;
     int normal_tex = -1;
+    int pad{};
 
     gptDefCompare(MaterialData);
 };
@@ -414,14 +414,12 @@ public:
     void setOpacityMap(ITexture* v) override;
     void setRoughnessMap(ITexture* v) override;
     void setEmissiveMap(ITexture* v) override;
-    void setEmissiveSampleCount(int v) override;
     void setNormalMap(ITexture* v) override;
 
     MaterialType getType() const override;
     float3       getDiffuse() const override;
     float        getRoughness() const override;
     float3       getEmissive() const override;
-    int          getEmissiveSampleCount() const override;
     float        getRefractionIndex() const override;
     float        getOpacity() const override;
     ITexture*    getDiffuseMap() const override;
@@ -489,6 +487,7 @@ public:
     void setIntensity(float v) override;
     void setDisperse(float v) override;
     void setMesh(IMeshInstance* v) override;
+    void setSampleCount(int v) override;
 
     bool      isEnabled() const override;
     LightType getType() const override;
@@ -500,6 +499,7 @@ public:
     float     getIntensity() const override;
     float     getDisperse() const override;
     IMeshInstance* getMesh() const override;
+    int       getSampleCount() const override;
 
     const LightData& getData();
 
