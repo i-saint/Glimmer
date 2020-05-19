@@ -279,6 +279,7 @@ void Camera::setFar(float v)
 void Camera::setRenderTarget(IRenderTarget* v)
 {
     m_render_target = base_t(v);
+    m_data.screen_size = m_render_target ? int2{ m_render_target->getWidth(), m_render_target->getHeight() } : int2{0, 0};
     markDirty(DirtyFlag::Camera);
 }
 

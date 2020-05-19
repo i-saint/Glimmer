@@ -90,7 +90,7 @@ struct CameraData
     quatf    rotation = quatf::identity();
     float    near_plane = 0.01f;
     float    far_plane = 100.0f;
-    float2   pad{};
+    int2    screen_size = { 0, 0 };
 
     gptDefCompare(CameraData);
 };

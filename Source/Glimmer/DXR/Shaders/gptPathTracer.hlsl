@@ -215,7 +215,7 @@ struct OcclusionPayload
 
 void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, uint2 si, float2 offset)
 {
-    uint2 sd = DispatchRaysDimensions().xy;
+    uint2 sd = g_scene.camera.screen_size;
 
     float aspect_ratio = (float)sd.x / (float)sd.y;
     float2 screen_pos = ((float2(si) + offset + 0.5f) / float2(sd)) * 2.0f - 1.0f;
@@ -270,14 +270,16 @@ void ShootRadianceRay(inout RadiancePayload payload)
 
 void GetScreenIndex(out uint2 si, out uint pi, out uint bi)
 {
-    uint2 dri = DispatchRaysIndex().xy;
-    uint2 drd = DispatchRaysDimensions().xy;
-    uint dri1d = drd.x * dri.y + dri.x;
-    pi = dri1d;
-    bi = dri1d;
+    int2 dri = DispatchRaysIndex().xy;
+    int2 drd = DispatchRaysDimensions().xy;
+    pi = drd.x * dri.y + dri.x;
+    bi = pi;
     si = dri;
-    //bi = WaveReadLaneFirst(dri1d);
-    //si = uint2(spi % drd.x, spi / drd.x);
+
+    //int2 sd = g_scene.camera.screen_size;
+    //pi = DispatchRaysIndex().x;
+    //bi = pi / WaveGetLaneCount();
+    //si = uint2(pi % sd.x, pi / sd.x);
 }
 
 [shader("raygeneration")]
@@ -289,7 +291,6 @@ void RayGenRadiance()
 
     //uint seed = tea(si.y * sd.x + si.x, FrameCount());
     uint seed = tea(bi, FrameCount());
-    //uint seed = FrameCount();
 
     int samples_per_frame = SamplesPerFrame();
     int max_trace_depth = MaxTraceDepth();
@@ -349,10 +350,8 @@ void RayGenDisplay()
     float3 n = g_normal_buffer[si].xyz;
     float d = g_depth_buffer[si];
     accum_t a = g_accum_buffer[pi];
-    float3 radiance = a.radiance;
 
-    si = DispatchRaysIndex().xy;
-    g_frame_buffer[si] = float4(linear_to_srgb(radiance / a.accum), 1.0f);
+    g_frame_buffer[si] = float4(linear_to_srgb(a.radiance / a.accum), 1.0f);
     //g_frame_buffer[si] = float4(n * 0.5f + 0.5f, 1.0f);
     //g_frame_buffer[si] = float4(d.xxx, 1.0f);
     //g_frame_buffer[si] = (float)WaveGetLaneIndex() / (float)WaveGetLaneCount();
@@ -655,7 +654,10 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     payload.seed = seed;
 
     if (payload.iteration == 0) {
-        uint2 si = DispatchRaysIndex().xy;
+        uint2 si;
+        uint bi, pi;
+        GetScreenIndex(si, pi, bi);
+
         g_rw_normal_buffer[si] = float4(N, 0.0f);
         g_rw_depth_buffer[si] = payload.t / g_scene.camera.far_plane;
     }

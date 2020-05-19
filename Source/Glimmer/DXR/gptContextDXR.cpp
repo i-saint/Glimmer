@@ -736,6 +736,8 @@ void ContextDXR::dispatchRays()
         auto rt_desc = rt->GetDesc();
 
         D3D12_DISPATCH_RAYS_DESC dr_desc{};
+        //dr_desc.Width = (UINT)rt_desc.Width * (UINT)rt_desc.Height;
+        //dr_desc.Height = 1;
         dr_desc.Width = (UINT)rt_desc.Width;
         dr_desc.Height = (UINT)rt_desc.Height;
         dr_desc.Depth = 1;

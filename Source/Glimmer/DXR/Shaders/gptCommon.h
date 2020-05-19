@@ -48,7 +48,7 @@ struct CameraData
     float4 rotation;
     float near_plane;
     float far_plane;
-    float2 pad;
+    int2  screen_size;
 };
 
 struct LightData
