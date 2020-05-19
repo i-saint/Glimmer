@@ -128,9 +128,9 @@ public:
     DescriptorHandleDXR m_srv_instances;
     DescriptorHandleDXR m_srv_meshes;
     DescriptorHandleDXR m_srv_materials;
+    DescriptorHandleDXR m_srv_indices;
     DescriptorHandleDXR m_srv_vertices;
-    DescriptorHandleDXR m_srv_vertices_d;
-    DescriptorHandleDXR m_srv_faces;
+    DescriptorHandleDXR m_srv_vertices_d; // deformed
     DescriptorHandleDXR m_srv_textures;
     DescriptorHandleDXR m_srv_deform_meshes;
     DescriptorHandleDXR m_srv_deform_instances;

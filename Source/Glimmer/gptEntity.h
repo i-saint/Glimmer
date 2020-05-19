@@ -153,7 +153,7 @@ struct MeshData
     int flags = 0;
     float3 bb_min{};
     float3 bb_max{};
-    float2 pad;
+    float2 pad{};
 };
 
 struct InstanceData
@@ -163,8 +163,9 @@ struct InstanceData
     int enabled = 1;
     int mesh_id = -1;
     int deform_id = -1;
+    int material_id = -1;
     int instance_flags = (int)InstanceFlag::Default;
-    int material_ids[32]{};
+    int3 pad{};
 
     gptDefCompare(InstanceData);
 };
@@ -571,13 +572,11 @@ public:
     void setNormals(const float3* v, size_t n) override;
     void setTangents(const float3* v, size_t n) override;
     void setUV(const float2* v, size_t n) override;
-    void setMaterialIDs(const int* v, size_t n) override;
     Span<int>    getIndices() const override;
     Span<float3> getPoints() const override;
     Span<float3> getNormals() const override;
     Span<float3> getTangents() const override;
     Span<float2> getUV() const override;
-    Span<int>    getMaterialIDs() const override;
     void markDynamic() override;
 
     void setJointBindposes(const float4x4* v, size_t n) override;
@@ -599,7 +598,6 @@ public:
     int getIndexCount() const;
     int getVertexCount() const;
     void exportVertices(vertex_t* dst) const;
-    void exportFaces(face_t* dst) const;
 
     int getJointCount() const;
     int getJointWeightCount() const;
@@ -628,7 +626,6 @@ public:
     RawVector<float3> m_normals;  // per-vertex
     RawVector<float3> m_tangents; // 
     RawVector<float2> m_uv;       // 
-    RawVector<int>    m_material_ids; // per-face
 
     RawVector<float4x4>    m_joint_bindposes;
     RawVector<int>         m_joint_counts;

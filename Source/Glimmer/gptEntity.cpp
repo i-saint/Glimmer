@@ -527,21 +527,11 @@ void Mesh::setUV(const float2* v, size_t n)
     markDirty(DirtyFlag::UV);
 }
 
-void Mesh::setMaterialIDs(const int* v, size_t n)
-{
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_material_ids == MakeSpan(v, n))
-        return;
-
-    m_material_ids.assign(v, v + n);
-    markDirty(DirtyFlag::Material);
-}
-
 Span<int>    Mesh::getIndices() const { return m_indices; }
 Span<float3> Mesh::getPoints() const { return m_points; }
 Span<float3> Mesh::getNormals() const { return m_normals; }
 Span<float3> Mesh::getTangents() const { return m_tangents; }
 Span<float2> Mesh::getUV() const { return m_uv; }
-Span<int>    Mesh::getMaterialIDs() const { return m_material_ids; }
 
 void Mesh::markDynamic()
 {
@@ -672,20 +662,6 @@ void Mesh::exportVertices(vertex_t* dst) const
     }
 }
 
-void Mesh::exportFaces(face_t* dst) const
-{
-    int fc = getFaceCount();
-    auto* indices = (const int3*)m_indices.cdata();
-    auto* mids = m_material_ids.empty() ? GetDummyBuffer<int>(fc) : m_material_ids.cdata();
-
-    face_t tmp{};
-    for (int fi = 0; fi < fc; ++fi) {
-        tmp.indices = *indices++;
-        tmp.material_index = *mids++;
-        *dst++ = tmp;
-    }
-}
-
 int Mesh::getJointCount() const
 {
     return (int)m_joint_bindposes.size();
@@ -777,7 +753,7 @@ MeshInstance::MeshInstance(IMesh* v)
 {
     m_mesh = base_t(v);
     m_data.mesh_id = GetID(m_mesh);
-    m_materials.resize(_countof(m_data.material_ids));
+    m_materials.resize(1); // todo: submesh count
     markDirty(DirtyFlag::Mesh);
 }
 
@@ -798,13 +774,13 @@ void MeshInstance::setFlag(InstanceFlag f, bool v)
 
 void MeshInstance::setMaterial(IMaterial* v, int slot)
 {
-    if (slot < 0 || slot >= _countof(m_data.material_ids)) {
+    if (slot < 0) {
         mu::DbgBreak();
         return;
     }
 
     m_materials[slot] = base_t(v);
-    m_data.material_ids[slot] = GetID(v);
+    m_data.material_id = GetID(v);
     markDirty(DirtyFlag::Material);
 }
 

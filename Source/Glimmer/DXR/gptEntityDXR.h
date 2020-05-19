@@ -139,9 +139,8 @@ public:
     // vertex buffers
     ID3D12ResourcePtr m_buf_indices, m_buf_indices_staging;
     ID3D12ResourcePtr m_buf_vertices, m_buf_vertices_staging;
-    ID3D12ResourcePtr m_buf_faces, m_buf_faces_staging;
+    DescriptorHandleDXR m_srv_indices;
     DescriptorHandleDXR m_srv_vertices;
-    DescriptorHandleDXR m_srv_faces;
 
     // deform buffers
     ID3D12ResourcePtr m_buf_joint_counts, m_buf_joint_counts_staging;
@@ -213,12 +212,10 @@ public:
     ID3D12ResourcePtr m_tlas;
     ID3D12ResourcePtr m_buf_lights, m_buf_lights_staging;
     ID3D12ResourcePtr m_buf_scene, m_buf_scene_staging;
-    ID3D12ResourcePtr m_buf_rfaces, m_buf_rfaces_staging;
 
     DescriptorHandleDXR m_srv_tlas;
     DescriptorHandleDXR m_srv_lights;
     DescriptorHandleDXR m_cbv_scene;
-    DescriptorHandleDXR m_srv_rfaces;
 
     uint32_t m_render_flags = 0;
 

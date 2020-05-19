@@ -473,9 +473,9 @@ bool ContextDXR::initializeDevice()
         m_srv_instances = m_desc_alloc_srv.allocate();
         m_srv_meshes    = m_desc_alloc_srv.allocate();
         m_srv_materials = m_desc_alloc_srv.allocate();
+        m_srv_indices   = m_desc_alloc_srv.allocate(gptDXRMaxMeshCount);
         m_srv_vertices  = m_desc_alloc_srv.allocate(gptDXRMaxMeshCount);
         m_srv_vertices_d= m_desc_alloc_srv.allocate(gptDXRMaxDeformInstanceCount);
-        m_srv_faces     = m_desc_alloc_srv.allocate(gptDXRMaxMeshCount);
         m_srv_textures  = m_desc_alloc_srv.allocate(gptDXRMaxTextureCount);
 
         // need to figure out better way...

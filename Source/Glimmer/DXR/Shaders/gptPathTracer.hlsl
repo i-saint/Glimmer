@@ -23,9 +23,9 @@ StructuredBuffer<InstanceData>  g_instances     : register(t0, space2);
 StructuredBuffer<MeshData>      g_meshes        : register(t1, space2);
 StructuredBuffer<MaterialData>  g_materials     : register(t2, space2);
 
-StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space3);
-StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space4);
-StructuredBuffer<face_t>        g_faces[]       : register(t0, space5);
+StructuredBuffer<int3>          g_indices[]     : register(t0, space3);
+StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space4);
+StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space5);
 Texture2D<float4>               g_textures[]    : register(t0, space6);
 
 SamplerState g_sampler_default : register(s0, space1);
@@ -40,7 +40,7 @@ float3 FaceNormal(int instance_id, int face_id)
 {
     int mesh_id = g_instances[instance_id].mesh_id;
     int deform_id = g_instances[instance_id].deform_id;
-    int3 indices = g_faces[mesh_id][face_id].indices;
+    int3 indices = g_indices[mesh_id][face_id];
 
     float3 p0, p1, p2;
     if (deform_id != -1) {
@@ -65,9 +65,7 @@ float3 FaceNormal()
 
 MaterialData FaceMaterial(int instance_id, int face_id)
 {
-    int mesh_id = g_instances[instance_id].mesh_id;
-    face_t face = g_faces[mesh_id][face_id];
-    return g_materials[g_instances[instance_id].material_ids[face.material_index]];
+    return g_materials[g_instances[instance_id].material_id];
 }
 MaterialData FaceMaterial()
 {
@@ -90,7 +88,7 @@ vertex_t GetInterpolatedVertex(int instance_id, int face_id, float2 barycentric)
 {
     int mesh_id = g_instances[instance_id].mesh_id;
     int deform_id = g_instances[instance_id].deform_id;
-    int3 indices = g_faces[mesh_id][face_id].indices;
+    int3 indices = g_indices[mesh_id][face_id];
 
     vertex_t r;
     if (deform_id != -1) {
@@ -538,7 +536,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
 
         int mesh_id = g_instances[ii].mesh_id;
         MeshData mesh = g_meshes[mesh_id];
-        MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+        MaterialData md = g_materials[g_instances[ii].material_id];
 
         int fid = rnd_i(seed, mesh.face_count);
         float2 bc = rnd_bc(seed);
@@ -698,7 +696,6 @@ void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in Buil
 
 // for photon pass
 RWTexture2D<float4>      g_photon_buffer      : register(u0, space10);
-StructuredBuffer<face_t> g_refractive_faces[] : register(t1, space10);
 
 struct PhotonPayload
 {
@@ -829,7 +826,7 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
         int ii = light.mesh_instance_id;
         int mesh_id = g_instances[ii].mesh_id;
         MeshData mesh = g_meshes[mesh_id];
-        MaterialData md = g_materials[g_instances[ii].material_ids[0]];
+        MaterialData md = g_materials[g_instances[ii].material_id];
 
         vertex_t Vl = PickRandomVertex(ii, seed);
 

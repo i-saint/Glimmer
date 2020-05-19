@@ -119,8 +119,9 @@ struct InstanceData
     int enabled;
     int mesh_id;
     int deform_id;
+    int material_id;
     int instance_flags;
-    int material_ids[32];
+    int3 pad;
 };
 
 struct SceneData
