@@ -163,7 +163,7 @@ struct InstanceData
     int enabled = 1;
     int mesh_id = -1;
     int deform_id = -1;
-    int material_id = -1;
+    int material_id = 0; // 0: default material
     int instance_flags = (int)InstanceFlag::Default;
     int3 pad{};
 
@@ -196,15 +196,6 @@ struct vertex_t
     float pad;
 
     gptDefCompare(vertex_t);
-};
-
-struct face_t
-{
-    int3 indices;
-    uint32_t material_index : 10;
-    uint32_t instance_id : 22;
-
-    gptDefCompare(face_t);
 };
 
 struct accum_t
@@ -564,19 +555,29 @@ protected:
 };
 using BlendshapePtr = std::shared_ptr<Blendshape>;
 
+
+struct Submesh
+{
+    RawVector<int> indices;
+    int triangle_offfset = 0;
+};
+
 class Mesh : public EntityBase<IMesh>
 {
 public:
-    void setIndices(const int* v, size_t n) override;
     void setPoints(const float3* v, size_t n) override;
     void setNormals(const float3* v, size_t n) override;
     void setTangents(const float3* v, size_t n) override;
     void setUV(const float2* v, size_t n) override;
-    Span<int>    getIndices() const override;
     Span<float3> getPoints() const override;
     Span<float3> getNormals() const override;
     Span<float3> getTangents() const override;
     Span<float2> getUV() const override;
+
+    void setIndices(const int* v, size_t n, int submesh) override;
+    Span<int> getIndices(int submesh) const override;
+    int getSubmeshCount() const override;
+
     void markDynamic() override;
 
     void setJointBindposes(const float4x4* v, size_t n) override;
@@ -590,6 +591,8 @@ public:
     IBlendshape* getBlendshape(int i) override;
     IBlendshape* addBlendshape() override;
     void removeBlendshape(IBlendshape* f) override;
+
+    virtual void update();
 
     bool hasBlendshapes() const;
     bool hasJoints() const;
@@ -621,11 +624,13 @@ public:
 
 public:
     MeshData m_data;
-    RawVector<int>    m_indices;
     RawVector<float3> m_points;
     RawVector<float3> m_normals;  // per-vertex
     RawVector<float3> m_tangents; // 
     RawVector<float2> m_uv;       // 
+
+    std::vector<Submesh> m_submeshes;
+    RawVector<int> m_indices; // includes all submeshes
 
     RawVector<float4x4>    m_joint_bindposes;
     RawVector<int>         m_joint_counts;
@@ -656,10 +661,12 @@ public:
     Span<float4x4>  getJointMatrices() const override;
     Span<float>     getBlendshapeWeights() const override;
 
+    virtual void update();
+
     void addLightSourceCount(bool v);
     bool isLightSource() const;
-    void exportJointMatrices(float4x4* dst);
-    void exportBlendshapeWeights(float* dst);
+    void exportJointMatrices(float4x4* dst) const;
+    void exportBlendshapeWeights(float* dst) const;
     const InstanceData& getData();
 
 public:
@@ -700,6 +707,8 @@ public:
     IMeshInstance*  getInstance(int i) const override;
     void            addInstance(IMeshInstance* v) override;
     void            removeInstance(IMeshInstance* v) override;
+
+    virtual void update();
 
     const SceneData& getData();
     void incrementFrameCount();

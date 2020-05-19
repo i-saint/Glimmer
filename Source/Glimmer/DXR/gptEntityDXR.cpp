@@ -160,8 +160,10 @@ MeshDXR::~MeshDXR()
     m_context->m_deform_mesh_indices.free(m_data.deform_id);
 }
 
-void MeshDXR::prepare()
+void MeshDXR::update()
 {
+    super::update();
+
     m_blas_updated = false;
 }
 
@@ -350,8 +352,10 @@ MeshInstanceDXR::~MeshInstanceDXR()
     m_context->m_deform_instance_indices.free(m_data.deform_id);
 }
 
-void MeshInstanceDXR::prepare()
+void MeshInstanceDXR::update()
 {
+    super::update();
+
     m_blas_updated = false;
     if (m_mesh->isDirty())
         markDirty(DirtyFlag::Mesh);
@@ -484,8 +488,10 @@ void MeshInstanceDXR::clearBLAS()
 }
 
 
-void SceneDXR::prepare()
+void SceneDXR::update()
 {
+    super::update();
+
     // nothing to do for now
 }
 

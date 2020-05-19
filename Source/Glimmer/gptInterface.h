@@ -401,16 +401,19 @@ protected:
 class IMesh : public IObject
 {
 public:
-    virtual void setIndices(const int* v, size_t n) = 0; // all faces must be triangles
     virtual void setPoints(const float3* v, size_t n) = 0;
     virtual void setNormals(const float3* v, size_t n) = 0;  // per-vertex
     virtual void setTangents(const float3* v, size_t n) = 0; // 
     virtual void setUV(const float2* v, size_t n) = 0;       // 
-    virtual Span<int>    getIndices() const = 0;
     virtual Span<float3> getPoints() const = 0;
     virtual Span<float3> getNormals() const = 0;
     virtual Span<float3> getTangents() const = 0;
     virtual Span<float2> getUV() const = 0;
+
+    virtual void      setIndices(const int* v, size_t n, int submesh = 0) = 0; // all faces must be triangles
+    virtual Span<int> getIndices(int submesh = 0) const = 0;
+    virtual int       getSubmeshCount() const = 0;
+
     virtual void markDynamic() = 0;
 
     virtual void setJointBindposes(const float4x4* v, size_t n) = 0;

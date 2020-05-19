@@ -130,7 +130,7 @@ friend class ContextDXR;
 public:
     MeshDXR();
     ~MeshDXR();
-    void prepare();
+    void update() override;
     void updateResources();
     void updateBLAS();
     void clearBLAS();
@@ -171,7 +171,7 @@ friend class ContextDXR;
 public:
     MeshInstanceDXR(IMesh* v = nullptr);
     ~MeshInstanceDXR();
-    void prepare();
+    void update() override;
     void updateResources();
     void updateBLAS();
     void clearBLAS();
@@ -200,7 +200,7 @@ class SceneDXR : public DXREntity<Scene>
 using super = DXREntity<Scene>;
 friend class ContextDXR;
 public:
-    void prepare();
+    void update() override;
     void updateResources();
     void updateTLAS();
 
@@ -218,8 +218,6 @@ public:
     DescriptorHandleDXR m_cbv_scene;
 
     uint32_t m_render_flags = 0;
-
-    RawVector<face_t> m_refractive_faces;
 };
 gptDefRefPtr(SceneDXR);
 gptDefDXRT(SceneDXR, IScene)

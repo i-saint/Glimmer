@@ -480,16 +480,6 @@ void Blendshape::exportDelta(int frame, vertex_t* dst) const
 }
 
 
-void Mesh::setIndices(const int* v, size_t n)
-{
-    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_indices == MakeSpan(v, n))
-        return;
-
-    m_indices.assign(v, v + n);
-    m_data.face_count = (uint32_t)m_indices.size() / 3;
-    markDirty(DirtyFlag::Indices);
-}
-
 void Mesh::setPoints(const float3* v, size_t n)
 {
     if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_points == MakeSpan(v, n))
@@ -527,11 +517,48 @@ void Mesh::setUV(const float2* v, size_t n)
     markDirty(DirtyFlag::UV);
 }
 
-Span<int>    Mesh::getIndices() const { return m_indices; }
 Span<float3> Mesh::getPoints() const { return m_points; }
 Span<float3> Mesh::getNormals() const { return m_normals; }
 Span<float3> Mesh::getTangents() const { return m_tangents; }
 Span<float2> Mesh::getUV() const { return m_uv; }
+
+void Mesh::setIndices(const int* v, size_t n, int submesh)
+{
+    assert(n % 3 == 0);
+
+    if (n == 0) {
+        // erase submesh if n==0
+        if (submesh < m_submeshes.size()) {
+            m_submeshes[submesh].indices.clear();
+            while (!m_submeshes.empty() && m_submeshes.back().indices.empty())
+                m_submeshes.pop_back();
+        }
+    }
+    else {
+        if (m_submeshes.size() <= submesh)
+            m_submeshes.resize(submesh + 1);
+
+        auto& indices = m_submeshes[submesh].indices;
+        if (Globals::getInstance().isStrictUpdateCheckEnabled() && indices == MakeSpan(v, n))
+            return;
+
+        indices.assign(v, v + n);
+        m_data.face_count = (uint32_t)indices.size() / 3;
+    }
+    markDirty(DirtyFlag::Indices);
+}
+
+Span<int> Mesh::getIndices(int submesh) const
+{
+    if (submesh < 0 || submesh >= m_submeshes.size())
+        return {nullptr, 0};
+    return m_submeshes[submesh].indices;
+}
+
+int Mesh::getSubmeshCount() const
+{
+    return (int)m_submeshes.size();
+}
 
 void Mesh::markDynamic()
 {
@@ -603,6 +630,32 @@ void Mesh::removeBlendshape(IBlendshape* f)
     }
 }
 
+void Mesh::update()
+{
+    if (isDirty(DirtyFlag::Indices)) {
+        // make unified indices
+        m_indices.clear();
+        int offset = 0;
+        for (auto& sub : m_submeshes) {
+            m_indices.insert(m_indices.end(), sub.indices.begin(), sub.indices.end());
+            sub.triangle_offfset = offset;
+            offset += int(sub.indices.size() / 3);
+        }
+    }
+
+    if (isDirty(DirtyFlag::Points)) {
+        // generate normals
+        m_normals.resize_discard(getVertexCount());
+        mu::GenerateNormalsTriangleIndexed(m_normals.data(), m_points.data(), m_indices.data(), getFaceCount(), getVertexCount());
+    }
+
+    if (Globals::getInstance().isGenerateTangentsEnabled() && isDirty(DirtyFlag::Points | DirtyFlag::UV) && m_uv.size() == m_points.size()) {
+        // generate tangents
+        m_tangents.resize_discard(getVertexCount());
+        mu::GenerateTangentsTriangleIndexed(m_tangents.data(), m_points.data(), m_uv.data(), m_normals.data(), m_indices.data(), getFaceCount(), getVertexCount());
+    }
+}
+
 bool Mesh::hasBlendshapes() const
 {
     return !m_blendshapes.empty();
@@ -635,17 +688,6 @@ int Mesh::getVertexCount() const
 
 void Mesh::exportVertices(vertex_t* dst) const
 {
-    if (m_normals.size() != m_points.size()) {
-        auto& normals = const_cast<RawVector<float3>&>(m_normals); // ...
-        normals.resize_discard(getVertexCount());
-        mu::GenerateNormalsTriangleIndexed(normals.data(), m_points.data(), m_indices.data(), getFaceCount(), getVertexCount());
-    }
-    if (Globals::getInstance().isGenerateTangentsEnabled() && m_uv.size() == m_points.size() && m_tangents.size() != m_points.size()) {
-        auto& tangents = const_cast<RawVector<float3>&>(m_tangents); // ...
-        tangents.resize_discard(getVertexCount());
-        mu::GenerateTangentsTriangleIndexed(tangents.data(), m_points.data(), m_uv.data(), m_normals.data(), m_indices.data(), getFaceCount(), getVertexCount());
-    }
-
     int vc = getVertexCount();
     auto* points    = m_points.cdata();
     auto* normals   = m_normals.cdata();
@@ -753,7 +795,7 @@ MeshInstance::MeshInstance(IMesh* v)
 {
     m_mesh = base_t(v);
     m_data.mesh_id = GetID(m_mesh);
-    m_materials.resize(1); // todo: submesh count
+    m_materials.resize(m_mesh->getSubmeshCount());
     markDirty(DirtyFlag::Mesh);
 }
 
@@ -774,10 +816,12 @@ void MeshInstance::setFlag(InstanceFlag f, bool v)
 
 void MeshInstance::setMaterial(IMaterial* v, int slot)
 {
-    if (slot < 0) {
+    if (slot < 0 || slot >= m_materials.size()) {
         mu::DbgBreak();
         return;
     }
+    if (m_materials[slot] == v)
+        return;
 
     m_materials[slot] = base_t(v);
     m_data.material_id = GetID(v);
@@ -826,27 +870,29 @@ void MeshInstance::addLightSourceCount(bool v)
 
 bool MeshInstance::isLightSource() const
 {
-    if (isEnabled() && getFlag(InstanceFlag::LightSource)) {
-        for (auto& pmat : m_materials) {
-            if (!pmat)
-                continue;
-            float3 e = pmat->getEmissive();
-            if ((e.x + e.y + e.z) != 0 || pmat->getEmissiveMap())
-                return true;
-        }
-    }
-    return false;
+    return isEnabled() && getFlag(InstanceFlag::LightSource);
 }
 
-void MeshInstance::exportJointMatrices(float4x4* dst)
+void MeshInstance::update()
+{
+    auto& mesh = *m_mesh;
+    if (mesh.hasJoints()) {
+        int njoints = mesh.getJointCount();
+        if (m_joint_matrices.size() != njoints)
+            m_joint_matrices.resize(njoints, float4x4::identity());
+    }
+    if (mesh.hasBlendshapes()) {
+        int nbs = mesh.getBlendshapeCount();
+        if (m_blendshape_weights.size() != nbs)
+            m_blendshape_weights.resize(nbs, 0.0f);
+    }
+}
+
+void MeshInstance::exportJointMatrices(float4x4* dst) const
 {
     auto& mesh = *m_mesh;
     if (!mesh.hasJoints())
         return;
-
-    int n = mesh.getJointCount();
-    if (m_joint_matrices.size() != n)
-        m_joint_matrices.resize(n, float4x4::identity());
 
     // note:
     // object space skinning is recommended for better BLAS building. ( http://intro-to-dxr.cwyman.org/presentations/IntroDXR_RaytracingAPI.pdf )
@@ -854,21 +900,18 @@ void MeshInstance::exportJointMatrices(float4x4* dst)
     // on skinned meshes, inst.transform is root bone's transform or identity if root bone is not assigned.
     // both cases work, but identity matrix means world space skinning that is not optimal.
 
+    int njoints = mesh.getJointCount();
     auto iroot = m_data.itransform;
     auto bindposes = mesh.getJointBindposes();
-    for (int ji = 0; ji < n; ++ji)
+    for (int ji = 0; ji < njoints; ++ji)
         *dst++ = bindposes[ji] * m_joint_matrices[ji] * iroot;
 }
 
-void MeshInstance::exportBlendshapeWeights(float* dst)
+void MeshInstance::exportBlendshapeWeights(float* dst) const
 {
     auto& mesh = *m_mesh;
     if (!mesh.hasBlendshapes())
         return;
-
-    int n = mesh.getBlendshapeCount();
-    if (m_blendshape_weights.size() != n)
-        m_blendshape_weights.resize(n, 0.0f);
 
     m_blendshape_weights.copy_to(dst);
 }
@@ -973,6 +1016,10 @@ void Scene::removeInstance(IMeshInstance* v)
 {
     if (erase(m_instances, v))
         markDirty(DirtyFlag::Instance);
+}
+
+void Scene::update()
+{
 }
 
 

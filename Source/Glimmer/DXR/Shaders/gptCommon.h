@@ -157,12 +157,6 @@ struct vertex_t
     }
 };
 
-struct face_t
-{
-    int3 indices;
-    int material_index;
-};
-
 struct accum_t
 {
     float3 radiance;

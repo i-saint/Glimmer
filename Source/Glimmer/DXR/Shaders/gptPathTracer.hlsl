@@ -1,6 +1,8 @@
 #include "gptMath.h"
 #include "gptCommon.h"
 
+#define gptEnableStochasticLightCulling
+
 enum RayType
 {
     RT_RADIANCE,
@@ -636,17 +638,19 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
     float3 radiance = 0.0f;
 
-    //// accumerate all light
-    //for (int li = 0; li < g_scene.light_count; ++li) {
-    //    radiance += GetLightRadiance(P, N, li, seed);
-    //}
-
+#ifdef gptEnableStochasticLightCulling
     // stochastic light culling
     int light_index;
     float light_contribution;
     PickLight(P, N, seed, light_index, light_contribution);
     if (light_index != -1)
         radiance += GetLightRadiance(P, N, light_index, seed) / light_contribution;
+#else
+    // enumerate all light
+    for (int li = 0; li < g_scene.light_count; ++li)
+        radiance += GetLightRadiance(P, N, li, seed);
+#endif
+
 
     payload.radiance += radiance * md.opacity;
     payload.seed = seed;
