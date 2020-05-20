@@ -103,25 +103,23 @@ struct JointWeight
 };
 struct MeshData
 {
-    int face_count;
     int vertex_count;
+    int triangle_count;
     int deform_id;
-    int flags; // MeshFlag
-    float3 bb_min;
-    float3 bb_max;
-    float2 pad;
+    int flags;
 };
 
 struct InstanceData
 {
     float4x4 transform;
     float4x4 itransform;
-    int enabled;
     int mesh_id;
     int deform_id;
     int material_id;
+    int triangle_count;
+    int triangle_offset;
     int instance_flags;
-    int3 pad;
+    int2 pad;
 };
 
 struct SceneData

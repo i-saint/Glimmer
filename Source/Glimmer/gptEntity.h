@@ -147,25 +147,23 @@ struct JointCount
 
 struct MeshData
 {
-    int face_count = 0;
     int vertex_count = 0;
+    int triangle_count = 0;
     int deform_id = -1;
     int flags = 0;
-    float3 bb_min{};
-    float3 bb_max{};
-    float2 pad{};
 };
 
 struct InstanceData
 {
     float4x4 transform = float4x4::identity();
     float4x4 itransform = float4x4::identity();
-    int enabled = 1;
     int mesh_id = -1;
     int deform_id = -1;
     int material_id = 0; // 0: default material
+    int triangle_count = 0;
+    int triangle_offset = 0;
     int instance_flags = (int)InstanceFlag::Default;
-    int3 pad{};
+    int2 pad{};
 
     gptDefCompare(InstanceData);
 };

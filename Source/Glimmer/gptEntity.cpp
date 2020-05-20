@@ -543,7 +543,7 @@ void Mesh::setIndices(const int* v, size_t n, int submesh)
             return;
 
         indices.assign(v, v + n);
-        m_data.face_count = (uint32_t)indices.size() / 3;
+        m_data.triangle_count = (uint32_t)indices.size() / 3;
     }
     markDirty(DirtyFlag::Indices);
 }
@@ -784,7 +784,7 @@ void Mesh::exportBlendshapeDelta(vertex_t* dst) const
 const MeshData& Mesh::getData()
 {
     if (isDirty(DirtyFlag::Points)) {
-        mu::MinMax(m_points.data(), m_points.size(), m_data.bb_min, m_data.bb_max);
+        //mu::MinMax(m_points.data(), m_points.size(), m_data.bb_min, m_data.bb_max);
     }
     return m_data;
 }
@@ -926,7 +926,6 @@ Span<float>     MeshInstance::getBlendshapeWeights() const { return m_blendshape
 
 const InstanceData& MeshInstance::getData()
 {
-    m_data.enabled = isEnabled();
     return m_data;
 }
 

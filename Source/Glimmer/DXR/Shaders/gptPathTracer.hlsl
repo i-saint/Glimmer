@@ -273,13 +273,26 @@ void GetScreenIndex(out uint2 si, out uint pi, out uint bi)
     int2 dri = DispatchRaysIndex().xy;
     int2 drd = DispatchRaysDimensions().xy;
     pi = drd.x * dri.y + dri.x;
-    bi = pi;
+    bi = pi - WaveGetLaneIndex();
     si = dri;
 
     //int2 sd = g_scene.camera.screen_size;
     //pi = DispatchRaysIndex().x;
-    //bi = pi / WaveGetLaneCount();
+    //bi = pi - WaveGetLaneIndex();
     //si = uint2(pi % sd.x, pi / sd.x);
+}
+
+void GetScreenIndexShuffled(out uint2 si, out uint pi, out uint bi)
+{
+    // DispatchRaysIndex must be 1 dimension
+    int2 sd = g_scene.camera.screen_size;
+    uint spi = DispatchRaysIndex().x;
+    uint wc = WaveGetLaneCount();
+    uint bbi = spi / (wc * wc);
+
+    bi = spi / wc % wc;
+    pi = (WaveGetLaneIndex() * wc) + (wc * wc * bbi) + bi;
+    si = uint2(pi % sd.x, pi / sd.x);
 }
 
 [shader("raygeneration")]
@@ -289,9 +302,7 @@ void RayGenRadiance()
     uint bi, pi;
     GetScreenIndex(si, pi, bi);
 
-    //uint seed = tea(si.y * sd.x + si.x, FrameCount());
-    uint seed = tea(bi, FrameCount());
-
+    uint seed = tea(pi, FrameCount());
     int samples_per_frame = SamplesPerFrame();
     int max_trace_depth = MaxTraceDepth();
     float2 jitter = 0.0f;
@@ -335,7 +346,6 @@ void RayGenRadiance()
         g_rw_normal_buffer[si] = 0.0f;
         g_rw_depth_buffer[si] = 1.0f;
     }
-
     g_accum_buffer[pi] = prev;
 }
 
@@ -540,7 +550,7 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
         MeshData mesh = g_meshes[mesh_id];
         MaterialData md = g_materials[g_instances[ii].material_id];
 
-        int fid = rnd_i(seed, mesh.face_count);
+        int fid = rnd_i(seed, mesh.triangle_count);
         float2 bc = rnd_bc(seed);
         float3 fpos = GetInterpolatedVertex(ii, fid, bc).position;
         float3 L = normalize(fpos - P);
@@ -732,7 +742,7 @@ struct photon_t
 vertex_t PickRandomVertex(int instance_id, inout uint seed)
 {
     MeshData mesh = g_meshes[g_instances[instance_id].mesh_id];
-    int fid = rnd_i(seed, mesh.face_count);
+    int fid = rnd_i(seed, mesh.triangle_count);
     float2 bc = rnd_bc(seed);
     return GetInterpolatedVertex(instance_id, fid, bc);
 }
