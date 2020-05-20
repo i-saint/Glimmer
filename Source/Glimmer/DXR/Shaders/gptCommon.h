@@ -67,10 +67,12 @@ struct LightData
 
 struct MaterialData
 {
-    int type; // MaterialType
     float3 diffuse;
+    int type; // MaterialType
     float3 emissive;
     float roughness;
+    float3 rimlight_color;
+    float rimlight_falloff;
     float opacity;
     float refraction_index;
     int diffuse_tex;

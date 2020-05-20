@@ -191,6 +191,18 @@ void Material::setOpacity(float v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setRimLightColor(float3 v)
+{
+    m_data.rimlight_color = v;
+    markDirty(DirtyFlag::Material);
+}
+
+void Material::setRimLightFalloff(float v)
+{
+    m_data.rimlight_falloff = v;
+    markDirty(DirtyFlag::Material);
+}
+
 void Material::setDiffuseMap(ITexture* v)
 {
     m_tex_diffuse = base_t(v);
@@ -232,6 +244,8 @@ float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
 float Material::getRefractionIndex() const { return m_data.refraction_index; }
 float Material::getOpacity() const { return m_data.opacity; }
+float3 Material::getRimLightColor() const { return m_data.rimlight_color; }
+float Material::getRimLightFalloff() const { return m_data.rimlight_falloff; }
 ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }
 ITexture* Material::getOpacityMap() const { return m_tex_opacity; }
 ITexture* Material::getRoughnessMap() const { return m_tex_roughness; }

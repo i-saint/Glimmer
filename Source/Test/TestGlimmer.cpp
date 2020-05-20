@@ -218,6 +218,7 @@ bool GlimmerTest::init()
 
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
     m_mat_diffuse->setRoughness(0.4f);
+    //m_mat_diffuse->setRimLightColor(float3{ 0.5f, 0.5f, 1.0f });
 
     m_mat_reflective->setDiffuse(float3{ 0.5f, 0.5f, 0.7f });
     m_mat_reflective->setRoughness(0.02f);
@@ -229,6 +230,7 @@ bool GlimmerTest::init()
     m_mat_transparent->setRefractionIndex(1.5f); // https://en.wikipedia.org/wiki/List_of_refractive_indices
     //m_mat_transparent->setRefractionIndex(1.0f);
     //m_mat_transparent->setNormalMap(dot_normal_texture);
+    m_mat_transparent->setRimLightColor(float3{ 0.5f, 0.5f, 1.0f } * 0.5f);
 
     m_mat_emissive->setDiffuse(float3{ 0.8f, 0.8f, 0.8f });
     //m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });

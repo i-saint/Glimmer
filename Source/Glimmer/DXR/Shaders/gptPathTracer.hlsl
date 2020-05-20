@@ -2,6 +2,7 @@
 #include "gptCommon.h"
 
 #define gptEnableStochasticLightCulling
+#define gptEnableGetRimLightRadiance
 
 enum RayType
 {
@@ -313,20 +314,17 @@ void RayGenRadiance()
     float3 prev_radiance = g_rw_radiance_buffer[si].xyz;
     float prev_accum = g_rw_radiance_buffer[si].w;
     float prev_t = g_rw_depth_buffer[si];
-    float move_amount = 0;
     {
         float3 pos = GetCameraRayPosition(g_scene.camera, si, t);
         float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, si, prev_t);
-        move_amount = length(pos - pos_prev);
-
-        const float attenuation = max(0.95f - (move_amount * 100.0f), 0.0f);
+        float move_amount = length(pos - pos_prev);
+        float attenuation = max(0.975f - (move_amount * 100.0f), 0.0f);
         radiance += prev_radiance * attenuation;
         accum += prev_accum * attenuation;
     }
 
-    if (t == g_scene.camera.far_plane) {
+    if (t == g_scene.camera.far_plane)
         g_rw_normal_buffer[si] = 0.0f;
-    }
     g_rw_depth_buffer[si] = t;
     g_rw_radiance_buffer[si] = float4(radiance, accum);
 }
@@ -563,6 +561,12 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
     return radiance;
 }
 
+inline float3 GetRimLightRadiance(float3 V, float3 N, float3 color, float falloff)
+{
+    float s = pow(max(1.0f - dot(-V, N), 0.0f), falloff);
+    return color * s;
+}
+
 inline bool Refract(inout float3 pos, inout float3 dir, float3 vertex_normal, float3 face_normal, float refraction_index, bool backface)
 {
     // assume refraction index of air is 1.0f
@@ -639,6 +643,13 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     // enumerate all light
     for (int li = 0; li < g_scene.light_count; ++li)
         radiance += GetLightRadiance(P, N, li, seed);
+#endif
+
+#ifdef gptEnableGetRimLightRadiance
+    if (payload.iteration % SamplesPerFrame() == 0) {
+        float3 view = normalize(P_ - g_scene.camera.position);
+        radiance += GetRimLightRadiance(view, N, md.rimlight_color, md.rimlight_falloff);
+    }
 #endif
 
 

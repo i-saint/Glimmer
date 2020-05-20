@@ -113,10 +113,12 @@ struct LightData
 
 struct MaterialData
 {
-    MaterialType type = MaterialType::Opaque;
     float3 diffuse{ 0.8f, 0.8f, 0.8f };
+    MaterialType type = MaterialType::Opaque;
     float3 emissive{ 0.0f, 0.0f, 0.0f };
     float roughness = 0.5f;
+    float3 rimlight_color{ 0.0f, 0.0f, 0.0f };
+    float rimlight_falloff = 2.0f;
     float opacity = 1.0f;
     float refraction_index = 1.0f;
     int diffuse_tex = -1;
@@ -391,6 +393,8 @@ public:
     void setEmissive(float3 v) override;
     void setRefractionIndex(float v) override;
     void setOpacity(float v) override;
+    void setRimLightColor(float3 v) override;
+    void setRimLightFalloff(float v) override;
     void setDiffuseMap(ITexture* v) override;
     void setOpacityMap(ITexture* v) override;
     void setRoughnessMap(ITexture* v) override;
@@ -403,6 +407,8 @@ public:
     float3       getEmissive() const override;
     float        getRefractionIndex() const override;
     float        getOpacity() const override;
+    float3       getRimLightColor() const override;
+    float        getRimLightFalloff() const override;
     ITexture*    getDiffuseMap() const override;
     ITexture*    getOpacityMap() const override;
     ITexture*    getRoughnessMap() const override;

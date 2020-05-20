@@ -301,6 +301,8 @@ public:
     virtual void setEmissive(float3 v) = 0;
     virtual void setOpacity(float v) = 0;
     virtual void setRefractionIndex(float v) = 0;
+    virtual void setRimLightColor(float3 v) = 0;
+    virtual void setRimLightFalloff(float v) = 0;
     virtual void setDiffuseMap(ITexture* v) = 0;
     virtual void setOpacityMap(ITexture* v) = 0;
     virtual void setRoughnessMap(ITexture* v) = 0;
@@ -313,6 +315,8 @@ public:
     virtual float3       getEmissive() const = 0;
     virtual float        getOpacity() const = 0;
     virtual float        getRefractionIndex() const = 0;
+    virtual float3       getRimLightColor() const = 0;
+    virtual float        getRimLightFalloff() const = 0;
     virtual ITexture*    getDiffuseMap() const = 0;
     virtual ITexture*    getOpacityMap() const = 0;
     virtual ITexture*    getRoughnessMap() const = 0;
