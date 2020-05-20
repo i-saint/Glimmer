@@ -329,7 +329,7 @@ bool ContextDXR::initializeDevice()
         // frame buffer
         D3D12_DESCRIPTOR_RANGE ranges0[] = {
             { D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
-            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
+            { D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND },
         };
 
         // scene data
@@ -735,8 +735,6 @@ void ContextDXR::dispatchRays()
         auto rt_desc = rt->GetDesc();
 
         D3D12_DISPATCH_RAYS_DESC dr_desc{};
-        //dr_desc.Width = (UINT)rt_desc.Width * (UINT)rt_desc.Height;
-        //dr_desc.Height = 1;
         dr_desc.Width = (UINT)rt_desc.Width;
         dr_desc.Height = (UINT)rt_desc.Height;
         dr_desc.Depth = 1;

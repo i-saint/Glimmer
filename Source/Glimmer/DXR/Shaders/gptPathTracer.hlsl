@@ -10,12 +10,13 @@ enum RayType
     RT_PHOTON,
 };
 
-RWTexture2D<float4>             g_frame_buffer      : register(u0, space0);
-RWStructuredBuffer<accum_t>     g_accum_buffer      : register(u1, space0);
+RWTexture2D<float4>             g_rw_frame_buffer   : register(u0, space0);
+RWTexture2D<float4>             g_rw_radiance_buffer: register(u1, space0);
 RWTexture2D<float4>             g_rw_normal_buffer  : register(u2, space0);
 RWTexture2D<float>              g_rw_depth_buffer   : register(u3, space0);
-Texture2D<float4>               g_normal_buffer     : register(t0, space0);
-Texture2D<float>                g_depth_buffer      : register(t1, space0);
+Texture2D<float4>               g_radiance_buffer   : register(t0, space0);
+Texture2D<float4>               g_normal_buffer     : register(t1, space0);
+Texture2D<float>                g_depth_buffer      : register(t2, space0);
 
 RaytracingAccelerationStructure g_tlas          : register(t0, space1);
 StructuredBuffer<LightData>     g_lights        : register(t1, space1);
@@ -268,39 +269,21 @@ void ShootRadianceRay(inout RadiancePayload payload)
     TraceRay(g_tlas, ray_flags, LM_VISIBLE, RT_RADIANCE, 0, RT_RADIANCE, ray, payload);
 }
 
-void GetScreenIndex(out uint2 si, out uint pi, out uint bi)
+int4 GetScreenIndex()
 {
-    int2 dri = DispatchRaysIndex().xy;
-    int2 drd = DispatchRaysDimensions().xy;
-    pi = drd.x * dri.y + dri.x;
-    bi = pi - WaveGetLaneIndex();
-    si = dri;
-
-    //int2 sd = g_scene.camera.screen_size;
-    //pi = DispatchRaysIndex().x;
-    //bi = pi - WaveGetLaneIndex();
-    //si = uint2(pi % sd.x, pi / sd.x);
-}
-
-void GetScreenIndexShuffled(out uint2 si, out uint pi, out uint bi)
-{
-    // DispatchRaysIndex must be 1 dimension
-    int2 sd = g_scene.camera.screen_size;
-    uint spi = DispatchRaysIndex().x;
-    uint wc = WaveGetLaneCount();
-    uint bbi = spi / (wc * wc);
-
-    bi = spi / wc % wc;
-    pi = (WaveGetLaneIndex() * wc) + (wc * wc * bbi) + bi;
-    si = uint2(pi % sd.x, pi / sd.x);
+    int2 si = DispatchRaysIndex().xy;
+    int2 sd = DispatchRaysDimensions().xy;
+    int pi = sd.x * si.y + si.x;
+    int bi = pi - WaveGetLaneIndex();
+    return int4(si, pi, bi);
 }
 
 [shader("raygeneration")]
 void RayGenRadiance()
 {
-    uint2 si;
-    uint bi, pi;
-    GetScreenIndex(si, pi, bi);
+    int4 si4 = GetScreenIndex();
+    int2 si = si4.xy;
+    int pi = si4.z;
 
     uint seed = tea(pi, FrameCount());
     int samples_per_frame = SamplesPerFrame();
@@ -327,44 +310,41 @@ void RayGenRadiance()
     }
 
     float accum = float(samples_per_frame);
-    accum_t prev = g_accum_buffer[pi];
+    float3 prev_radiance = g_rw_radiance_buffer[si].xyz;
+    float prev_accum = g_rw_radiance_buffer[si].w;
+    float prev_t = g_rw_depth_buffer[si];
     float move_amount = 0;
     {
         float3 pos = GetCameraRayPosition(g_scene.camera, si, t);
-        float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, si, prev.t);
+        float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, si, prev_t);
         move_amount = length(pos - pos_prev);
 
         const float attenuation = max(0.95f - (move_amount * 100.0f), 0.0f);
-        radiance += prev.radiance * attenuation;
-        accum += prev.accum * attenuation;
+        radiance += prev_radiance * attenuation;
+        accum += prev_accum * attenuation;
     }
-    prev.radiance = radiance;
-    prev.accum = accum;
-    prev.t = t;
 
     if (t == g_scene.camera.far_plane) {
         g_rw_normal_buffer[si] = 0.0f;
-        g_rw_depth_buffer[si] = 1.0f;
     }
-    g_accum_buffer[pi] = prev;
+    g_rw_depth_buffer[si] = t;
+    g_rw_radiance_buffer[si] = float4(radiance, accum);
 }
 
 
 [shader("raygeneration")]
 void RayGenDisplay()
 {
-    uint2 si;
-    uint bi, pi;
-    GetScreenIndex(si, pi, bi);
+    int2 si = GetScreenIndex().xy;
 
-    float3 n = g_normal_buffer[si].xyz;
-    float d = g_depth_buffer[si];
-    accum_t a = g_accum_buffer[pi];
+    float3 n = normalize(g_normal_buffer[si].xyz);
+    float d = g_depth_buffer[si].x;
+    float4 radiance = g_radiance_buffer[si];
 
-    g_frame_buffer[si] = float4(linear_to_srgb(a.radiance / a.accum), 1.0f);
-    //g_frame_buffer[si] = float4(n * 0.5f + 0.5f, 1.0f);
-    //g_frame_buffer[si] = float4(d.xxx, 1.0f);
-    //g_frame_buffer[si] = (float)WaveGetLaneIndex() / (float)WaveGetLaneCount();
+    g_rw_frame_buffer[si] = float4(linear_to_srgb(radiance.xyz / radiance.w), 1.0f);
+    //g_rw_frame_buffer[si] = float4(n * 0.5f + 0.5f, 1.0f);
+    //g_rw_frame_buffer[si] = float4(1.0f - d.xxx / g_scene.camera.far_plane, 1.0f);
+    //g_rw_frame_buffer[si] = (float)WaveGetLaneIndex() / (float)WaveGetLaneCount();
 }
 
 
@@ -666,12 +646,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     payload.seed = seed;
 
     if (payload.iteration == 0) {
-        uint2 si;
-        uint bi, pi;
-        GetScreenIndex(si, pi, bi);
-
-        g_rw_normal_buffer[si] = float4(N, 0.0f);
-        g_rw_depth_buffer[si] = payload.t / g_scene.camera.far_plane;
+        g_rw_normal_buffer[GetScreenIndex().xy] = float4(N, 0.0f);
     }
 }
 

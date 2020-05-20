@@ -155,15 +155,6 @@ struct vertex_t
     }
 };
 
-struct accum_t
-{
-    float3 radiance;
-    float accum;
-    float t;
-
-    float3 pad;
-};
-
 
 
 #include "gptMath.h"

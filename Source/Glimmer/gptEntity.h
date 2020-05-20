@@ -196,15 +196,6 @@ struct vertex_t
     gptDefCompare(vertex_t);
 };
 
-struct accum_t
-{
-    float3 radiance;
-    float accum;
-    float t;
-
-    float3 pad;
-};
-
 #undef gptDefCompare
 
 

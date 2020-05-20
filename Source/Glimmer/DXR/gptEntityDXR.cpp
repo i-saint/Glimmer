@@ -48,9 +48,10 @@ void RenderTargetDXR::updateResources()
     if (!m_uav_frame_buffer) {
         auto& desc_alloc = ctx->m_desc_alloc_srv;
         m_uav_frame_buffer = desc_alloc.allocate();
-        m_uav_accum_buffer = desc_alloc.allocate();
+        m_uav_radiance_buffer = desc_alloc.allocate();
         m_uav_normal_buffer = desc_alloc.allocate();
         m_uav_depth_buffer = desc_alloc.allocate();
+        m_srv_radiance_buffer = desc_alloc.allocate();
         m_srv_normal_buffer = desc_alloc.allocate();
         m_srv_depth_buffer = desc_alloc.allocate();
     }
@@ -65,7 +66,7 @@ void RenderTargetDXR::updateResources()
             m_context->wait();
             m_swapchain->resize(m_width, m_height);
             m_frame_buffer = nullptr;
-            m_accum_buffer = nullptr;
+            m_radiance_buffer = nullptr;
             m_buf_readback = nullptr;
         }
     }
@@ -75,10 +76,11 @@ void RenderTargetDXR::updateResources()
         ctx->createTextureUAV(m_uav_frame_buffer, m_frame_buffer);
         gptSetName(m_frame_buffer, m_name + " Frame Buffer");
     }
-    if (!m_accum_buffer) {
-        m_accum_buffer = ctx->createBuffer(m_width * m_height * sizeof(accum_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kDefaultHeapProps);
-        ctx->createBufferUAV(m_uav_accum_buffer, m_accum_buffer, sizeof(accum_t));
-        gptSetName(m_accum_buffer, m_name + " Accum Buffer");
+    if (!m_radiance_buffer) {
+        m_radiance_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        ctx->createTextureSRV(m_srv_radiance_buffer, m_radiance_buffer, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        ctx->createTextureUAV(m_uav_radiance_buffer, m_radiance_buffer, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        gptSetName(m_radiance_buffer, m_name + " Radiance Buffer");
     }
     if (!m_normal_buffer) {
         m_normal_buffer = ctx->createTexture(m_width, m_height, DXGI_FORMAT_R8G8B8A8_SNORM);
