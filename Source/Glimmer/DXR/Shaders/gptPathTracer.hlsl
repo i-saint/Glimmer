@@ -2,7 +2,7 @@
 #include "gptCommon.h"
 
 #define gptEnableStochasticLightCulling
-#define gptEnableGetRimLightRadiance
+#define gptEnableRimLight
 
 enum RayType
 {
@@ -141,9 +141,9 @@ float3 GetEmissive(MaterialData md, float2 uv)
     return r;
 }
 
-float3 GetRoughness(MaterialData md, float2 uv)
+float GetRoughness(MaterialData md, float2 uv)
 {
-    float3 r = md.roughness;
+    float r = md.roughness;
     int tid = md.roughness_tex;
     if (tid != -1)
         r *= g_textures[tid].SampleLevel(g_sampler_default, uv, 0).x;
@@ -449,7 +449,7 @@ void PickLight(float3 P, float3 N, inout uint seed, out int light_index, out flo
     }
 }
 
-float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
+float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0, int light_index, inout uint seed)
 {
     float3 radiance = 0.0f;
 
@@ -487,11 +487,12 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
-                //weight = nDl / (PI * Ld * Ld);
+                float weight = max(nDl * pow2((light.range - Ld) / light.range), 0.0f);
+                // "physically correct" attenuation
+                ////float weight = nDl / (PI * Ld * Ld);
+                float specular = 1.0f; // ggx(N, V, L, roughness, F0);
 
-                float a = (light.range - Ld) / light.range;
-                float weight = nDl * (a * a);
-                radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
+                radiance = (light.color * light.intensity) * attenuation * (weight * specular);
             }
         }
     }
@@ -510,11 +511,10 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
                 float nDl = dot(N, L);
-                //weight = nDl / (PI * Ld * Ld);
+                float weight = max(nDl * pow2((light.range - Ld) / light.range), 0.0f);
+                float specular = 1.0f; // ggx(N, V, L, roughness, F0);
 
-                float a = (light.range - Ld) / light.range;
-                float weight = nDl * (a * a);
-                radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
+                radiance = (light.color * light.intensity) * attenuation * (weight * specular);
             }
         }
     }
@@ -526,7 +526,6 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
 
         int mesh_id = g_instances[ii].mesh_id;
         MeshData mesh = g_meshes[mesh_id];
-        MaterialData md = g_materials[g_instances[ii].material_id];
 
         int fid = rnd_i(seed, mesh.triangle_count);
         float2 bc = rnd_bc(seed);
@@ -552,10 +551,12 @@ float3 GetLightRadiance(float3 P, float3 N, int light_index, inout uint seed)
             vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
             float Ld = length(hv.position - P);
             float nDl = dot(N, ray.Direction);
-            float a = (light.range - Ld) / light.range;
-            float weight = max(nDl, 0.0f) * (a * a);
+            float weight = max(nDl * pow2((light.range - Ld) / light.range), 0.0f);
+            float specular = 1.0f; // ggx(N, V, L, roughness, F0);
 
-            radiance += GetEmissive(md, hv.uv) * epl.attenuation * (light.intensity * weight);
+            MaterialData lmd = g_materials[g_instances[ii].material_id];
+            float3 emissive = GetEmissive(lmd, hv.uv) * light.intensity;
+            radiance = emissive * epl.attenuation * (weight * specular);
         }
     }
     return radiance;
@@ -591,14 +592,19 @@ inline bool Refract(inout float3 pos, inout float3 dir, float3 vertex_normal, fl
 void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     MaterialData md = FaceMaterial();
-    vertex_t V = GetInterpolatedVertex(attr.barycentrics);
+    vertex_t vertex = GetInterpolatedVertex(attr.barycentrics);
 
     bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
     float3 Nf = FaceNormal();
-    float3 N = GetNormal(V, md);
+    float3 N = GetNormal(vertex, md);
 
     float3 P_ = HitPosition();
     float3 P = offset_ray(P_, Nf);
+    float3 V = normalize(payload.origin - P);
+
+    float roughness = GetRoughness(md, vertex.uv);
+    float fresnel = md.fresnel;
+
     uint seed = payload.seed;
     payload.t = RayTCurrent();
 
@@ -610,23 +616,23 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
             Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
 
             if (backface) {
-                payload.attenuation *= GetDiffuse(md, V.uv) * ((1.0f - md.opacity) / (1.0f + payload.t * payload.t));
+                payload.attenuation *= GetDiffuse(md, vertex.uv) * ((1.0f - md.opacity) / (1.0f + payload.t * payload.t));
             }
             else {
                 //// diffuse & emissive
-                //payload.attenuation *= GetDiffuse(md, V.uv);
-                //payload.radiance += GetEmissive(md, V.uv);
+                //payload.attenuation *= GetDiffuse(md, vertex.uv);
+                //payload.radiance += GetEmissive(md, vertex.uv);
             }
         }
         else {
             float3 reflect_dir = reflect(payload.direction, N);
             float3 diffuse_dir = onb_inverse_transform(cosine_sample_hemisphere(rnd01(seed), rnd01(seed)), N);
-            payload.direction = normalize(lerp(reflect_dir, diffuse_dir, GetRoughness(md, V.uv)));
+            payload.direction = normalize(lerp(reflect_dir, diffuse_dir, roughness));
             payload.origin = P;
 
             // diffuse & emissive
-            payload.attenuation *= GetDiffuse(md, V.uv);
-            payload.radiance += GetEmissive(md, V.uv);
+            payload.attenuation *= GetDiffuse(md, vertex.uv);
+            payload.radiance += GetEmissive(md, vertex.uv);
         }
     }
 
@@ -638,14 +644,14 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     float light_contribution;
     PickLight(P, N, seed, light_index, light_contribution);
     if (light_index != -1)
-        radiance += GetLightRadiance(P, N, light_index, seed) / light_contribution;
+        radiance += GetLightRadiance(P, N, V, roughness, fresnel, light_index, seed) / light_contribution;
 #else
     // enumerate all light
     for (int li = 0; li < g_scene.light_count; ++li)
-        radiance += GetLightRadiance(P, N, li, seed);
+        radiance += GetLightRadiance(P, N, V, roughness, fresnel, li, seed);
 #endif
 
-#ifdef gptEnableGetRimLightRadiance
+#ifdef gptEnableRimLight
     if (payload.iteration % SamplesPerFrame() == 0) {
         float3 view = normalize(P_ - g_scene.camera.position);
         radiance += GetRimLightRadiance(view, N, md.rimlight_color, md.rimlight_falloff);

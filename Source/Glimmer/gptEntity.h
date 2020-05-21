@@ -78,6 +78,9 @@ int GetTexelSize(Format v);
     bool operator==(const T& v) const { return std::memcmp(this, &v, sizeof(*this)) == 0; }\
     bool operator!=(const T& v) const { return !(*this == v); }\
 
+#define gptAssertAlign16(T)\
+    static_assert(sizeof(CameraData) % 16 == 0, "not 16 byte aligned")
+
 // these structs are directly uploaded to GPU buffers
 
 struct CameraData
@@ -94,6 +97,7 @@ struct CameraData
 
     gptDefCompare(CameraData);
 };
+gptAssertAlign16(CameraData);
 
 struct LightData
 {
@@ -110,6 +114,7 @@ struct LightData
 
     gptDefCompare(LightData);
 };
+gptAssertAlign16(LightData);
 
 struct MaterialData
 {
@@ -120,16 +125,17 @@ struct MaterialData
     float3 rimlight_color{ 0.0f, 0.0f, 0.0f };
     float rimlight_falloff = 2.0f;
     float opacity = 1.0f;
+    float fresnel = 0.9f;
     float refraction_index = 1.0f;
     int diffuse_tex = -1;
     int opacity_tex = -1;
     int roughness_tex = -1;
     int emissive_tex = -1;
     int normal_tex = -1;
-    int pad{};
 
     gptDefCompare(MaterialData);
 };
+gptAssertAlign16(MaterialData);
 
 struct BlendshapeData
 {
@@ -154,6 +160,7 @@ struct MeshData
     int deform_id = -1;
     int flags = 0;
 };
+gptAssertAlign16(MeshData);
 
 struct InstanceData
 {
@@ -169,6 +176,7 @@ struct InstanceData
 
     gptDefCompare(InstanceData);
 };
+gptAssertAlign16(InstanceData);
 
 struct SceneData
 {
@@ -186,6 +194,7 @@ struct SceneData
 
     gptDefCompare(SceneData);
 };
+gptAssertAlign16(SceneData);
 
 struct vertex_t
 {
@@ -393,6 +402,7 @@ public:
     void setEmissive(float3 v) override;
     void setRefractionIndex(float v) override;
     void setOpacity(float v) override;
+    void setFresnel(float v) override;
     void setRimLightColor(float3 v) override;
     void setRimLightFalloff(float v) override;
     void setDiffuseMap(ITexture* v) override;
@@ -407,6 +417,7 @@ public:
     float3       getEmissive() const override;
     float        getRefractionIndex() const override;
     float        getOpacity() const override;
+    float        getFresnel() const override;
     float3       getRimLightColor() const override;
     float        getRimLightFalloff() const override;
     ITexture*    getDiffuseMap() const override;

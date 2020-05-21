@@ -191,6 +191,12 @@ void Material::setOpacity(float v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setFresnel(float v)
+{
+    m_data.fresnel = v;
+    markDirty(DirtyFlag::Material);
+}
+
 void Material::setRimLightColor(float3 v)
 {
     m_data.rimlight_color = v;
@@ -244,6 +250,7 @@ float Material::getRoughness() const { return m_data.roughness; }
 float3 Material::getEmissive() const { return m_data.emissive; }
 float Material::getRefractionIndex() const { return m_data.refraction_index; }
 float Material::getOpacity() const { return m_data.opacity; }
+float Material::getFresnel() const { return m_data.fresnel; }
 float3 Material::getRimLightColor() const { return m_data.rimlight_color; }
 float Material::getRimLightFalloff() const { return m_data.rimlight_falloff; }
 ITexture* Material::getDiffuseMap() const { return m_tex_diffuse; }

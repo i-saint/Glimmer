@@ -197,6 +197,7 @@ float ggx(float3 N, float3 V, float3 L, float roughness, float F0)
 {
     float alpha = pow2(roughness);
     float alpha2 = pow2(alpha);
+    float k = alpha * 0.5f;
 
     float3 H = normalize(V + L);
     float dotNL = saturate(dot(N, L));
@@ -204,20 +205,11 @@ float ggx(float3 N, float3 V, float3 L, float roughness, float F0)
     float dotNH = saturate(dot(N, H));
     float dotLH = saturate(dot(L, H));
 
-    float F, D, vis;
+    float D = alpha2 / (PI * pow2(1.0f - (1.0f - alpha2) * pow2(dotNH)));
+    float F = F0 + (1.0f - F0) * pow5(1.0f - dotLH);
+    float G = (1.0f / (dotNL * (1.0f - k) + k)) * (1.0f / (dotNV * (1.0f - k) + k));
 
-    // D
-    float denom = dotNH * dotNH * (alpha2 - 1.0) + 1.0f;
-    D = alpha2 / (PI * denom * denom);
-
-    // F
-    float dotLH5 = pow5(1.0f - dotLH);
-    F = F0 + (1.0 - F0) * (dotLH5);
-
-    // V
-    float k = alpha / 2.0f;
-    vis = (1.0f / (dotNL * (1.0f - k) + k)) * (1.0f / (dotNV * (1.0f - k) + k));
-
-    float specular = dotNL * D * F * vis;
-    return specular;
+    float specular = dotNL * D * F * G;
+    //return clamp(specular, 0.0f, 50.0f);
+    return max(specular, 0.0f);
 }

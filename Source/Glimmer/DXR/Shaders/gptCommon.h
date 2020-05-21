@@ -74,13 +74,13 @@ struct MaterialData
     float3 rimlight_color;
     float rimlight_falloff;
     float opacity;
+    float fresnel;
     float refraction_index;
     int diffuse_tex;
     int opacity_tex;
     int roughness_tex;
     int emissive_tex;
     int normal_tex;
-    int pad;
 };
 
 struct BlendshapeData

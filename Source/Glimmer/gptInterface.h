@@ -300,6 +300,7 @@ public:
     virtual void setRoughness(float v) = 0;
     virtual void setEmissive(float3 v) = 0;
     virtual void setOpacity(float v) = 0;
+    virtual void setFresnel(float v) = 0;
     virtual void setRefractionIndex(float v) = 0;
     virtual void setRimLightColor(float3 v) = 0;
     virtual void setRimLightFalloff(float v) = 0;
@@ -314,6 +315,7 @@ public:
     virtual float        getRoughness() const = 0;
     virtual float3       getEmissive() const = 0;
     virtual float        getOpacity() const = 0;
+    virtual float        getFresnel() const = 0;
     virtual float        getRefractionIndex() const = 0;
     virtual float3       getRimLightColor() const = 0;
     virtual float        getRimLightFalloff() const = 0;
