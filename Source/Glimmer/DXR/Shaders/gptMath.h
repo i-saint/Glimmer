@@ -120,6 +120,11 @@ inline bool near_equal(float a, float b, float t)
     return abs(a - b) <= t;
 }
 
+inline float3 get_translation(float4x4 v)
+{
+    return float3(v[0].w, v[1].w, v[2].w);
+}
+
 inline float3 mul_p(float4x4 m, float3 v)
 {
     return mul(m, float4(v, 1.0f)).xyz;

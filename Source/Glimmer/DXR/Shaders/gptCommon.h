@@ -16,6 +16,7 @@ enum MaterialType
     MT_ALPHA_TO_COVERAGE,
     MT_TRANSPARENT,
     MT_TRANSLUCENT,
+    MT_PORTAL,
 };
 
 enum RenderFlag
@@ -81,6 +82,9 @@ struct MaterialData
     int roughness_tex;
     int emissive_tex;
     int normal_tex;
+    float4x4 portal_transform;
+    int portal_scene;
+    int3 pad;
 };
 
 struct BlendshapeData

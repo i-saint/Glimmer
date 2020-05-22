@@ -36,6 +36,7 @@ enum class MaterialType : uint32_t
     AlphaToCoverage,
     Transparent,
     Translucent,
+    Portal,
 };
 
 enum class InstanceFlag : uint32_t
@@ -309,6 +310,8 @@ public:
     virtual void setRoughnessMap(ITexture* v) = 0;
     virtual void setEmissiveMap(ITexture* v) = 0;
     virtual void setNormalMap(ITexture* v) = 0;
+    virtual void setPortalTransform(float4x4 v) = 0;
+    virtual void setPortalScene(IScene* v) = 0;
 
     virtual MaterialType getType() const = 0;
     virtual float3       getDiffuse() const = 0;
@@ -324,6 +327,8 @@ public:
     virtual ITexture*    getRoughnessMap() const = 0;
     virtual ITexture*    getEmissiveMap() const = 0;
     virtual ITexture*    getNormalMap() const = 0;
+    virtual float4x4     getPortalTransform() const = 0;
+    virtual IScene*      getPortalScene()const = 0;
 };
 using IMaterialPtr = ref_ptr<IMaterial>;
 
@@ -443,7 +448,7 @@ public:
     virtual void setEnabled(bool v) = 0;
     virtual void setFlag(InstanceFlag f, bool v) = 0;
     virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
-    virtual void setTransform(const float4x4& v) = 0;
+    virtual void setTransform(float4x4 v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
     virtual void setBlendshapeWeights(const float* v) = 0;
 

@@ -132,6 +132,9 @@ struct MaterialData
     int roughness_tex = -1;
     int emissive_tex = -1;
     int normal_tex = -1;
+    float4x4 portal_transform = float4x4::identity();
+    int portal_scene = 0;
+    int3 pad;
 
     gptDefCompare(MaterialData);
 };
@@ -309,6 +312,12 @@ protected:
     uint32_t m_dirty_flags = 0;
 };
 
+class MeshInstance;
+class Scene;
+gptDefRefPtr(MeshInstance);
+gptDefRefPtr(Scene);
+
+
 
 class Globals : public IGlobals
 {
@@ -410,6 +419,8 @@ public:
     void setRoughnessMap(ITexture* v) override;
     void setEmissiveMap(ITexture* v) override;
     void setNormalMap(ITexture* v) override;
+    void setPortalTransform(float4x4 v) override;
+    void setPortalScene(IScene* v) override;
 
     MaterialType getType() const override;
     float3       getDiffuse() const override;
@@ -425,6 +436,8 @@ public:
     ITexture*    getRoughnessMap() const override;
     ITexture*    getEmissiveMap() const override;
     ITexture*    getNormalMap() const override;
+    float4x4     getPortalTransform() const override;
+    IScene*      getPortalScene() const override;
 
     const MaterialData& getData();
 
@@ -435,6 +448,7 @@ protected:
     TexturePtr m_tex_roughness;
     TexturePtr m_tex_emissive;
     TexturePtr m_tex_normal;
+    ScenePtr m_portal_scene;
 };
 gptDefRefPtr(Material);
 gptDefBaseT(Material, IMaterial)
@@ -466,9 +480,6 @@ protected:
 };
 gptDefRefPtr(Camera);
 gptDefBaseT(Camera, ICamera)
-
-class MeshInstance;
-gptDefRefPtr(MeshInstance);
 
 class Light : public EntityBase<ILight>
 {
@@ -655,7 +666,7 @@ public:
     void setEnabled(bool v) override;
     void setFlag(InstanceFlag f, bool v) override;
     void setMaterial(IMaterial* v, int slot) override;
-    void setTransform(const float4x4& v) override;
+    void setTransform(float4x4 v) override;
     void setJointMatrices(const float4x4* v) override;
     void setBlendshapeWeights(const float* v) override;
 

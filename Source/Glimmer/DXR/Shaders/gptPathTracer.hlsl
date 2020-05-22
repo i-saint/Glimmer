@@ -85,7 +85,7 @@ float3 HitPosition()
 
 float3 InstancePosition(int instance_id)
 {
-    return g_instances[instance_id].transform[3].xyz;
+    return get_translation(g_instances[instance_id].transform);
 }
 
 vertex_t GetInterpolatedVertex(int instance_id, int face_id, float2 barycentric)
@@ -588,6 +588,13 @@ inline bool Refract(inout float3 pos, inout float3 dir, float3 vertex_normal, fl
     }
 }
 
+inline void PortalWarp(inout float3 pos, inout float3 dir, MaterialData md)
+{
+    //pos += get_translation(md.portal_transform);
+    pos = mul_p(md.portal_transform, pos);
+    dir = normalize(mul_v(md.portal_transform, dir));
+}
+
 [shader("closesthit")]
 void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
@@ -597,45 +604,48 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
     float3 Nf = FaceNormal();
     float3 N = GetNormal(vertex, md);
-
     float3 P_ = HitPosition();
     float3 P = offset_ray(P_, Nf);
-    float3 V = normalize(payload.origin - P);
 
     float roughness = GetRoughness(md, vertex.uv);
     float fresnel = md.fresnel;
-
     uint seed = payload.seed;
     payload.t = RayTCurrent();
 
-    {
-        // prepare next ray
+    if (payload.iteration == 0)
+        g_rw_normal_buffer[GetScreenIndex().xy] = float4(N, 0.0f);
 
-        if (md.type == MT_TRANSPARENT) {
-            payload.origin = P_;
-            Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
+    // prepare next ray
+    if (md.type == MT_TRANSPARENT) {
+        payload.origin = P_;
+        Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
 
-            if (backface) {
-                payload.attenuation *= GetDiffuse(md, vertex.uv) * ((1.0f - md.opacity) / (1.0f + payload.t * payload.t));
-            }
-            else {
-                //// diffuse & emissive
-                //payload.attenuation *= GetDiffuse(md, vertex.uv);
-                //payload.radiance += GetEmissive(md, vertex.uv);
-            }
+        if (backface) {
+            payload.attenuation *= GetDiffuse(md, vertex.uv) * ((1.0f - md.opacity) / (1.0f + payload.t * payload.t));
         }
         else {
-            float3 reflect_dir = reflect(payload.direction, N);
-            float3 diffuse_dir = onb_inverse_transform(cosine_sample_hemisphere(rnd01(seed), rnd01(seed)), N);
-            payload.direction = normalize(lerp(reflect_dir, diffuse_dir, roughness));
-            payload.origin = P;
-
-            // diffuse & emissive
-            payload.attenuation *= GetDiffuse(md, vertex.uv);
-            payload.radiance += GetEmissive(md, vertex.uv);
+            //// diffuse & emissive
+            //payload.attenuation *= GetDiffuse(md, vertex.uv);
+            //payload.radiance += GetEmissive(md, vertex.uv);
         }
     }
+    else if (md.type == MT_PORTAL) {
+        payload.origin = offset_ray(P_, -Nf);
+        PortalWarp(payload.origin, payload.direction, md);
+        return;
+    }
+    else {
+        float3 reflect_dir = reflect(payload.direction, N);
+        float3 diffuse_dir = onb_inverse_transform(cosine_sample_hemisphere(rnd01(seed), rnd01(seed)), N);
+        payload.direction = normalize(lerp(reflect_dir, diffuse_dir, roughness));
+        payload.origin = P;
 
+        // diffuse & emissive
+        payload.attenuation *= GetDiffuse(md, vertex.uv);
+        payload.radiance += GetEmissive(md, vertex.uv);
+    }
+
+    float3 V = normalize(payload.origin - P);
     float3 radiance = 0.0f;
 
 #ifdef gptEnableStochasticLightCulling
@@ -653,18 +663,13 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
 
 #ifdef gptEnableRimLight
     if (payload.iteration % SamplesPerFrame() == 0) {
-        float3 view = normalize(P_ - g_scene.camera.position);
+        float3 view = normalize(P - g_scene.camera.position);
         radiance += GetRimLightRadiance(view, N, md.rimlight_color, md.rimlight_falloff);
     }
 #endif
 
-
     payload.radiance += radiance * md.opacity;
     payload.seed = seed;
-
-    if (payload.iteration == 0) {
-        g_rw_normal_buffer[GetScreenIndex().xy] = float4(N, 0.0f);
-    }
 }
 
 
@@ -690,6 +695,9 @@ void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in Buil
         if (!backface) {
             payload.attenuation *= GetDiffuse(md, V.uv) * (1.0f - md.opacity);
         }
+    }
+    else if (md.type == MT_PORTAL) {
+        PortalWarp(payload.origin, payload.direction, md);
     }
     else {
         payload.instance_id = InstanceID();

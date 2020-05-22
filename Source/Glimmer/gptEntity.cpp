@@ -244,6 +244,19 @@ void Material::setNormalMap(ITexture* v)
     markDirty(DirtyFlag::Material);
 }
 
+void Material::setPortalTransform(float4x4 v)
+{
+    m_data.portal_transform = v;
+    markDirty(DirtyFlag::Material);
+}
+
+void Material::setPortalScene(IScene* v)
+{
+    m_portal_scene = base_t(v);
+    m_data.portal_scene = GetID(m_portal_scene);
+    markDirty(DirtyFlag::Material);
+}
+
 MaterialType Material::getType() const { return m_data.type; }
 float3 Material::getDiffuse() const { return m_data.diffuse; }
 float Material::getRoughness() const { return m_data.roughness; }
@@ -258,6 +271,8 @@ ITexture* Material::getOpacityMap() const { return m_tex_opacity; }
 ITexture* Material::getRoughnessMap() const { return m_tex_roughness; }
 ITexture* Material::getEmissiveMap() const { return m_tex_emissive; }
 ITexture* Material::getNormalMap() const { return m_tex_normal; }
+float4x4 Material::getPortalTransform() const { return m_data.portal_transform; }
+IScene* Material::getPortalScene() const { return m_portal_scene; }
 
 const MaterialData& Material::getData()
 {
@@ -849,7 +864,7 @@ void MeshInstance::setMaterial(IMaterial* v, int slot)
     markDirty(DirtyFlag::Material);
 }
 
-void MeshInstance::setTransform(const float4x4& v)
+void MeshInstance::setTransform(float4x4 v)
 {
     if (m_data.transform == v)
         return;

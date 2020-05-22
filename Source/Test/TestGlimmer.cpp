@@ -69,6 +69,7 @@ private:
     gpt::IMaterialPtr m_mat_reflective;
     gpt::IMaterialPtr m_mat_transparent;
     gpt::IMaterialPtr m_mat_emissive;
+    gpt::IMaterialPtr m_mat_portal;
 
     gpt::IMeshPtr m_mesh_floor;
     gpt::IMeshPtr m_mesh_triangle;
@@ -189,6 +190,7 @@ bool GlimmerTest::init()
     m_mat_reflective = m_ctx->createMaterial();
     m_mat_transparent = m_ctx->createMaterial();
     m_mat_emissive = m_ctx->createMaterial();
+    m_mat_portal = m_ctx->createMaterial();
 
 
     {
@@ -236,6 +238,9 @@ bool GlimmerTest::init()
     //m_mat_emissive->setEmissive(float3{ 0.9f, 0.1f, 0.2f });
     m_mat_emissive->setEmissiveMap(m_tex_gradient);
     //m_mat_emissive->setEmissiveSampleCount(4);
+
+    m_mat_portal->setType(gpt::MaterialType::Portal);
+    m_mat_portal->setPortalTransform(mu::transform(float3{ 0.0f, 0.0f, -2.0f }, mu::rotate_z(90.0f * mu::DegToRad)));
 
     // camera
     {
@@ -411,6 +416,7 @@ bool GlimmerTest::init()
         inst = m_ctx->createMeshInstance(m_mesh_cube);
         inst->setTransform(mu::transform(float3{ 0.8f, 1.501f, 2.0f }, mu::rotate_y(30.0f * mu::DegToRad), float3{ 1.0f, 3.0f, 1.0f }));
         inst->setMaterial(m_mat_diffuse);
+        //inst->setMaterial(m_mat_portal);
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_cube);
@@ -452,6 +458,7 @@ bool GlimmerTest::init()
         auto inst = m_ctx->createMeshInstance(m_mesh_ico);
         inst->setTransform(mu::transform(float3{ -1.7f, 0.5f, -1.5f }, quatf::identity()));
         inst->setMaterial(m_mat_reflective);
+        inst->setMaterial(m_mat_portal);
         m_scene->addInstance(inst);
 
         inst = m_ctx->createMeshInstance(m_mesh_ico);
