@@ -1,6 +1,7 @@
 #include "gptMath.h"
 #include "gptCommon.h"
 
+#define gptEnableTemporalAccumeration
 #define gptEnableStochasticLightCulling
 #define gptEnableRimLight
 
@@ -35,12 +36,17 @@ Texture2D<float4>               g_textures[]    : register(t0, space6);
 SamplerState g_sampler_default : register(s0, space1);
 
 
-uint  FrameCount()          { return g_scene.frame; }
-uint  SamplesPerFrame()     { return g_scene.samples_per_frame; }
-uint  MaxTraceDepth()       { return g_scene.max_trace_depth; }
-float3 BackgroundColor()    { return g_scene.bg_color; }
+uint        GetFrameCount()         { return g_scene.frame; }
+float       GetTime()               { return g_scene.time; }
+uint        GetSamplesPerFrame()    { return g_scene.samples_per_frame; }
+uint        GetMaxTraceDepth()      { return g_scene.max_trace_depth; }
+float3      GetBackgroundColor()    { return g_scene.bg_color; }
+CameraData  GetCamera()             { return g_scene.camera; }
+CameraData  GetPrevCamera()         { return g_scene.camera_prev; }
+uint        GetLightCount()         { return g_scene.light_count; }
+LightData   GetLight(int i)         { return g_lights[i]; }
 
-float3 FaceNormal(int instance_id, int face_id)
+float3 GetFaceNormal(int instance_id, int face_id)
 {
     int mesh_id = g_instances[instance_id].mesh_id;
     int deform_id = g_instances[instance_id].deform_id;
@@ -60,30 +66,30 @@ float3 FaceNormal(int instance_id, int face_id)
     float3 n = normalize(cross(p1 - p0, p2 - p0));
     return mul_v(g_instances[instance_id].transform, n);
 }
-float3 FaceNormal()
+float3 GetFaceNormal()
 {
     int instance_id = InstanceID();
     int face_id = PrimitiveIndex();
-    return FaceNormal(instance_id, face_id);
+    return GetFaceNormal(instance_id, face_id);
 }
 
-MaterialData FaceMaterial(int instance_id, int face_id)
+MaterialData GetFaceMaterial(int instance_id, int face_id)
 {
     return g_materials[g_instances[instance_id].material_id];
 }
-MaterialData FaceMaterial()
+MaterialData GetFaceMaterial()
 {
     int instance_id = InstanceID();
     int face_id = PrimitiveIndex();
-    return FaceMaterial(instance_id, face_id);
+    return GetFaceMaterial(instance_id, face_id);
 }
 
-float3 HitPosition()
+float3 GetHitPosition()
 {
     return WorldRayOrigin() + (WorldRayDirection() * RayTCurrent());
 }
 
-float3 InstancePosition(int instance_id)
+float3 GetInstancePosition(int instance_id)
 {
     return get_translation(g_instances[instance_id].transform);
 }
@@ -217,7 +223,7 @@ struct OcclusionPayload
 
 void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, uint2 si, float2 offset)
 {
-    uint2 sd = g_scene.camera.screen_size;
+    uint2 sd = GetCamera().screen_size;
 
     float aspect_ratio = (float)sd.x / (float)sd.y;
     float2 screen_pos = ((float2(si) + offset + 0.5f) / float2(sd)) * 2.0f - 1.0f;
@@ -237,7 +243,7 @@ void GetCameraRay(out float3 origin, out float3 direction, CameraData cam, uint2
     //// swirl effect
     //{
     //    float attenuation = max(1.0f - length(screen_pos), 0.0);
-    //    float angle = (180.0f * sin(g_scene.time * 0.3f) * DegToRad) * (attenuation * attenuation);
+    //    float angle = (180.0f * sin(GetTime() * 0.3f) * DegToRad) * (attenuation * attenuation);
 
     //    float3 axis= normalize(f * focal);
     //    float4 rot = rotate_axis(axis, angle);
@@ -254,7 +260,7 @@ float3 GetCameraRayPosition(CameraData cam, uint2 si, float t)
 
 void GetCameraRay(out float3 origin, out float3 direction, uint2 si, float2 offset = 0.0f)
 {
-    GetCameraRay(origin, direction, g_scene.camera, si, offset);
+    GetCameraRay(origin, direction, GetCamera(), si, offset);
 }
 
 void ShootRadianceRay(inout RadiancePayload payload)
@@ -263,7 +269,7 @@ void ShootRadianceRay(inout RadiancePayload payload)
     ray.Origin = payload.origin;
     ray.Direction = payload.direction;
     ray.TMin = 0.0f;
-    ray.TMax = g_scene.camera.far_plane;  // todo: correct this
+    ray.TMax = GetCamera().far_plane;  // todo: correct this
 
     uint ray_flags = 0;
     //ray_flags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
@@ -286,9 +292,9 @@ void RayGenRadiance()
     int2 si = si4.xy;
     int pi = si4.z;
 
-    uint seed = tea(pi, FrameCount());
-    int samples_per_frame = SamplesPerFrame();
-    int max_trace_depth = MaxTraceDepth();
+    uint seed = tea(pi, GetFrameCount());
+    int samples_per_frame = GetSamplesPerFrame();
+    int max_trace_depth = GetMaxTraceDepth();
     float2 jitter = 0.0f;
     float3 radiance = 0.0f;
     float t = 0.0f;
@@ -311,19 +317,22 @@ void RayGenRadiance()
     }
 
     float accum = float(samples_per_frame);
-    float3 prev_radiance = g_rw_radiance_buffer[si].xyz;
-    float prev_accum = g_rw_radiance_buffer[si].w;
-    float prev_t = g_rw_depth_buffer[si];
+#ifdef gptEnableTemporalAccumeration
     {
-        float3 pos = GetCameraRayPosition(g_scene.camera, si, t);
-        float3 pos_prev = GetCameraRayPosition(g_scene.camera_prev, si, prev_t);
+        float3 prev_radiance = g_rw_radiance_buffer[si].xyz;
+        float prev_accum = g_rw_radiance_buffer[si].w;
+        float prev_t = g_rw_depth_buffer[si];
+
+        float3 pos = GetCameraRayPosition(GetCamera(), si, t);
+        float3 pos_prev = GetCameraRayPosition(GetPrevCamera(), si, prev_t);
         float move_amount = length(pos - pos_prev);
         float attenuation = max(0.975f - (move_amount * 100.0f), 0.0f);
         radiance += prev_radiance * attenuation;
         accum += prev_accum * attenuation;
     }
+#endif
 
-    if (t == g_scene.camera.far_plane)
+    if (t == GetCamera().far_plane)
         g_rw_normal_buffer[si] = 0.0f;
     g_rw_depth_buffer[si] = t;
     g_rw_radiance_buffer[si] = float4(radiance, accum);
@@ -341,7 +350,7 @@ void RayGenDisplay()
 
     g_rw_frame_buffer[si] = float4(linear_to_srgb(radiance.xyz / radiance.w), 1.0f);
     //g_rw_frame_buffer[si] = float4(n * 0.5f + 0.5f, 1.0f);
-    //g_rw_frame_buffer[si] = float4(1.0f - d.xxx / g_scene.camera.far_plane, 1.0f);
+    //g_rw_frame_buffer[si] = float4(1.0f - d.xxx / GetCamera().far_plane, 1.0f);
     //g_rw_frame_buffer[si] = (float)WaveGetLaneIndex() / (float)WaveGetLaneCount();
 }
 
@@ -349,9 +358,9 @@ void RayGenDisplay()
 [shader("miss")]
 void MissRadiance(inout RadiancePayload payload : SV_RayRadiancePayload)
 {
-    payload.radiance = BackgroundColor();
+    payload.radiance = GetBackgroundColor();
     payload.done = true;
-    payload.t = g_scene.camera.far_plane;
+    payload.t = GetCamera().far_plane;
 }
 
 
@@ -385,7 +394,7 @@ OcclusionPayload TraceEmissive(in RayDesc ray)
 
 float GetLightContribution(float3 P, float3 N, int light_index)
 {
-    const LightData light = g_lights[light_index];
+    const LightData light = GetLight(light_index);
     if (light.type == LT_DIRECTIONAL) {
         // directional light
         return light.intensity;
@@ -417,7 +426,7 @@ float GetLightContribution(float3 P, float3 N, int light_index)
         if (ii == InstanceID())
             return 0.0f; // already accumerated in ClosestHitRadiance()
 
-        float3 Lpos = InstancePosition(ii);
+        float3 Lpos = GetInstancePosition(ii);
         float Ld = length(Lpos - P);
         float a = (light.range - Ld) / light.range;
         float weight = (a * a);
@@ -434,11 +443,11 @@ void PickLight(float3 P, float3 N, inout uint seed, out int light_index, out flo
 
     int li;
     float total_contribution = 0.0f;
-    for (li = 0; li < g_scene.light_count; ++li)
+    for (li = 0; li < GetLightCount(); ++li)
         total_contribution += GetLightContribution(P, N, li);
 
     float p = rnd01(seed) * total_contribution;
-    for (li = 0; li < g_scene.light_count; ++li) {
+    for (li = 0; li < GetLightCount(); ++li) {
         float c = GetLightContribution(P, N, li);
         p -= c;
         if (p <= 0.0f) {
@@ -453,7 +462,7 @@ float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0,
 {
     float3 radiance = 0.0f;
 
-    const LightData light = g_lights[light_index];
+    const LightData light = GetLight(light_index);
     if (light.type == LT_DIRECTIONAL) {
         // directional light
         float3 L = -light.direction;
@@ -463,7 +472,7 @@ float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0,
         ray.Origin = P;
         ray.Direction = L;
         ray.TMin = 0.0f;
-        ray.TMax = g_scene.camera.far_plane;
+        ray.TMax = GetCamera().far_plane;
 
         float3 attenuation;
         if (!TraceOcclusion(ray, L, attenuation)) {
@@ -598,13 +607,13 @@ inline void PortalWarp(inout float3 pos, inout float3 dir, MaterialData md)
 [shader("closesthit")]
 void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    MaterialData md = FaceMaterial();
+    MaterialData md = GetFaceMaterial();
     vertex_t vertex = GetInterpolatedVertex(attr.barycentrics);
 
     bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
-    float3 Nf = FaceNormal();
+    float3 Nf = GetFaceNormal();
     float3 N = GetNormal(vertex, md);
-    float3 P_ = HitPosition();
+    float3 P_ = GetHitPosition();
     float3 P = offset_ray(P_, Nf);
 
     float roughness = GetRoughness(md, vertex.uv);
@@ -657,13 +666,13 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         radiance += GetLightRadiance(P, N, V, roughness, fresnel, light_index, seed) / light_contribution;
 #else
     // enumerate all light
-    for (int li = 0; li < g_scene.light_count; ++li)
+    for (int li = 0; li < GetLightCount(); ++li)
         radiance += GetLightRadiance(P, N, V, roughness, fresnel, li, seed);
 #endif
 
 #ifdef gptEnableRimLight
-    if (payload.iteration % SamplesPerFrame() == 0) {
-        float3 view = normalize(P - g_scene.camera.position);
+    if (payload.iteration % GetSamplesPerFrame() == 0) {
+        float3 view = normalize(P - GetCamera().position);
         radiance += GetRimLightRadiance(view, N, md.rimlight_color, md.rimlight_falloff);
     }
 #endif
@@ -682,14 +691,14 @@ void MissOcclusion(inout OcclusionPayload payload : SV_RayPayload)
 [shader("closesthit")]
 void ClosestHitOcclusion(inout OcclusionPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    MaterialData md = FaceMaterial();
+    MaterialData md = GetFaceMaterial();
     if (md.type == MT_TRANSPARENT) {
         vertex_t V = GetInterpolatedVertex(attr.barycentrics);
-        float3 Nf = FaceNormal();
+        float3 Nf = GetFaceNormal();
         float3 N = GetNormal(V, md);
         bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
 
-        payload.origin = HitPosition();
+        payload.origin = GetHitPosition();
         Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
 
         if (!backface) {
@@ -775,14 +784,14 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
     float3 position = 0.0f;
     float3 radiance = 0.0f;
 
-    const LightData light = g_lights[light_index];
+    const LightData light = GetLight(light_index);
     if (light.type == LT_DIRECTIONAL) {
         // directional light
         float3 P = V.position + (light.direction * 100.f); // todo: fix this
         float3 L = light.direction;
         L = normalize(L + (rnd_dir(seed) * light.disperse));
 
-        PhotonPayload ppl = TracePhoton(P, L, g_scene.camera.far_plane);
+        PhotonPayload ppl = TracePhoton(P, L, GetCamera().far_plane);
         if (ppl.instance_id != -1) {
             vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
             float3 N = Vh.normal;
@@ -890,13 +899,13 @@ void RayGenPhotonPass1()
 void RayGenPhotonPass2()
 {
     uint si = DispatchRaysIndex().x;
-    uint seed = tea(si, FrameCount());
-    int samples_per_frame = SamplesPerFrame();
-    int max_trace_depth = MaxTraceDepth();
+    uint seed = tea(si, GetFrameCount());
+    int samples_per_frame = GetSamplesPerFrame();
+    int max_trace_depth = GetMaxTraceDepth();
 
     // receive lights
     photon_t photon;
-    for (int li = 0; li < g_scene.light_count; ++li) {
+    for (int li = 0; li < GetLightCount(); ++li) {
         photon = GetLightPhoton(li, seed);
         // todo: store in g_photon_buffer
     }
@@ -911,14 +920,14 @@ void MissPhoton(inout PhotonPayload payload : SV_RayPayload)
 [shader("closesthit")]
 void ClosestHitPhoton(inout PhotonPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    MaterialData md = FaceMaterial();
+    MaterialData md = GetFaceMaterial();
     if (md.type == MT_TRANSPARENT) {
         vertex_t V = GetInterpolatedVertex(attr.barycentrics);
-        float3 Nf = FaceNormal();
+        float3 Nf = GetFaceNormal();
         float3 N = GetNormal(V, md);
         bool backface = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
 
-        payload.origin = HitPosition();
+        payload.origin = GetHitPosition();
         Refract(payload.origin, payload.direction, N, Nf, md.refraction_index, backface);
 
         if (!backface) {
@@ -926,7 +935,7 @@ void ClosestHitPhoton(inout PhotonPayload payload : SV_RayPayload, in BuiltInTri
         }
     }
     else {
-        payload.origin = HitPosition();
+        payload.origin = GetHitPosition();
         payload.instance_id = InstanceID();
         payload.face_id = PrimitiveIndex();
         payload.barycentrics = attr.barycentrics;
