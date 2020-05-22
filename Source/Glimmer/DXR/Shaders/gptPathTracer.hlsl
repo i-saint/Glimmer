@@ -3,6 +3,7 @@
 
 #define gptEnableTemporalAccumeration
 #define gptEnableStochasticLightCulling
+#define gptEnableSpecularHighlight
 #define gptEnableRimLight
 
 enum RayType
@@ -295,7 +296,6 @@ void RayGenRadiance()
     uint seed = tea(pi, GetFrameCount());
     int samples_per_frame = GetSamplesPerFrame();
     int max_trace_depth = GetMaxTraceDepth();
-    float2 jitter = 0.0f;
     float3 radiance = 0.0f;
     float t = 0.0f;
 
@@ -303,6 +303,7 @@ void RayGenRadiance()
         RadiancePayload payload;
         payload.init();
         payload.seed = seed;
+        float2 jitter = float2(rnd55(seed), rnd55(seed));
         GetCameraRay(payload.origin, payload.direction, si, jitter);
 
         for (int depth = 0; depth < max_trace_depth && !payload.done; ++depth) {
@@ -313,7 +314,6 @@ void RayGenRadiance()
                 t = payload.t;
         }
         seed = payload.seed;
-        jitter = float2(rnd55(seed), rnd55(seed));
     }
 
     float accum = float(samples_per_frame);
@@ -321,11 +321,7 @@ void RayGenRadiance()
     {
         float3 prev_radiance = g_rw_radiance_buffer[si].xyz;
         float prev_accum = g_rw_radiance_buffer[si].w;
-        float prev_t = g_rw_depth_buffer[si];
-
-        float3 pos = GetCameraRayPosition(GetCamera(), si, t);
-        float3 pos_prev = GetCameraRayPosition(GetPrevCamera(), si, prev_t);
-        float move_amount = length(pos - pos_prev);
+        float move_amount = length(GetCamera().position - GetPrevCamera().position);
         float attenuation = max(0.975f - (move_amount * 100.0f), 0.0f);
         radiance += prev_radiance * attenuation;
         accum += prev_accum * attenuation;
@@ -458,6 +454,35 @@ void PickLight(float3 P, float3 N, inout uint seed, out int light_index, out flo
     }
 }
 
+// {diffuse, specular}
+float2 BRDF(float3 N, float3 V, float3 L, float roughness, float f0)
+{
+    float diffuse = 0.0f;
+    float specular = 0.0f;
+
+    float3 H = normalize(V + L);
+    float dotNV = abs(dot(N, V)) + 1e-5f;
+    float dotNL = saturate(dot(N, L));
+    float dotNH = saturate(dot(N, H));
+    float dotLH = saturate(dot(L, H));
+    float a = pow2(roughness);
+    float a2 = pow2(a);
+
+#ifdef gptEnableSpecularHighlight
+    float D = a2 / (PI * pow2((dotNH * a2 - dotNH) * dotNH + 1.0f) + 1e-7f);
+    float F = f0 + (1.0f - f0) * pow5(1.0f - dotLH);
+    float G = 0.5f / ((dotNL * (dotNV * (1.0f - a) + a)) + (dotNV * (dotNL * (1.0f - a) + a)) + 1e-5f);
+    specular = max((D * F * G) * (PI * dotNL), 0.0f);
+#endif
+
+    float fd90 = 0.5f + (2.0f * pow2(dotLH) * a);
+    float light_scatter = (1.0f + (fd90 - 1.0f) * pow5(1.0f - dotNL));
+    float view_scatter = (1.0f + (fd90 - 1.0f) * pow5(1.0f - dotNV));
+    diffuse = light_scatter * view_scatter * INV_PI;
+
+    return float2(diffuse, specular);
+}
+
 float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0, int light_index, inout uint seed)
 {
     float3 radiance = 0.0f;
@@ -476,9 +501,10 @@ float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0,
 
         float3 attenuation;
         if (!TraceOcclusion(ray, L, attenuation)) {
-            float nDl = dot(N, L);
-            float weight = nDl;
-            radiance = (light.color * light.intensity) * attenuation * max(weight, 0.0f);
+            float weight = 1.0f;
+            float2 ds = BRDF(N, V, L, roughness, F0);
+
+            radiance = (light.color * light.intensity) * (attenuation * weight * (ds.x + ds.y));
         }
     }
     else if (light.type == LT_POINT) {
@@ -495,13 +521,10 @@ float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0,
 
             float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
-                float nDl = dot(N, L);
-                float weight = max(nDl * pow2((light.range - Ld) / light.range), 0.0f);
-                // "physically correct" attenuation
-                ////float weight = nDl / (PI * Ld * Ld);
-                float specular = 1.0f; // ggx(N, V, L, roughness, F0);
+                float weight = max(pow2((light.range - Ld) / light.range), 0.0f);
+                float2 ds = BRDF(N, V, L, roughness, F0);
 
-                radiance = (light.color * light.intensity) * attenuation * (weight * specular);
+                radiance = (light.color * light.intensity) * (attenuation * weight * (ds.x + ds.y));
             }
         }
     }
@@ -519,11 +542,10 @@ float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0,
 
             float3 attenuation;
             if (!TraceOcclusion(ray, L, attenuation)) {
-                float nDl = dot(N, L);
-                float weight = max(nDl * pow2((light.range - Ld) / light.range), 0.0f);
-                float specular = 1.0f; // ggx(N, V, L, roughness, F0);
+                float weight = max(pow2((light.range - Ld) / light.range), 0.0f);
+                float2 ds = BRDF(N, V, L, roughness, F0);
 
-                radiance = (light.color * light.intensity) * attenuation * (weight * specular);
+                radiance = (light.color * light.intensity) * (attenuation * weight * (ds.x + ds.y));
             }
         }
     }
@@ -559,13 +581,12 @@ float3 GetLightRadiance(float3 P, float3 N, float3 V, float roughness, float F0,
         if (epl.instance_id == ii) {
             vertex_t hv = GetInterpolatedVertex(epl.instance_id, epl.face_id, epl.barycentrics);
             float Ld = length(hv.position - P);
-            float nDl = dot(N, ray.Direction);
-            float weight = max(nDl * pow2((light.range - Ld) / light.range), 0.0f);
-            float specular = 1.0f; // ggx(N, V, L, roughness, F0);
+            float weight = max(pow2((light.range - Ld) / light.range), 0.0f);
+            float2 ds = BRDF(N, V, L, roughness, F0);
 
             MaterialData lmd = g_materials[g_instances[ii].material_id];
             float3 emissive = GetEmissive(lmd, hv.uv) * light.intensity;
-            radiance = emissive * epl.attenuation * (weight * specular);
+            radiance = emissive * epl.attenuation * (weight * (ds.x + ds.y));
         }
     }
     return radiance;
@@ -615,6 +636,7 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
     float3 N = GetNormal(vertex, md);
     float3 P_ = GetHitPosition();
     float3 P = offset_ray(P_, Nf);
+    float3 V = normalize(payload.origin - P);
 
     float roughness = GetRoughness(md, vertex.uv);
     float fresnel = md.fresnel;
@@ -654,7 +676,6 @@ void ClosestHitRadiance(inout RadiancePayload payload : SV_RayRadiancePayload, i
         payload.radiance += GetEmissive(md, vertex.uv);
     }
 
-    float3 V = normalize(payload.origin - P);
     float3 radiance = 0.0f;
 
 #ifdef gptEnableStochasticLightCulling
@@ -796,8 +817,8 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
             vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
             float3 N = Vh.normal;
 
-            float nDl = dot(N, L);
-            float weight = nDl;
+            float dotNL = dot(N, L);
+            float weight = dotNL;
             radiance = (light.color * light.intensity) * ppl.attenuation * max(weight, 0.0f);
         }
     }
@@ -814,11 +835,11 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
                 vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
                 float3 N = Vh.normal;
 
-                float nDl = dot(N, L);
-                //weight = nDl / (PI * Ld * Ld);
+                float dotNL = dot(N, L);
+                //weight = dotNL / (PI * Ld * Ld);
 
                 float a = (light.range - Ld) / light.range;
-                float weight = nDl * (a * a);
+                float weight = dotNL * (a * a);
                 radiance = (light.color * light.intensity) * ppl.attenuation * max(weight, 0.0f);
             }
         }
@@ -836,11 +857,11 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
                 vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
                 float3 N = Vh.normal;
 
-                float nDl = dot(N, L);
-                //weight = nDl / (PI * Ld * Ld);
+                float dotNL = dot(N, L);
+                //weight = dotNL / (PI * Ld * Ld);
 
                 float a = (light.range - Ld) / light.range;
-                float weight = nDl * (a * a);
+                float weight = dotNL * (a * a);
                 radiance = (light.color * light.intensity) * ppl.attenuation * max(weight, 0.0f);
             }
         }
@@ -872,9 +893,9 @@ photon_t GetLightPhoton(int light_index, inout uint seed)
         if (ppl.instance_id != -1) {
             vertex_t Vh = GetInterpolatedVertex(ppl.instance_id, ppl.face_id, ppl.barycentrics);
             float Ld = length(Vh.position - Vl.position);
-            float nDl = dot(Vh.normal, ray.Direction);
+            float dotNL = dot(Vh.normal, ray.Direction);
             float a = (light.range - Ld) / light.range;
-            float weight = max(nDl, 0.0f) * (a * a);
+            float weight = max(dotNL, 0.0f) * (a * a);
 
             radiance = GetEmissive(md, Vh.uv) * ppl.attenuation * (light.intensity * weight);
             position = Vh.position;

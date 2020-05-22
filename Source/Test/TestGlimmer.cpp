@@ -219,7 +219,7 @@ bool GlimmerTest::init()
     //m_mat_checker->setEmissiveMap(dot_normal_texture);
 
     m_mat_diffuse->setDiffuse(float3{ 0.7f, 0.7f, 0.7f });
-    m_mat_diffuse->setRoughness(0.4f);
+    m_mat_diffuse->setRoughness(0.6f);
     //m_mat_diffuse->setRimLightColor(float3{ 0.5f, 0.5f, 1.0f });
 
     m_mat_reflective->setDiffuse(float3{ 0.5f, 0.5f, 0.7f });
