@@ -41,18 +41,18 @@ TestCase(TestImage)
 
 TestCase(TestFont)
 {
-    mu::FontRenderer fr;
-    if (!fr.loadFontByPath("VL-PGothic-Regular.ttf"))
+    auto fr = std::make_shared<mu::FontRenderer>();
+    if (!fr->loadFontFile("VL-PGothic-Regular.ttf"))
         return;
 
-    {
-        auto& img = fr.render(L'A');
-        img.write("A.png");
-    }
-    {
-        auto& img = fr.render(L'あ');
-        img.write("a_jp.png");
-    }
+    mu::FontAtlas fa;
+    fa.setFontRenderer(fr);
+    fa.setImageSize(4096, 4096);
+
+    const wchar_t text[] = L"あいうえおかきくけこさしすせそABCDEF0123456789";
+    fa.addString(text, wcslen(text));
+    fa.getImage().write("atlas.png");
+
 }
 
 #define EnableWindow

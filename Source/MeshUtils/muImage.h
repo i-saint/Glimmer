@@ -151,16 +151,19 @@ class Image
 public:
     Image();
     Image(int width, int height, ImageFormat format);
+
+    bool empty() const;
     void resize(int width, int height, ImageFormat format);
 
-    int getWidth() const;
-    int getHeight() const;
+    int2 getSize() const;
     ImageFormat getFormat() const;
     size_t getSizeInByte() const;
 
     template<class T = char> T* data() { return (T*)m_data.data(); }
     template<class T = char> const T* data() const { return (const T*)m_data.data(); }
     template<class T = char> Span<T> span() const { return MakeSpan((T*)m_data.data(), m_data.size() / sizeof(T)); }
+
+    bool copy(const Image& img, int2 position);
 
     bool read(std::istream& is, ImageFileFormat format);
     bool read(const char* path);
@@ -171,8 +174,7 @@ public:
     Image convert(ImageFormat dst_format) const;
 
 private:
-    int m_width = 0;
-    int m_height = 0;
+    int2 m_size{ 0, 0 };
     ImageFormat m_format = ImageFormat::Unknown;
     RawVector<char> m_data;
 };

@@ -301,6 +301,10 @@ using int2 = tvec2<int>;
 using int3 = tvec3<int>;
 using int4 = tvec4<int>;
 
+using uint16x2 = tvec2<uint16_t>;
+using uint16x3 = tvec3<uint16_t>;
+using uint16x4 = tvec4<uint16_t>;
+
 using snorm8x2 = tvec2<snorm8>;
 using snorm8x3 = tvec3<snorm8>;
 using snorm8x4 = tvec4<snorm8>;

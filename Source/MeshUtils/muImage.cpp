@@ -47,18 +47,21 @@ Image::Image(int width, int height, ImageFormat format)
     resize(width, height, format);
 }
 
+bool Image::empty() const
+{
+    return getSizeInByte() == 0;
+}
+
 void Image::resize(int width, int height, ImageFormat format)
 {
-    m_width = width;
-    m_height = height;
+    m_size = { width, height };
     m_format = format;
 
     size_t size = width * height * GetPixelSize(format);
-    m_data.resize_discard(size);
+    m_data.resize_zeroclear(size);
 }
 
-int Image::getWidth() const { return m_width; }
-int Image::getHeight() const { return m_height; }
+int2 Image::getSize() const { return m_size; }
 ImageFormat Image::getFormat() const { return m_format; }
 size_t Image::getSizeInByte() const { return m_data.size(); }
 
@@ -127,6 +130,29 @@ static ImageFileFormat PathToImageFileFormat(const char* path)
         return ImageFileFormat::Unknown;
 }
 
+
+bool Image::copy(const Image& img, int2 position)
+{
+    // format must be same for now
+    if (getFormat() != img.getFormat())
+        return false;
+
+    int2 size{
+        std::min<int>(img.getSize().x, getSize().x - position.x),
+        std::min<int>(img.getSize().y, getSize().y - position.y),
+    };
+    int psize = GetPixelSize(getFormat());
+    auto* dst = data() + (getSize().x * position.y + position.x) * psize;
+    auto* src = img.data();
+    int dpitch = getSize().x * psize;
+    int spitch = img.getSize().x * psize;
+    for (int y = 0; y < size.y; ++y) {
+        memcpy(dst, src, size.x * psize);
+        dst += dpitch;
+        src += spitch;
+    }
+    return true;
+}
 
 bool Image::read(std::istream& is, ImageFileFormat format)
 {
@@ -238,23 +264,23 @@ bool Image::write(std::ostream& os, ImageFileFormat format) const
         switch (format) {
         case ImageFileFormat::BMP:
             tmp = convert(ImageFormat::RGBu8);
-            ret = stbi_write_bmp_to_func(swrite, &os, m_width, m_height, 3, tmp.data());
+            ret = stbi_write_bmp_to_func(swrite, &os, m_size.x, m_size.y, 3, tmp.data());
             break;
         case ImageFileFormat::JPG:
             tmp = convert(ImageFormat::RGBu8);
-            ret = stbi_write_jpg_to_func(swrite, &os, m_width, m_height, 3, tmp.data(), jpeg_quality);
+            ret = stbi_write_jpg_to_func(swrite, &os, m_size.x, m_size.y, 3, tmp.data(), jpeg_quality);
             break;
         case ImageFileFormat::TGA:
             tmp = convert(ImageFormat::U8 | (m_format & ImageFormat::ChannelMask));
-            ret = stbi_write_tga_to_func(swrite, &os, m_width, m_height, ch, tmp.data());
+            ret = stbi_write_tga_to_func(swrite, &os, m_size.x, m_size.y, ch, tmp.data());
             break;
         case ImageFileFormat::PNG:
             tmp = convert(ImageFormat::U8 | (m_format & ImageFormat::ChannelMask));
-            ret = stbi_write_png_to_func(swrite, &os, m_width, m_height, ch, tmp.data(), 0);
+            ret = stbi_write_png_to_func(swrite, &os, m_size.x, m_size.y, ch, tmp.data(), 0);
             break;
         case ImageFileFormat::HDR:
             tmp = convert(ImageFormat::F32 | (m_format & ImageFormat::ChannelMask));
-            ret = stbi_write_hdr_to_func(swrite, &os, m_width, m_height, ch, tmp.data<float>());
+            ret = stbi_write_hdr_to_func(swrite, &os, m_size.x, m_size.y, ch, tmp.data<float>());
             break;
         }
         return ret != 0;
@@ -276,14 +302,14 @@ bool Image::write(const char* path) const
 template<class S, class D>
 static inline Image RGBtoRGBA(const Image& src, ImageFormat dst_format)
 {
-    Image ret(src.getWidth(), src.getHeight(), dst_format);
+    Image ret(src.getSize().x, src.getSize().y, dst_format);
     RGBtoRGBA(ret.data<D>(), src.span<S>());
     return ret;
 }
 template<class S, class D>
 static inline Image RGBAtoRGB(const Image& src, ImageFormat dst_format)
 {
-    Image ret(src.getWidth(), src.getHeight(), dst_format);
+    Image ret(src.getSize().x, src.getSize().y, dst_format);
     RGBAtoRGB(ret.data<D>(), src.span<S>());
     return ret;
 }
@@ -302,10 +328,10 @@ static inline void Assign(D& d, const S& s)
 template<class S, class D, muEnableIf(S::vector_length == D::vector_length)>
 static inline Image Convert(const Image& src, ImageFormat dst_format)
 {
-    Image ret(src.getWidth(), src.getHeight(), dst_format);
+    Image ret(src.getSize().x, src.getSize().y, dst_format);
     auto* s = src.data<S>();
     auto* d = ret.data<D>();
-    size_t n = src.getWidth() * src.getHeight();
+    size_t n = src.getSize().x * src.getSize().y;
     for (size_t i = 0; i < n; ++i)
         Assign(d[i], s[i]);
     return ret;
