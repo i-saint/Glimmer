@@ -16,7 +16,7 @@ struct FontRenderer::Impl
     FT_Library  ftlib = nullptr;
     FT_Face     ftface = nullptr;
     int         char_size = 0;
-    Image       image;
+    int         max_height = 0;
 };
 
 #ifdef muEnableFreetype
@@ -59,9 +59,9 @@ bool FontRenderer::loadFontMemory(const void* data, size_t size)
 
 void FontRenderer::setCharSize(int size)
 {
-    const int dpi = 72;
     m_impl->char_size = size;
-    FT_Set_Char_Size(m_impl->ftface, 0, size * dpi, dpi, dpi);
+    FT_Set_Pixel_Sizes(m_impl->ftface, 0, size);
+    //FT_Set_Char_Size(m_impl->ftface, 0, size << 6, 0, 0);
 }
 
 int FontRenderer::getCharSize() const
@@ -69,25 +69,31 @@ int FontRenderer::getCharSize() const
     return m_impl->char_size;
 }
 
-const Image& FontRenderer::render(wchar_t c)
+bool FontRenderer::render(wchar_t c, Image& dst_image, int2& dst_pos, int2& dst_adance)
 {
-    m_impl->image.resize(0, 0, ImageFormat::Ru8);
+    dst_image.resize(0, 0, ImageFormat::Ru8);
 
     auto glyph_index = FT_Get_Char_Index(m_impl->ftface, c);
     if (FT_Load_Glyph(m_impl->ftface, glyph_index, FT_LOAD_DEFAULT) == FT_Err_Ok) {
+        auto& glyph = m_impl->ftface->glyph;
         if (FT_Render_Glyph(m_impl->ftface->glyph, FT_RENDER_MODE_NORMAL) == FT_Err_Ok) {
-            auto& bitmap = m_impl->ftface->glyph->bitmap;
-            m_impl->image.resize(bitmap.width, bitmap.rows, ImageFormat::Ru8);
+            auto& bitmap = glyph->bitmap;
+            m_impl->max_height = std::max<int>(m_impl->max_height, bitmap.rows);
+
+            dst_pos = { glyph->bitmap_left, m_impl->char_size - glyph->bitmap_top };
+            dst_adance = { glyph->advance.x >> 6, glyph->advance.y >> 6 };
+            dst_image.resize(bitmap.width, bitmap.rows, ImageFormat::Ru8);
             auto* src = (const unorm8*)bitmap.buffer;
-            auto* dst = m_impl->image.data<unorm8>();
+            auto* dst = dst_image.data<unorm8>();
             for (uint32_t i = 0; i < bitmap.rows; ++i) {
                 memcpy(dst, src, bitmap.width);
                 src += bitmap.pitch;
                 dst += bitmap.width;
             }
+            return true;
         }
     }
-    return m_impl->image;
+    return false;
 }
 
 #else // muEnableFreetype
@@ -120,9 +126,11 @@ int FontRenderer::getCharSize() const
     return 0;
 }
 
-const Image& FontRenderer::render(wchar_t c)
+bool FontRenderer::render(wchar_t c, Image& dst_image, int2& dst_pos, int2& dst_adance)
 {
-    return m_impl->image;
+    dst_image.resize(0, 0, ImageFormat::Ru8);
+    dst_pos = int2{ 0, 0 };
+    dst_adance = int2{ 0, 0 };
 }
 
 #endif // muEnableFreetype
@@ -130,10 +138,17 @@ const Image& FontRenderer::render(wchar_t c)
 struct FontAtlas::Impl
 {
     Image image;
+    Image glyph;
     FontRendererPtr renderer;
     RawVector<GlyphData> glyph_data;
     RawVector<std::pair<int, int>> glyph_table;
-    int2 last_pos{};
+    int2 next_pos{};
+
+    Impl()
+    {
+        glyph_data.reserve(1024);
+        glyph_table.reserve(1024);
+    }
 };
 
 FontAtlas::FontAtlas()
@@ -169,7 +184,7 @@ bool FontAtlas::addCharacter(wchar_t c)
 {
     auto& renderer = m_impl->renderer;
     auto& image = m_impl->image;
-    auto& last_pos = m_impl->last_pos;
+    auto& next_pos = m_impl->next_pos;
     if (!renderer)
         return false;
     if (image.empty())
@@ -184,22 +199,26 @@ bool FontAtlas::addCharacter(wchar_t c)
         return false;
 
     // render glyph
-    auto& font = renderer->render(c);
-    auto pos = last_pos;
-    last_pos.x += font.getSize().x;
-    if (last_pos.x > image.getSize().x) {
-        if (last_pos.y + renderer->getCharSize() > image.getSize().y)
+    int2 glyph_pos, glyph_advance;
+    renderer->render(c, m_impl->glyph, glyph_pos, glyph_advance);
+
+    int2 base_pos = next_pos;
+    if (base_pos.x + glyph_advance.x > image.getSize().x) {
+        // go next line
+        if (base_pos.y + renderer->getCharSize() > image.getSize().y)
             return false; // no remaining space
-        last_pos.x = 0;
-        last_pos.y += renderer->getCharSize();
+        base_pos.x = 0;
+        base_pos.y += renderer->getCharSize();
     }
-    image.copy(font, pos);
+    next_pos = base_pos + int2{ glyph_advance.x, 0 };
+
+    image.copy(m_impl->glyph, base_pos + glyph_pos);
 
     // add record
     float2 pixel_size = float2::one() / image.getSize();
     GlyphData gd;
-    gd.position = pos;
-    gd.size = image.getSize();
+    gd.position = base_pos;
+    gd.size = int2{ glyph_advance.x, renderer->getCharSize() };
     gd.uv_position = pixel_size * gd.position;
     gd.uv_size = pixel_size * gd.size;
 

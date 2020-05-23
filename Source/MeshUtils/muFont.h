@@ -13,7 +13,7 @@ public:
     bool loadFontMemory(const void* data, size_t size);
     void setCharSize(int size);
     int getCharSize() const;
-    const Image& render(wchar_t c);
+    bool render(wchar_t c, Image& dst_image, int2& dst_pos, int2& dst_adance);
 
 private:
     struct Impl;

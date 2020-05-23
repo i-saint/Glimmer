@@ -49,10 +49,32 @@ TestCase(TestFont)
     fa.setFontRenderer(fr);
     fa.setImageSize(4096, 4096);
 
-    const wchar_t text[] = L"あいうえおかきくけこさしすせそABCDEF0123456789";
+    const wchar_t text[] = L"ーあいうえおかきくけこさしすせそABCDEF0123456789";
     fa.addString(text, wcslen(text));
-    fa.getImage().write("atlas.png");
 
+    //{
+    //    std::wfstream ifs;
+    //    ifs.open("atlas.txt", std::ios::in);
+    //    if (ifs) {
+    //        std::wstring ws;
+    //        while (std::getline(ifs, ws))
+    //            fa.addString(ws.c_str(), ws.size());
+    //    }
+    //}
+
+    {
+        std::fstream ifs;
+        ifs.open("atlas.txt", std::ios::in);
+        if (ifs) {
+            std::string line;
+            while (std::getline(ifs, line)) {
+                std::wstring wline = mu::ToWCS(line);
+                fa.addString(wline.c_str(), wline.size());
+            }
+        }
+    }
+
+    fa.getImage().write("atlas.png");
 }
 
 #define EnableWindow
