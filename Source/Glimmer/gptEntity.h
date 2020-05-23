@@ -575,12 +575,6 @@ protected:
 using BlendshapePtr = std::shared_ptr<Blendshape>;
 
 
-struct Submesh
-{
-    RawVector<int> indices;
-    int triangle_offfset = 0;
-};
-
 class Mesh : public EntityBase<IMesh>
 {
 public:
@@ -593,9 +587,8 @@ public:
     Span<float3> getTangents() const override;
     Span<float2> getUV() const override;
 
-    void setIndices(const int* v, size_t n, int submesh) override;
-    Span<int> getIndices(int submesh) const override;
-    int getSubmeshCount() const override;
+    void setIndices(const int* v, size_t n) override;
+    Span<int> getIndices() const override;
 
     void markDynamic() override;
 
@@ -647,9 +640,7 @@ public:
     RawVector<float3> m_normals;  // per-vertex
     RawVector<float3> m_tangents; // 
     RawVector<float2> m_uv;       // 
-
-    std::vector<Submesh> m_submeshes;
-    RawVector<int> m_indices; // includes all submeshes
+    RawVector<int> m_indices;
 
     RawVector<float4x4>    m_joint_bindposes;
     RawVector<int>         m_joint_counts;
@@ -667,7 +658,7 @@ public:
     MeshInstance(IMesh* v = nullptr);
     void setEnabled(bool v) override;
     void setFlag(InstanceFlag f, bool v) override;
-    void setMaterial(IMaterial* v, int slot) override;
+    void setMaterial(IMaterial* v) override;
     void setTransform(float4x4 v) override;
     void setJointMatrices(const float4x4* v) override;
     void setBlendshapeWeights(const float* v) override;
@@ -675,7 +666,7 @@ public:
     IMesh*          getMesh() const override;
     bool            isEnabled() const override;
     bool            getFlag(InstanceFlag f) const override;
-    IMaterial*      getMaterial(int slot) const override;
+    IMaterial*      getMaterial() const override;
     float4x4        getTransform() const override;
     Span<float4x4>  getJointMatrices() const override;
     Span<float>     getBlendshapeWeights() const override;
@@ -692,7 +683,7 @@ public:
     bool m_enabled = true;
     InstanceData m_data;
     MeshPtr m_mesh;
-    std::vector<MaterialPtr> m_materials;
+    MaterialPtr m_material;
     RawVector<float4x4> m_joint_matrices;
     RawVector<float> m_blendshape_weights;
 

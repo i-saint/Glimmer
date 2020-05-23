@@ -421,9 +421,8 @@ public:
     virtual Span<float3> getTangents() const = 0;
     virtual Span<float2> getUV() const = 0;
 
-    virtual void      setIndices(const int* v, size_t n, int submesh = 0) = 0; // all faces must be triangles
-    virtual Span<int> getIndices(int submesh = 0) const = 0;
-    virtual int       getSubmeshCount() const = 0;
+    virtual void      setIndices(const int* v, size_t n) = 0; // all faces must be triangles
+    virtual Span<int> getIndices() const = 0;
 
     virtual void markDynamic() = 0;
 
@@ -447,7 +446,7 @@ class IMeshInstance : public IObject
 public:
     virtual void setEnabled(bool v) = 0;
     virtual void setFlag(InstanceFlag f, bool v) = 0;
-    virtual void setMaterial(IMaterial* v, int slot = 0) = 0;
+    virtual void setMaterial(IMaterial* v) = 0;
     virtual void setTransform(float4x4 v) = 0;
     virtual void setJointMatrices(const float4x4* v) = 0;
     virtual void setBlendshapeWeights(const float* v) = 0;
@@ -455,7 +454,7 @@ public:
     virtual IMesh*          getMesh() const = 0;
     virtual bool            isEnabled() const = 0;
     virtual bool            getFlag(InstanceFlag f) const = 0;
-    virtual IMaterial*      getMaterial(int slot = 0) const = 0;
+    virtual IMaterial*      getMaterial() const = 0;
     virtual float4x4        getTransform() const = 0;
     virtual Span<float4x4>  getJointMatrices() const = 0;
     virtual Span<float>     getBlendshapeWeights() const = 0;

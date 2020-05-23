@@ -605,6 +605,8 @@ void SceneDXR::updateTLAS()
 
             auto& mesh = dxr_t(*inst.getMesh());
             auto& blas = inst.m_blas ? inst.m_blas : mesh.m_blas;
+            if (!blas)
+                continue;
 
             (float3x4&)desc.Transform = to_mat3x4(inst.getData().transform);
             desc.InstanceID = inst.getID();

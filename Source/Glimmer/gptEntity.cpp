@@ -558,42 +558,20 @@ Span<float3> Mesh::getNormals() const { return m_normals; }
 Span<float3> Mesh::getTangents() const { return m_tangents; }
 Span<float2> Mesh::getUV() const { return m_uv; }
 
-void Mesh::setIndices(const int* v, size_t n, int submesh)
+void Mesh::setIndices(const int* v, size_t n)
 {
     assert(n % 3 == 0);
+    if (Globals::getInstance().isStrictUpdateCheckEnabled() && m_indices == MakeSpan(v, n))
+        return;
 
-    if (n == 0) {
-        // erase submesh if n==0
-        if (submesh < m_submeshes.size()) {
-            m_submeshes[submesh].indices.clear();
-            while (!m_submeshes.empty() && m_submeshes.back().indices.empty())
-                m_submeshes.pop_back();
-        }
-    }
-    else {
-        if (m_submeshes.size() <= submesh)
-            m_submeshes.resize(submesh + 1);
-
-        auto& indices = m_submeshes[submesh].indices;
-        if (Globals::getInstance().isStrictUpdateCheckEnabled() && indices == MakeSpan(v, n))
-            return;
-
-        indices.assign(v, v + n);
-        m_data.triangle_count = (uint32_t)indices.size() / 3;
-    }
+    m_indices.assign(v, v + n);
+    m_data.triangle_count = (uint32_t)m_indices.size() / 3;
     markDirty(DirtyFlag::Indices);
 }
 
-Span<int> Mesh::getIndices(int submesh) const
+Span<int> Mesh::getIndices() const
 {
-    if (submesh < 0 || submesh >= m_submeshes.size())
-        return {nullptr, 0};
-    return m_submeshes[submesh].indices;
-}
-
-int Mesh::getSubmeshCount() const
-{
-    return (int)m_submeshes.size();
+    return m_indices;
 }
 
 void Mesh::markDynamic()
@@ -668,17 +646,6 @@ void Mesh::removeBlendshape(IBlendshape* f)
 
 void Mesh::update()
 {
-    if (isDirty(DirtyFlag::Indices)) {
-        // make unified indices
-        m_indices.clear();
-        int offset = 0;
-        for (auto& sub : m_submeshes) {
-            m_indices.insert(m_indices.end(), sub.indices.begin(), sub.indices.end());
-            sub.triangle_offfset = offset;
-            offset += int(sub.indices.size() / 3);
-        }
-    }
-
     if (isDirty(DirtyFlag::Points)) {
         // generate normals
         m_normals.resize_discard(getVertexCount());
@@ -831,7 +798,6 @@ MeshInstance::MeshInstance(IMesh* v)
 {
     m_mesh = base_t(v);
     m_data.mesh_id = GetID(m_mesh);
-    m_materials.resize(m_mesh->getSubmeshCount());
     markDirty(DirtyFlag::Mesh);
 }
 
@@ -850,16 +816,12 @@ void MeshInstance::setFlag(InstanceFlag f, bool v)
     markDirty(DirtyFlag::Flags);
 }
 
-void MeshInstance::setMaterial(IMaterial* v, int slot)
+void MeshInstance::setMaterial(IMaterial* v)
 {
-    if (slot < 0 || slot >= m_materials.size()) {
-        mu::DbgBreak();
-        return;
-    }
-    if (m_materials[slot] == v)
+    if (m_material == v)
         return;
 
-    m_materials[slot] = base_t(v);
+    m_material = base_t(v);
     m_data.material_id = GetID(v);
     markDirty(DirtyFlag::Material);
 }
@@ -955,7 +917,7 @@ void MeshInstance::exportBlendshapeWeights(float* dst) const
 IMesh*          MeshInstance::getMesh() const  { return m_mesh; }
 bool            MeshInstance::isEnabled() const { return m_enabled; }
 bool            MeshInstance::getFlag(InstanceFlag f) const { return get_flag(m_data.instance_flags, f); }
-IMaterial*      MeshInstance::getMaterial(int slot) const { return m_materials[slot]; }
+IMaterial*      MeshInstance::getMaterial() const { return m_material; }
 float4x4        MeshInstance::getTransform() const { return m_data.transform; }
 Span<float4x4>  MeshInstance::getJointMatrices() const { return m_joint_matrices; }
 Span<float>     MeshInstance::getBlendshapeWeights() const { return m_blendshape_weights; }
