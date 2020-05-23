@@ -155,6 +155,7 @@ public:
     DescriptorHandleDXR m_srv_bs_frames;
     DescriptorHandleDXR m_srv_bs_delta;
     DescriptorHandleDXR m_srv_mesh;
+    int m_deform_handle = -1;
 
     // acceleration structure
     ID3D12ResourcePtr m_blas;
@@ -186,6 +187,8 @@ public:
     DescriptorHandleDXR m_uav_vertices;
     DescriptorHandleDXR m_srv_joint_matrices;
     DescriptorHandleDXR m_srv_bs_weights;
+    int m_deform_handle = -1;
+    int m_deform_vb_handle = -1;
 
     // acceleration structure
     ID3D12ResourcePtr m_blas;

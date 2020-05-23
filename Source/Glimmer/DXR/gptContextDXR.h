@@ -90,8 +90,10 @@ public:
     EntityList<MeshDXR>         m_meshes;
     EntityList<MeshInstanceDXR> m_mesh_instances;
     EntityList<SceneDXR>        m_scenes;
-    IndexAllocator m_deform_mesh_indices;
-    IndexAllocator m_deform_instance_indices;
+    HandleAllocator m_vb_handles;
+    HandleAllocator m_ib_handles;
+    HandleAllocator m_deform_mesh_handles;
+    HandleAllocator m_deform_instance_handles;
 
 
     std::string m_device_name;
@@ -116,8 +118,9 @@ public:
     uint64_t m_shader_record_size = 0;
 
     ID3D12ResourcePtr m_buf_shader_table, m_buf_shader_table_staging;
-    ID3D12ResourcePtr m_buf_instances, m_buf_instances_staging;
+    ID3D12ResourcePtr m_buf_lights, m_buf_lights_staging;
     ID3D12ResourcePtr m_buf_materials, m_buf_materials_staging;
+    ID3D12ResourcePtr m_buf_instances, m_buf_instances_staging;
     ID3D12ResourcePtr m_buf_meshes, m_buf_meshes_staging;
 
     ID3D12DescriptorHeapPtr m_desc_heap_srv;
@@ -130,7 +133,6 @@ public:
     DescriptorHandleDXR m_srv_materials;
     DescriptorHandleDXR m_srv_indices;
     DescriptorHandleDXR m_srv_vertices;
-    DescriptorHandleDXR m_srv_vertices_d; // deformed
     DescriptorHandleDXR m_srv_textures;
     DescriptorHandleDXR m_srv_deform_meshes;
     DescriptorHandleDXR m_srv_deform_instances;

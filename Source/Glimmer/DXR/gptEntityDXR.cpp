@@ -159,7 +159,9 @@ MeshDXR::MeshDXR()
 
 MeshDXR::~MeshDXR()
 {
-    m_context->m_deform_mesh_indices.free(m_data.deform_id);
+    m_context->m_vb_handles.free(m_data.vb_id);
+    m_context->m_ib_handles.free(m_data.ib_id);
+    m_context->m_deform_mesh_handles.free(m_deform_handle);
 }
 
 void MeshDXR::update()
@@ -179,30 +181,36 @@ void MeshDXR::updateResources()
 
     // update index buffer
     if (isDirty(DirtyFlag::Indices)) {
+        if (m_data.ib_id == -1)
+            m_data.ib_id = ctx->m_ib_handles.allocate();
+
         bool allocated = ctx->updateBuffer(m_buf_indices, m_buf_indices_staging, m_indices.cdata(), m_indices.size() * sizeof(int));
         if (allocated) {
             gptSetName(m_buf_indices, m_name + " Indices");
-            m_srv_indices = ctx->m_srv_indices + size_t(m_id);
+            m_srv_indices = ctx->m_srv_indices + size_t(m_data.ib_id);
             ctx->createBufferSRV(m_srv_indices, m_buf_indices, sizeof(int3));
         }
     }
 
     // update vertex buffer
     if (isDirty(DirtyFlag::Vertices)) {
+        if (m_data.vb_id == -1)
+            m_data.vb_id = ctx->m_vb_handles.allocate();
+
         bool allocated = ctx->updateBuffer(m_buf_vertices, m_buf_vertices_staging, getVertexCount() * sizeof(vertex_t), [this](vertex_t* dst) {
             exportVertices(dst);
         });
         if (allocated) {
             gptSetName(m_buf_vertices, m_name + " Vertices");
-            m_srv_vertices = ctx->m_srv_vertices + size_t(m_id);
+            m_srv_vertices = ctx->m_srv_vertices + size_t(m_data.vb_id);
             ctx->createBufferSRV(m_srv_vertices, m_buf_vertices, sizeof(vertex_t));
         }
     }
 
-    if ((isDirty(DirtyFlag::Joints) || isDirty(DirtyFlag::Blendshape)) && m_data.deform_id == -1) {
-        m_data.deform_id = ctx->m_deform_mesh_indices.allocate();
+    if ((hasJoints() || hasBlendshapes()) && m_deform_handle == -1) {
+        m_deform_handle = ctx->m_deform_mesh_handles.allocate();
 
-        auto base = ctx->m_srv_deform_meshes + size_t(m_data.deform_id * 6);
+        auto base = ctx->m_srv_deform_meshes + size_t(m_deform_handle * 6);
         m_srv_joint_counts  = base + size_t(0);
         m_srv_joint_weights = base + size_t(1);
         m_srv_bs            = base + size_t(2);
@@ -351,7 +359,8 @@ MeshInstanceDXR::MeshInstanceDXR(IMesh* v)
 
 MeshInstanceDXR::~MeshInstanceDXR()
 {
-    m_context->m_deform_instance_indices.free(m_data.deform_id);
+    m_context->m_deform_instance_handles.free(m_deform_handle);
+    m_context->m_vb_handles.free(m_deform_vb_handle);
 }
 
 void MeshInstanceDXR::update()
@@ -367,13 +376,15 @@ void MeshInstanceDXR::updateResources()
 {
     ContextDXR* ctx = m_context;
     auto& mesh = dxr_t(*m_mesh);
+    auto& mesh_data = mesh.getData();
     if (mesh.hasJoints() || mesh.hasBlendshapes()) {
-        if (m_data.deform_id == -1) {
-            m_data.deform_id = m_context->m_deform_instance_indices.allocate();
+        if (m_deform_handle == -1) {
+            m_deform_handle = m_context->m_deform_instance_handles.allocate();
+            m_deform_vb_handle = m_context->m_vb_handles.allocate();
 
-            m_srv_vertices = ctx->m_srv_vertices_d + size_t(m_data.deform_id);
+            m_srv_vertices = ctx->m_srv_vertices + size_t(m_deform_vb_handle);
 
-            auto base = ctx->m_srv_deform_instances + size_t(m_data.deform_id * 3);
+            auto base = ctx->m_srv_deform_instances + size_t(m_deform_handle * 3);
             m_uav_vertices      = base + size_t(0);
             m_srv_joint_matrices= base + size_t(1);
             m_srv_bs_weights    = base + size_t(2);
@@ -406,6 +417,9 @@ void MeshInstanceDXR::updateResources()
                 ctx->createBufferSRV(m_srv_bs_weights, m_buf_bs_weights, sizeof(float));
             }
         }
+
+        m_data.ib_id = mesh_data.ib_id;
+        m_data.vb_id = m_deform_vb_handle;
     }
     else {
         if (m_buf_vertices) {
@@ -414,6 +428,9 @@ void MeshInstanceDXR::updateResources()
             m_buf_bs_weights = m_buf_bs_weights_staging = nullptr;
             m_blas = m_blas_scratch = nullptr;
         }
+
+        m_data.ib_id = mesh_data.ib_id;
+        m_data.vb_id = mesh_data.vb_id;
     }
 }
 

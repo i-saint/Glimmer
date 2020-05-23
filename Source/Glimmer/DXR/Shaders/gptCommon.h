@@ -109,23 +109,25 @@ struct JointWeight
 };
 struct MeshData
 {
+    int vb_id;
+    int ib_id;
     int vertex_count;
     int triangle_count;
-    int deform_id;
     int flags;
+    int3 pad;
 };
 
 struct InstanceData
 {
     float4x4 transform;
     float4x4 itransform;
+    int vb_id;
+    int ib_id;
     int mesh_id;
-    int deform_id;
     int material_id;
-    int triangle_count;
-    int triangle_offset;
+    float2 uv_offset;
     int instance_flags;
-    int2 pad;
+    int pad;
 };
 
 struct SceneData

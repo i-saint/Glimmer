@@ -7,7 +7,7 @@
 #define gptDXRMaxTraceRecursionLevel  2
 #define gptDXRMaxSRVCount 65536
 #define gptDXRMaxSamplerCount 32
-#define gptDXRMaxMeshCount 2048
+#define gptDXRMaxMeshCount 4096
 #define gptDXRMaxInstanceCount 65536
 #define gptDXRMaxDeformMeshCount 512
 #define gptDXRMaxDeformInstanceCount 2048

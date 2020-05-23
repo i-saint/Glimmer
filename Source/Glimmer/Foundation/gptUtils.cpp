@@ -15,7 +15,7 @@ RawVector<char> GetDummyBuffer_(size_t size)
     return s_buffer;
 }
 
-int IndexAllocator::allocate()
+int HandleAllocator::allocate()
 {
     int ret;
     if (!m_vacants.empty()) {
@@ -28,7 +28,7 @@ int IndexAllocator::allocate()
     return ret;
 }
 
-void IndexAllocator::free(int v)
+void HandleAllocator::free(int v)
 {
     if (v >= 0)
         m_vacants.push_back(v);

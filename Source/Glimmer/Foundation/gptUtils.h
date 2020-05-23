@@ -137,7 +137,7 @@ private:
     std::vector<int> m_vacants;
 };
 
-class IndexAllocator
+class HandleAllocator
 {
 public:
     int allocate();

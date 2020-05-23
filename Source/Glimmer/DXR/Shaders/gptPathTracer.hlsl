@@ -31,8 +31,7 @@ StructuredBuffer<MaterialData>  g_materials     : register(t2, space2);
 
 StructuredBuffer<int3>          g_indices[]     : register(t0, space3);
 StructuredBuffer<vertex_t>      g_vertices[]    : register(t0, space4);
-StructuredBuffer<vertex_t>      g_vertices_d[]  : register(t0, space5);
-Texture2D<float4>               g_textures[]    : register(t0, space6);
+Texture2D<float4>               g_textures[]    : register(t0, space5);
 
 SamplerState g_sampler_default : register(s0, space1);
 
@@ -49,21 +48,14 @@ LightData   GetLight(int i)         { return g_lights[i]; }
 
 float3 GetFaceNormal(int instance_id, int face_id)
 {
-    int mesh_id = g_instances[instance_id].mesh_id;
-    int deform_id = g_instances[instance_id].deform_id;
-    int3 indices = g_indices[mesh_id][face_id];
+    int ib_id = g_instances[instance_id].ib_id;
+    int vb_id = g_instances[instance_id].vb_id;
+    int3 indices = g_indices[ib_id][face_id];
 
     float3 p0, p1, p2;
-    if (deform_id != -1) {
-        p0 = g_vertices_d[deform_id][indices[0]].position;
-        p1 = g_vertices_d[deform_id][indices[1]].position;
-        p2 = g_vertices_d[deform_id][indices[2]].position;
-    }
-    else {
-        p0 = g_vertices[mesh_id][indices[0]].position;
-        p1 = g_vertices[mesh_id][indices[1]].position;
-        p2 = g_vertices[mesh_id][indices[2]].position;
-    }
+    p0 = g_vertices[vb_id][indices[0]].position;
+    p1 = g_vertices[vb_id][indices[1]].position;
+    p2 = g_vertices[vb_id][indices[2]].position;
     float3 n = normalize(cross(p1 - p0, p2 - p0));
     return mul_v(g_instances[instance_id].transform, n);
 }
@@ -97,32 +89,21 @@ float3 GetInstancePosition(int instance_id)
 
 vertex_t GetInterpolatedVertex(int instance_id, int face_id, float2 barycentric)
 {
-    int mesh_id = g_instances[instance_id].mesh_id;
-    int deform_id = g_instances[instance_id].deform_id;
-    int3 indices = g_indices[mesh_id][face_id];
+    int ib_id = g_instances[instance_id].ib_id;
+    int vb_id = g_instances[instance_id].vb_id;
+    int3 indices = g_indices[ib_id][face_id];
 
-    vertex_t r;
-    if (deform_id != -1) {
-        r = barycentric_interpolation(
-            barycentric,
-            g_vertices_d[deform_id][indices[0]],
-            g_vertices_d[deform_id][indices[1]],
-            g_vertices_d[deform_id][indices[2]]);
-    }
-    else {
-        r = barycentric_interpolation(
-            barycentric,
-            g_vertices[mesh_id][indices[0]],
-            g_vertices[mesh_id][indices[1]],
-            g_vertices[mesh_id][indices[2]]);
-    }
-    //if (HitKind() == HIT_KIND_TRIANGLE_BACK_FACE)
-    //    r.normal *= -1.0f;
+    vertex_t r = barycentric_interpolation(
+        barycentric,
+        g_vertices[vb_id][indices[0]],
+        g_vertices[vb_id][indices[1]],
+        g_vertices[vb_id][indices[2]]);
 
     float4x4 transform = g_instances[instance_id].transform;
     r.position = mul_p(transform, r.position);
     r.normal = normalize(mul_v(transform, r.normal));
     r.tangent = normalize(mul_v(transform, r.tangent));
+    r.uv += g_instances[instance_id].uv_offset;
     return r;
 }
 vertex_t GetInterpolatedVertex(float2 barycentric)

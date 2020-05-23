@@ -158,10 +158,12 @@ struct JointCount
 
 struct MeshData
 {
+    int vb_id = -1;
+    int ib_id = -1;
     int vertex_count = 0;
     int triangle_count = 0;
-    int deform_id = -1;
     int flags = 0;
+    int3 pad{};
 };
 gptAssertAlign16(MeshData);
 
@@ -169,13 +171,13 @@ struct InstanceData
 {
     float4x4 transform = float4x4::identity();
     float4x4 itransform = float4x4::identity();
+    int vb_id = -1;
+    int ib_id = -1;
     int mesh_id = -1;
-    int deform_id = -1;
     int material_id = 0; // 0: default material
-    int triangle_count = 0;
-    int triangle_offset = 0;
+    float2 uv_offset{ 0.0f, 0.0f };
     int instance_flags = (int)InstanceFlag::Default;
-    int2 pad{};
+    int pad{};
 
     gptDefCompare(InstanceData);
 };
