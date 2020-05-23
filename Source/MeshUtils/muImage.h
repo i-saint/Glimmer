@@ -158,8 +158,9 @@ public:
     ImageFormat getFormat() const;
     size_t getSizeInByte() const;
 
-    template<class T = char>
-    Span<T> getData() const { return MakeSpan((const T*)m_data.data(), m_data.size() / sizeof(T)); }
+    template<class T = char> T* data() { return (T*)m_data.data(); }
+    template<class T = char> const T* data() const { return (const T*)m_data.data(); }
+    template<class T = char> Span<T> span() const { return MakeSpan((T*)m_data.data(), m_data.size() / sizeof(T)); }
 
     bool read(std::istream& is, ImageFileFormat format);
     bool read(const char* path);

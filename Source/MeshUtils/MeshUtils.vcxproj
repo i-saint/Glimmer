@@ -26,6 +26,7 @@
     <ClInclude Include="muCompression.h" />
     <ClInclude Include="muConcurrency.h" />
     <ClInclude Include="muConfig.h" />
+    <ClInclude Include="muFont.h" />
     <ClInclude Include="muHalf.h" />
     <ClInclude Include="ispcmath.h" />
     <ClInclude Include="muImage.h" />
@@ -48,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="muCompression.cpp" />
+    <ClCompile Include="muFont.cpp" />
     <ClCompile Include="muImage.cpp" />
     <ClCompile Include="muMemory.cpp" />
     <ClCompile Include="muMeshRefiner.cpp" />

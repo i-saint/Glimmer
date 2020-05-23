@@ -11,6 +11,7 @@
 #include "muSIMD.h"
 #include "muAlgorithm.h"
 #include "muImage.h"
+#include "muFont.h"
 #include "muTLS.h"
 #include "muMisc.h"
 #include "muTime.h"

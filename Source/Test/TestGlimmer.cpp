@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Test.h"
 #include "AssetGenerator.h"
 #define gptImpl
@@ -31,12 +31,28 @@ TestCase(TestImage)
     mu::Image height_map(width, height, mu::ImageFormat::RGBAf16);
     mu::Image normal_map(width, height, mu::ImageFormat::RGBAf16);
 
-    MakeCheckerImage(checker.getData<half4>().data(), width, height, 32);
-    MakePolkaDotImage(height_map.getData<half4>().data(), width, height, 32);
-    MakeNormalMapFromHeightMap(normal_map.getData<half4>().data(), height_map.getData<half4>().data(), width, height);
+    MakeCheckerImage(checker.data<half4>(), width, height, 32);
+    MakePolkaDotImage(height_map.data<half4>(), width, height, 32);
+    MakeNormalMapFromHeightMap(normal_map.data<half4>(), height_map.data<half4>(), width, height);
     checker.write("checker.jpg");
     height_map.write("height_map.png");
     normal_map.write("normal_map.png");
+}
+
+TestCase(TestFont)
+{
+    mu::FontRenderer fr;
+    if (!fr.loadFontByPath("VL-PGothic-Regular.ttf"))
+        return;
+
+    {
+        auto& img = fr.render(L'A');
+        img.write("A.png");
+    }
+    {
+        auto& img = fr.render(L'あ');
+        img.write("a_jp.png");
+    }
 }
 
 #define EnableWindow

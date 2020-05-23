@@ -230,7 +230,7 @@ bool Image::write(std::ostream& os, ImageFileFormat format) const
     }
     else {
         int ch = GetChannelCount(m_format);
-        int bits = GetBitsPerChannel(m_format);
+        //int bits = GetBitsPerChannel(m_format);
         const int jpeg_quality = 90;
 
         Image tmp;
@@ -238,23 +238,23 @@ bool Image::write(std::ostream& os, ImageFileFormat format) const
         switch (format) {
         case ImageFileFormat::BMP:
             tmp = convert(ImageFormat::RGBu8);
-            ret = stbi_write_bmp_to_func(swrite, &os, m_width, m_height, 3, tmp.getData().data());
+            ret = stbi_write_bmp_to_func(swrite, &os, m_width, m_height, 3, tmp.data());
             break;
         case ImageFileFormat::JPG:
             tmp = convert(ImageFormat::RGBu8);
-            ret = stbi_write_jpg_to_func(swrite, &os, m_width, m_height, 3, tmp.getData().data(), jpeg_quality);
+            ret = stbi_write_jpg_to_func(swrite, &os, m_width, m_height, 3, tmp.data(), jpeg_quality);
             break;
         case ImageFileFormat::TGA:
             tmp = convert(ImageFormat::U8 | (m_format & ImageFormat::ChannelMask));
-            ret = stbi_write_tga_to_func(swrite, &os, m_width, m_height, ch, tmp.getData().data());
+            ret = stbi_write_tga_to_func(swrite, &os, m_width, m_height, ch, tmp.data());
             break;
         case ImageFileFormat::PNG:
             tmp = convert(ImageFormat::U8 | (m_format & ImageFormat::ChannelMask));
-            ret = stbi_write_png_to_func(swrite, &os, m_width, m_height, ch, tmp.getData().data(), 0);
+            ret = stbi_write_png_to_func(swrite, &os, m_width, m_height, ch, tmp.data(), 0);
             break;
         case ImageFileFormat::HDR:
             tmp = convert(ImageFormat::F32 | (m_format & ImageFormat::ChannelMask));
-            ret = stbi_write_hdr_to_func(swrite, &os, m_width, m_height, ch, (float*)tmp.getData().data());
+            ret = stbi_write_hdr_to_func(swrite, &os, m_width, m_height, ch, tmp.data<float>());
             break;
         }
         return ret != 0;
@@ -277,14 +277,14 @@ template<class S, class D>
 static inline Image RGBtoRGBA(const Image& src, ImageFormat dst_format)
 {
     Image ret(src.getWidth(), src.getHeight(), dst_format);
-    RGBtoRGBA(ret.getData<D>().data(), src.getData<S>());
+    RGBtoRGBA(ret.data<D>(), src.span<S>());
     return ret;
 }
 template<class S, class D>
 static inline Image RGBAtoRGB(const Image& src, ImageFormat dst_format)
 {
     Image ret(src.getWidth(), src.getHeight(), dst_format);
-    RGBAtoRGB(ret.getData<D>().data(), src.getData<S>());
+    RGBAtoRGB(ret.data<D>(), src.span<S>());
     return ret;
 }
 
@@ -303,8 +303,8 @@ template<class S, class D, muEnableIf(S::vector_length == D::vector_length)>
 static inline Image Convert(const Image& src, ImageFormat dst_format)
 {
     Image ret(src.getWidth(), src.getHeight(), dst_format);
-    Span<S> s = src.getData<S>();
-    Span<D> d = ret.getData<D>();
+    auto* s = src.data<S>();
+    auto* d = ret.data<D>();
     size_t n = src.getWidth() * src.getHeight();
     for (size_t i = 0; i < n; ++i)
         Assign(d[i], s[i]);
