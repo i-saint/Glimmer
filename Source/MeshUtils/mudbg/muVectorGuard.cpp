@@ -134,22 +134,22 @@ void AllocTable::printRecords()
 } // namespace mu
 
 
-mudbgAPI void muvgOnAllocate(void* addr, size_t size_alloc, size_t size_required)
+mudbgAPI void _muvgOnAllocate(void* addr, size_t size_alloc, size_t size_required)
 {
     mu::AllocTable::getInstance()->append(addr, size_alloc, size_required);
 }
 
-mudbgAPI void muvgOnFree(void* addr)
+mudbgAPI void _muvgOnFree(void* addr)
 {
     mu::AllocTable::getInstance()->erase(addr);
 }
 
-mudbgAPI void muvgReportError()
+mudbgAPI void _muvgReportError()
 {
     mu::AllocTable::getInstance()->reportError();
 }
 
-mudbgAPI void muvgPrintRecords()
+mudbgAPI void _muvgPrintRecords()
 {
     mu::AllocTable::getInstance()->printRecords();
 }

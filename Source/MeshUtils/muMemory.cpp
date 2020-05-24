@@ -29,11 +29,11 @@ static void muvgInitializeImpl()
         g_mudbg_module = mu::LoadModule(path.c_str());
     }
     if (g_mudbg_module) {
-#define GetSym(Name) (void*&)_##Name = mu::GetSymbol(g_mudbg_module, #Name)
-        GetSym(muvgOnAllocate);
-        GetSym(muvgOnFree);
-        GetSym(muvgReportError);
-        GetSym(muvgPrintRecords);
+#define GetSym(Name) (void*&)Name = mu::GetSymbol(g_mudbg_module, #Name)
+        GetSym(_muvgOnAllocate);
+        GetSym(_muvgOnFree);
+        GetSym(_muvgReportError);
+        GetSym(_muvgPrintRecords);
 #undef GetSym
     }
 }

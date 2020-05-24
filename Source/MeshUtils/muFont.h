@@ -13,7 +13,7 @@ public:
     bool loadFontMemory(const void* data, size_t size);
     void setCharSize(int size);
     int getCharSize() const;
-    bool render(wchar_t c, Image& dst_image, int2& dst_pos, int2& dst_adance);
+    bool render(char32_t c, Image& dst_image, int2& dst_pos, int2& dst_adance);
 
 private:
     struct Impl;
@@ -39,14 +39,14 @@ public:
     // default: 4096, 4096
     void setImageSize(int width, int height);
     void setFontRenderer(FontRendererPtr renderer);
-    bool addCharacter(wchar_t c);
-    int addString(const wchar_t* str, size_t len);
+    bool addCharacter(char32_t c);
+    template<class CharT> int addString(const CharT* str, size_t len);
 
     const Image& getImage() const;
-    const GlyphData& getGlyph(wchar_t c) const;
+    const GlyphData& getGlyph(char32_t c) const;
 
-    float makeQuad(wchar_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
-    float makeQuads(const wchar_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+    float makeQuad(char32_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+    template<class CharT> float makeQuads(const CharT* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
 
 private:
     struct Impl;

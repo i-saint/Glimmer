@@ -97,6 +97,29 @@ const char* Format(const char *fmt, ...)
     return buf;
 }
 
+RawVector<char> FileToBuffer(const char* path)
+{
+    RawVector<char> ret;
+    std::fstream ifs(path, std::ios::in | std::ios::binary);
+    if (ifs) {
+        ifs.seekg(0, std::ios::end);
+        ret.resize_discard(ifs.tellg());
+        ifs.seekg(0, std::ios::beg);
+        ifs.read(ret.data(), ret.size());
+    }
+    return ret;
+}
+
+bool BufferToFile(const char* path, const Span<char>& buf)
+{
+    std::fstream ofs(path, std::ios::out | std::ios::binary);
+    if (ofs) {
+        ofs.write(buf.data(), buf.size());
+        return true;
+    }
+    return false;
+}
+
 std::string ToUTF8(const char *src)
 {
 #ifdef _WIN32

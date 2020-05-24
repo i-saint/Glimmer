@@ -19,6 +19,7 @@
 #endif
 
 #include <functional>
+#include "muRawVector.h"
 
 namespace mu {
 
@@ -30,6 +31,9 @@ void SetPrintHandler(const PrintHandler& v);
 void Print(const char *fmt, ...);
 void Print(const wchar_t *fmt, ...);
 const char* Format(const char *fmt, ...);
+
+RawVector<char> FileToBuffer(const char* path);
+bool BufferToFile(const char* path, const Span<char>& buf);
 
 std::string ToUTF8(const char* src);
 std::string ToUTF8(const wchar_t* src);

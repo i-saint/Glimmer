@@ -139,4 +139,15 @@ inline Iter unique_unsorted(Iter begin, Iter end)
     return end;
 }
 
+template<class Char>
+inline size_t strlen(const Char* str)
+{
+    size_t r = 0;
+    if (str) {
+        while (str[r])
+            ++r;
+    }
+    return r;
+}
+
 } // namespace mu

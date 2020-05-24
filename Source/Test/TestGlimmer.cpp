@@ -50,8 +50,8 @@ TestCase(TestFont)
     fa.setFontRenderer(fr);
     fa.setImageSize(4096, 4096);
 
-    const wchar_t text[] = L"ー|-gあいうえおかきくけこさしすせそABCDEF0123456789";
-    fa.addString(text, wcslen(text));
+    const char16_t text[] = u"ー|-gあいうえおかきくけこさしすせそABCDEF0123456789";
+    fa.addString(text, mu::strlen(text));
 
     //{
     //    std::wfstream ifs;
@@ -64,14 +64,11 @@ TestCase(TestFont)
     //}
 
     {
-        std::fstream ifs;
-        ifs.open("atlas.txt", std::ios::in);
-        if (ifs) {
-            std::string line;
-            while (std::getline(ifs, line)) {
-                std::wstring wline = mu::ToWCS(line);
-                fa.addString(wline.c_str(), wline.size());
-            }
+        RawVector<char> buf = mu::FileToBuffer("atlas.txt");
+        if (!buf.empty()) {
+            auto str = (const char16_t*)buf.data();
+            size_t len = buf.size() / sizeof(char16_t);
+            fa.addString(str, len);
         }
     }
 

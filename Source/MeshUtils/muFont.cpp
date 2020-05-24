@@ -71,11 +71,11 @@ int FontRenderer::getCharSize() const
     return m_impl->char_size;
 }
 
-bool FontRenderer::render(wchar_t c, Image& dst_image, int2& dst_pos, int2& dst_adance)
+bool FontRenderer::render(char32_t code, Image& dst_image, int2& dst_pos, int2& dst_adance)
 {
     dst_image.resize(0, 0, ImageFormat::Ru8);
 
-    auto glyph_index = FT_Get_Char_Index(m_impl->ftface, c);
+    auto glyph_index = FT_Get_Char_Index(m_impl->ftface, code);
     if (FT_Load_Glyph(m_impl->ftface, glyph_index, FT_LOAD_DEFAULT) == FT_Err_Ok) {
         auto& glyph = m_impl->ftface->glyph;
         if (FT_Render_Glyph(m_impl->ftface->glyph, FT_RENDER_MODE_NORMAL) == FT_Err_Ok) {
@@ -141,7 +141,7 @@ struct FontAtlas::Impl
     Image glyph;
     FontRendererPtr renderer;
     RawVector<GlyphData> glyph_data;
-    RawVector<std::pair<int, int>> glyph_table;
+    RawVector<std::pair<char32_t, int>> glyph_table;
     int2 next_pos{};
 
     Impl()
@@ -170,7 +170,7 @@ void FontAtlas::setFontRenderer(FontRendererPtr renderer)
     m_impl->renderer = renderer;
 }
 
-bool FontAtlas::addCharacter(wchar_t c)
+bool FontAtlas::addCharacter(char32_t code)
 {
     auto& renderer = m_impl->renderer;
     auto& image = m_impl->image;
@@ -181,8 +181,7 @@ bool FontAtlas::addCharacter(wchar_t c)
         image.resize(4096, 4096, ImageFormat::Ru8);
 
     // skip if the character already recorded
-    int code = (int)c;
-    auto it = std::lower_bound(m_impl->glyph_table.begin(), m_impl->glyph_table.end(), code, [](auto& a, int b) {
+    auto it = std::lower_bound(m_impl->glyph_table.begin(), m_impl->glyph_table.end(), code, [](auto& a, char32_t b) {
         return a.first < b;
     });
     if (it != m_impl->glyph_table.end() && it->first == code)
@@ -190,7 +189,7 @@ bool FontAtlas::addCharacter(wchar_t c)
 
     // render glyph
     int2 glyph_pos, glyph_advance;
-    renderer->render(c, m_impl->glyph, glyph_pos, glyph_advance);
+    renderer->render(code, m_impl->glyph, glyph_pos, glyph_advance);
 
     int height = renderer->getCharSize();
     int2 base_pos = next_pos;
@@ -221,7 +220,8 @@ bool FontAtlas::addCharacter(wchar_t c)
     return true;
 }
 
-int FontAtlas::addString(const wchar_t* str, size_t len)
+template<class CharT>
+int FontAtlas::addString(const CharT* str, size_t len)
 {
     int ret = 0;
     for (size_t i = 0; i < len; ++i) {
@@ -230,16 +230,18 @@ int FontAtlas::addString(const wchar_t* str, size_t len)
     }
     return ret;
 }
+template int FontAtlas::addString(const char* str, size_t len);
+template int FontAtlas::addString(const char16_t* str, size_t len);
+template int FontAtlas::addString(const char32_t* str, size_t len);
 
 const Image& FontAtlas::getImage() const
 {
     return m_impl->image;
 }
 
-const FontAtlas::GlyphData& FontAtlas::getGlyph(wchar_t c) const
+const FontAtlas::GlyphData& FontAtlas::getGlyph(char32_t code) const
 {
-    int code = (int)c;
-    auto it = std::lower_bound(m_impl->glyph_table.begin(), m_impl->glyph_table.end(), code, [](auto& a, int b) {
+    auto it = std::lower_bound(m_impl->glyph_table.begin(), m_impl->glyph_table.end(), code, [](auto& a, char32_t b) {
         return a.first < b;
     });
     if (it != m_impl->glyph_table.end() && it->first == code)
@@ -249,7 +251,7 @@ const FontAtlas::GlyphData& FontAtlas::getGlyph(wchar_t c) const
     return s_dummy;
 }
 
-float FontAtlas::makeQuad(wchar_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
+float FontAtlas::makeQuad(char32_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
 {
     addCharacter(c);
     auto& gd = getGlyph(c);
@@ -264,7 +266,8 @@ float FontAtlas::makeQuad(wchar_t c, float2 base_pos, float2 unit_size, float2* 
     return unit_size.x * gd.size.x;
 }
 
-float FontAtlas::makeQuads(const wchar_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
+template<class CharT>
+float FontAtlas::makeQuads(const CharT* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
 {
     float ret = 0.0f;
     for (size_t i = 0; i < len; ++i) {
@@ -276,5 +279,8 @@ float FontAtlas::makeQuads(const wchar_t* str, size_t len, float2 base_pos, floa
     }
     return ret;
 }
+template float FontAtlas::makeQuads(const char* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+template float FontAtlas::makeQuads(const char16_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+template float FontAtlas::makeQuads(const char32_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
 
 } // namespace mu
