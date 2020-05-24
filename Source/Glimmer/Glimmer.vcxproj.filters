@@ -44,6 +44,9 @@
     <ClCompile Include="Denoiser\gptDenoiserOptiX.cpp">
       <Filter>Denoiser</Filter>
     </ClCompile>
+    <ClCompile Include="DXR\gptUIDrawerD3D12.cpp">
+      <Filter>DXR</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Foundation\gptLog.h">
@@ -76,6 +79,9 @@
       <Filter>DXR\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="gptDenoiser.h" />
+    <ClInclude Include="DXR\gptUIDrawerD3D12.h">
+      <Filter>DXR</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DXR\Shaders\gptDeform.hlsl">

@@ -251,27 +251,32 @@ const FontAtlas::GlyphData& FontAtlas::getGlyph(char32_t code) const
     return s_dummy;
 }
 
-float FontAtlas::makeQuad(char32_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
+float FontAtlas::makeQuad(char32_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride)
 {
     addCharacter(c);
     auto& gd = getGlyph(c);
-    dst_points[0] = base_pos + (unit_size * int2{         0,         0 });
-    dst_points[1] = base_pos + (unit_size * int2{         0, gd.size.y });
-    dst_points[2] = base_pos + (unit_size * int2{ gd.size.x, gd.size.y });
-    dst_points[3] = base_pos + (unit_size * int2{ gd.size.x,         0 });
-    dst_uv[0] = gd.uv_position + float2{            0,            0 };
-    dst_uv[1] = gd.uv_position + float2{            0, gd.uv_size.y };
-    dst_uv[2] = gd.uv_position + float2{ gd.uv_size.x, gd.uv_size.y };
-    dst_uv[3] = gd.uv_position + float2{ gd.uv_size.x,            0 };
+
+    strided_iterator<float2> dp(dst_points, vertex_stride);
+    strided_iterator<float2> du(dst_uv, vertex_stride);
+    dp[0] = base_pos + (unit_size * int2{         0,         0 });
+    dp[1] = base_pos + (unit_size * int2{         0, gd.size.y });
+    dp[2] = base_pos + (unit_size * int2{ gd.size.x, gd.size.y });
+    dp[3] = base_pos + (unit_size * int2{ gd.size.x,         0 });
+    du[0] = gd.uv_position + float2{            0,            0 };
+    du[1] = gd.uv_position + float2{            0, gd.uv_size.y };
+    du[2] = gd.uv_position + float2{ gd.uv_size.x, gd.uv_size.y };
+    du[3] = gd.uv_position + float2{ gd.uv_size.x,            0 };
     return unit_size.x * gd.size.x;
 }
 
 template<class CharT>
-float FontAtlas::makeQuads(const CharT* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
+float FontAtlas::makeQuads(const CharT* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride)
 {
     float ret = 0.0f;
+    strided_iterator<float2> dp(dst_points, vertex_stride);
+    strided_iterator<float2> du(dst_uv, vertex_stride);
     for (size_t i = 0; i < len; ++i) {
-        float advance = makeQuad(str[i], base_pos, unit_size, dst_points, dst_uv);
+        float advance = makeQuad(str[i], base_pos, unit_size, dp, du, vertex_stride);
         dst_points += 4;
         dst_uv += 4;
         base_pos.x += advance;
@@ -279,8 +284,8 @@ float FontAtlas::makeQuads(const CharT* str, size_t len, float2 base_pos, float2
     }
     return ret;
 }
-template float FontAtlas::makeQuads(const char* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
-template float FontAtlas::makeQuads(const char16_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
-template float FontAtlas::makeQuads(const char32_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+template float FontAtlas::makeQuads(const char* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride);
+template float FontAtlas::makeQuads(const char16_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride);
+template float FontAtlas::makeQuads(const char32_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride);
 
 } // namespace mu

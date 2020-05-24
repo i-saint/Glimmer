@@ -150,4 +150,7 @@ inline size_t strlen(const Char* str)
     return r;
 }
 
+template<class T> T* advance_byte(T* p, size_t size) { return (T*)((size_t)p + size); }
+template<class T> const T* advance_byte(const T* p, size_t size) { return (T*)((size_t)p + size); }
+
 } // namespace mu

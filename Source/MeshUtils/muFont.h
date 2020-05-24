@@ -45,13 +45,13 @@ public:
     const Image& getImage() const;
     const GlyphData& getGlyph(char32_t c) const;
 
-    float makeQuad(char32_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
-    template<class CharT> float makeQuads(const CharT* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+    float makeQuad(char32_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride);
+    template<class CharT> float makeQuads(const CharT* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv, int vertex_stride);
 
 private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;
 };
-using GlyphManagerPtr = std::shared_ptr<FontAtlas>;
+using FontAtlasPtr = std::shared_ptr<FontAtlas>;
 
 } // namespace mu

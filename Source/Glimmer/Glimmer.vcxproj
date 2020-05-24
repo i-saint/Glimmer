@@ -16,6 +16,7 @@
     <ClCompile Include="DXR\gptDeformerDXR.cpp" />
     <ClCompile Include="DXR\gptEntityDXR.cpp" />
     <ClCompile Include="DXR\gptInternalDXR.cpp" />
+    <ClCompile Include="DXR\gptUIDrawerD3D12.cpp" />
     <ClCompile Include="Foundation\gptLog.cpp" />
     <ClCompile Include="Foundation\gptUtils.cpp" />
     <ClCompile Include="gptEntity.cpp" />
@@ -29,6 +30,7 @@
     <ClInclude Include="DXR\gptDeformerDXR.h" />
     <ClInclude Include="DXR\gptEntityDXR.h" />
     <ClInclude Include="DXR\gptInternalDXR.h" />
+    <ClInclude Include="DXR\gptUIDrawerD3D12.h" />
     <ClInclude Include="DXR\Shaders\gptCommon.h" />
     <ClInclude Include="DXR\Shaders\gptMath.h" />
     <ClInclude Include="Foundation\gptLog.h" />
