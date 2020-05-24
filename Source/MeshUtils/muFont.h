@@ -39,12 +39,14 @@ public:
     // default: 4096, 4096
     void setImageSize(int width, int height);
     void setFontRenderer(FontRendererPtr renderer);
-    int addString(const wchar_t* str, size_t len);
     bool addCharacter(wchar_t c);
+    int addString(const wchar_t* str, size_t len);
 
     const Image& getImage() const;
-    const GlyphData& getGplyph(wchar_t c) const;
+    const GlyphData& getGlyph(wchar_t c) const;
 
+    float makeQuad(wchar_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
+    float makeQuads(const wchar_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv);
 
 private:
     struct Impl;

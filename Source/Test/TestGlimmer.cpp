@@ -44,12 +44,13 @@ TestCase(TestFont)
     auto fr = std::make_shared<mu::FontRenderer>();
     if (!fr->loadFontFile("VL-PGothic-Regular.ttf"))
         return;
+    //fr->setCharSize(100);
 
     mu::FontAtlas fa;
     fa.setFontRenderer(fr);
     fa.setImageSize(4096, 4096);
 
-    const wchar_t text[] = L"ーあいうえおかきくけこさしすせそABCDEF0123456789";
+    const wchar_t text[] = L"ー|-gあいうえおかきくけこさしすせそABCDEF0123456789";
     fa.addString(text, wcslen(text));
 
     //{

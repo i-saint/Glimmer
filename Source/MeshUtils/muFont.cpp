@@ -16,7 +16,8 @@ struct FontRenderer::Impl
     FT_Library  ftlib = nullptr;
     FT_Face     ftface = nullptr;
     int         char_size = 0;
-    int         max_height = 0;
+    int         char_height = 0;
+    float       char_scale = 1.0f;
 };
 
 #ifdef muEnableFreetype
@@ -59,9 +60,10 @@ bool FontRenderer::loadFontMemory(const void* data, size_t size)
 
 void FontRenderer::setCharSize(int size)
 {
+    m_impl->char_scale = float(m_impl->ftface->height) / float(m_impl->ftface->units_per_EM);
     m_impl->char_size = size;
-    FT_Set_Pixel_Sizes(m_impl->ftface, 0, size);
-    //FT_Set_Char_Size(m_impl->ftface, 0, size << 6, 0, 0);
+    m_impl->char_height = int(float(size) / m_impl->char_scale);
+    FT_Set_Pixel_Sizes(m_impl->ftface, 0, m_impl->char_height);
 }
 
 int FontRenderer::getCharSize() const
@@ -78,9 +80,7 @@ bool FontRenderer::render(wchar_t c, Image& dst_image, int2& dst_pos, int2& dst_
         auto& glyph = m_impl->ftface->glyph;
         if (FT_Render_Glyph(m_impl->ftface->glyph, FT_RENDER_MODE_NORMAL) == FT_Err_Ok) {
             auto& bitmap = glyph->bitmap;
-            m_impl->max_height = std::max<int>(m_impl->max_height, bitmap.rows);
-
-            dst_pos = { glyph->bitmap_left, m_impl->char_size - glyph->bitmap_top };
+            dst_pos = { glyph->bitmap_left, m_impl->char_height - glyph->bitmap_top };
             dst_adance = { glyph->advance.x >> 6, glyph->advance.y >> 6 };
             dst_image.resize(bitmap.width, bitmap.rows, ImageFormat::Ru8);
             auto* src = (const unorm8*)bitmap.buffer;
@@ -170,16 +170,6 @@ void FontAtlas::setFontRenderer(FontRendererPtr renderer)
     m_impl->renderer = renderer;
 }
 
-int FontAtlas::addString(const wchar_t* str, size_t len)
-{
-    int ret = 0;
-    for (int i = 0; i < len; ++i) {
-        if (addCharacter(str[i]))
-            ++ret;
-    }
-    return ret;
-}
-
 bool FontAtlas::addCharacter(wchar_t c)
 {
     auto& renderer = m_impl->renderer;
@@ -202,13 +192,14 @@ bool FontAtlas::addCharacter(wchar_t c)
     int2 glyph_pos, glyph_advance;
     renderer->render(c, m_impl->glyph, glyph_pos, glyph_advance);
 
+    int height = renderer->getCharSize();
     int2 base_pos = next_pos;
     if (base_pos.x + glyph_advance.x > image.getSize().x) {
         // go next line
-        if (base_pos.y + renderer->getCharSize() > image.getSize().y)
+        if (base_pos.y + height > image.getSize().y)
             return false; // no remaining space
         base_pos.x = 0;
-        base_pos.y += renderer->getCharSize();
+        base_pos.y += height;
     }
     next_pos = base_pos + int2{ glyph_advance.x, 0 };
 
@@ -218,7 +209,7 @@ bool FontAtlas::addCharacter(wchar_t c)
     float2 pixel_size = float2::one() / image.getSize();
     GlyphData gd;
     gd.position = base_pos;
-    gd.size = int2{ glyph_advance.x, renderer->getCharSize() };
+    gd.size = int2{ glyph_advance.x, height };
     gd.uv_position = pixel_size * gd.position;
     gd.uv_size = pixel_size * gd.size;
 
@@ -230,12 +221,22 @@ bool FontAtlas::addCharacter(wchar_t c)
     return true;
 }
 
+int FontAtlas::addString(const wchar_t* str, size_t len)
+{
+    int ret = 0;
+    for (size_t i = 0; i < len; ++i) {
+        if (addCharacter(str[i]))
+            ++ret;
+    }
+    return ret;
+}
+
 const Image& FontAtlas::getImage() const
 {
     return m_impl->image;
 }
 
-const FontAtlas::GlyphData& FontAtlas::getGplyph(wchar_t c) const
+const FontAtlas::GlyphData& FontAtlas::getGlyph(wchar_t c) const
 {
     int code = (int)c;
     auto it = std::lower_bound(m_impl->glyph_table.begin(), m_impl->glyph_table.end(), code, [](auto& a, int b) {
@@ -246,6 +247,34 @@ const FontAtlas::GlyphData& FontAtlas::getGplyph(wchar_t c) const
 
     static GlyphData s_dummy{};
     return s_dummy;
+}
+
+float FontAtlas::makeQuad(wchar_t c, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
+{
+    addCharacter(c);
+    auto& gd = getGlyph(c);
+    dst_points[0] = base_pos + (unit_size * int2{         0,         0 });
+    dst_points[1] = base_pos + (unit_size * int2{         0, gd.size.y });
+    dst_points[2] = base_pos + (unit_size * int2{ gd.size.x, gd.size.y });
+    dst_points[3] = base_pos + (unit_size * int2{ gd.size.x,         0 });
+    dst_uv[0] = gd.uv_position + float2{            0,            0 };
+    dst_uv[1] = gd.uv_position + float2{            0, gd.uv_size.y };
+    dst_uv[2] = gd.uv_position + float2{ gd.uv_size.x, gd.uv_size.y };
+    dst_uv[3] = gd.uv_position + float2{ gd.uv_size.x,            0 };
+    return unit_size.x * gd.size.x;
+}
+
+float FontAtlas::makeQuads(const wchar_t* str, size_t len, float2 base_pos, float2 unit_size, float2* dst_points, float2* dst_uv)
+{
+    float ret = 0.0f;
+    for (size_t i = 0; i < len; ++i) {
+        float advance = makeQuad(str[i], base_pos, unit_size, dst_points, dst_uv);
+        dst_points += 4;
+        dst_uv += 4;
+        base_pos.x += advance;
+        ret += advance;
+    }
+    return ret;
 }
 
 } // namespace mu
